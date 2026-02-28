@@ -1,462 +1,501 @@
-<!DOCTYPE html>  <html lang="id">    <head>      <meta charset="UTF-8">      
-<meta name="viewport" content="width=device-width, initial-scale=1.0">      
-<title>Agis Finance AI - PWA v13</title>      
-<link rel="manifest" href="manifest.json">      
-<meta name="theme-color" content="#0f172a">  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agis Finance AI - PWA v14</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --primary: #2dd4bf;
+            --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b;
+            --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(30, 41, 59, 0.7);
+        }
+        
+        body.light-mode {
+            --bg: #f8fafc; --surface: #ffffff; --text: #0f172a;
+            --text-dim: #64748b; --border: rgba(0,0,0,0.06);
+            --glass: rgba(255, 255, 255, 0.8);
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>      <script src="https://unpkg.com/lucide@latest"></script>      <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">    <style>      
-    :root {      
-        --bg: #0f172a; --surface: #1e293b; --primary: #2dd4bf;      
-        --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b;      
-        --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255, 255, 255, 0.08);      
-        --glass: rgba(30, 41, 59, 0.7);      
-    }      body.light-mode {      
-    --bg: #f8fafc; --surface: #ffffff; --text: #0f172a;      
-    --text-dim: #64748b; --border: rgba(0,0,0,0.06);      
-    --glass: rgba(255, 255, 255, 0.8);      
-}      
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: all 0.3s ease; }
+        .container { max-width: 450px; margin: auto; padding: 20px; }
 
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }      
-body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: all 0.3s ease; }      
-.container { max-width: 450px; margin: auto; padding: 20px; }      
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--surface);
+            border-top: 4px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* Splash Screen */      
-#splash-screen {      
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;      
-    background: var(--bg); display: flex; flex-direction: column;      
-    justify-content: center; align-items: center; z-index: 9999;      
-    transition: opacity 0.5s ease;      
-}      
-.spinner { width: 40px; height: 40px; border: 4px solid var(--surface);      
-    border-top: 4px solid var(--primary); border-radius: 50%;      
-    animation: spin 1s linear infinite; margin-bottom: 20px;      
-}      
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }      
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
+        .status-online { background: rgba(45, 212, 191, 0.2); color: var(--primary); }
+        .status-offline { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        
+        .master-balance { text-align: center; margin-bottom: 15px; }
+        .master-amount { font-size: 2.2rem; font-weight: 800; display: block; }
+        .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }
 
-/* Header */      
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }      
-.status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }      
-.status-online { background: rgba(45, 212, 191, 0.2); color: var(--primary); }      
-.status-offline { background: rgba(239, 68, 68, 0.2); color: var(--danger); }      
-      
-.master-balance { text-align: center; margin-bottom: 15px; }      
-.master-amount { font-size: 2.2rem; font-weight: 800; display: block; }      
-.goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }      
+        /* Wallet */
+        .wallet-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
+        .w-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .w-icon { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+        .w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
+        .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-/* Wallet */      
-.wallet-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }      
-.w-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }      
-.w-icon { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }      
-.w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }      
-.w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }      
+        /* Smart Insight */
+        .advisor {
+            background: var(--surface);
+            border-radius: 24px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            height: 150px;
+        }
+        
+        .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0; }
+        
+        .adv-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .adv-title { font-weight: 800; display: block; color: var(--primary); font-size: 0.9rem; margin-bottom: 5px; }
+        
+        .adv-scrollable {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            padding-right: 5px;
+        }
 
-/* Smart Insight */      
-.advisor {      
-    background: var(--surface);      
-    border-radius: 24px;      
-    padding: 20px;      
-    margin: 20px 0;      
-    border: 1px solid var(--border);      
-    display: flex;      
-    gap: 15px;      
-    align-items: flex-start;      
-    height: 150px;      
-}      
-      
-.adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0; }      
-      
-.adv-main {      
-    flex: 1;      
-    display: flex;      
-    flex-direction: column;      
-    height: 100%;      
-    overflow: hidden;      
-}      
-      
-.adv-title { font-weight: 800; display: block; color: var(--primary); font-size: 0.9rem; margin-bottom: 5px; }      
-      
-.adv-scrollable {      
-    flex: 1;      
-    overflow-y: auto;      
-    font-size: 0.85rem;      
-    line-height: 1.5;      
-    padding-right: 5px;      
-}      
+        .warning-text { color: var(--danger); font-weight: 700; display: block; margin-bottom: 4px; }
+        .safe-text { color: var(--primary); font-weight: 700; }
 
-.warning-text { color: var(--danger); font-weight: 700; display: block; margin-bottom: 4px; }      
-.safe-text { color: var(--primary); font-weight: 700; }      
+        /* Card, Input, Button */
+        .card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        input, select { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 16px; border-radius: 16px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
+        .t-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+        .t-amt.minus { color: var(--danger); }
 
-/* Card, Input, Button */      
-.card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }      
-.card-title { font-size: 1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }      
-input, select { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; }      
-.btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 16px; border-radius: 16px; border: none; font-weight: 800; width: 100%; cursor: pointer; }      
-.t-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }      
-.t-amt.minus { color: var(--danger); }      
+        /* Nav */
+        .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 70px; background: var(--surface); border-radius: 25px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; }
+        .nav-item { color: var(--text-dim); cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
 
-/* Nav */      
-.nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 70px; background: var(--surface); border-radius: 25px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; }      
-.nav-item { color: var(--text-dim); cursor: pointer; }      
-.nav-item.active { color: var(--primary); }      
+        .page { display: none; animation: slideUp 0.4s ease; }
+        .page.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }
+        .chart-container { height: 220px; margin-top: 10px; }
+    </style>
+</head>
+<body>
 
-.page { display: none; animation: slideUp 0.4s ease; }      
-.page.active { display: block; }      
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }      
-.chart-container { height: 220px; margin-top: 10px; }
+<div id="splash-screen">
+    <div class="spinner"></div>
+    <h3>Agis Finance AI</h3>
+    <p style="color:var(--text-dim); font-size:0.9rem">Memuat data lokal...</p>
+</div>
 
-</style>  </head>
+<div class="container">
+    <div id="home" class="page active">
+        <div class="header">
+            <span id="statusBadge" class="status-badge status-online">ONLINE</span>
+            <button onclick="toggleTheme()" style="background:none; border:none; color:var(--text-dim); cursor:pointer"><i data-lucide="sun-moon"></i></button>
+        </div>
 
-<body>  <div id="splash-screen">      
-    <div class="spinner"></div>      
-    <h3>Agis Finance AI</h3>      
-    <p style="color:var(--text-dim); font-size:0.9rem">Memuat data lokal...</p>      
-</div>  <div class="container">      
-    <div id="home" class="page active">      
-        <div class="header">      
-            <span id="statusBadge" class="status-badge status-online">ONLINE</span>      
-            <button onclick="toggleTheme()" style="background:none; border:none; color:var(--text-dim); cursor:pointer"><i data-lucide="sun-moon"></i></button>      
-        </div>  <div class="master-balance">      
-        <span class="master-label">Total Saldo Aktif</span>      
-        <span class="master-amount" id="total-balance">Rp 0</span>      
-    </div>      
-    <div class="goal-info" id="goal-info" onclick="manageGoal()">      
-        <i data-lucide="target" style="width:16px; vertical-align:middle"></i>      
-        Target Tabungan: <span id="goal-amount">Rp 0</span>      
-    </div>    <div class="wallet-container">      
-    <div class="w-card">      
-        <div class="w-icon" style="background: rgba(45, 212, 191, 0.15); color: var(--primary);"><i data-lucide="banknote"></i></div>      
-        <span class="w-name">Tunai</span>      
-        <span class="w-val" id="w-cash">0</span>      
-    </div>      
-    <div class="w-card">      
-        <div class="w-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--accent);"><i data-lucide="landmark"></i></div>      
-        <span class="w-name">Bank</span>      
-        <span class="w-val" id="w-bank">0</span>      
-    </div>      
-    <div class="w-card">      
-        <div class="w-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);"><i data-lucide="smartphone"></i></div>      
-        <span class="w-name">E-Wallet</span>      
-        <span class="w-val" id="w-e">0</span>      
-    </div>      
-</div>      <div class="advisor">      
-    <div class="adv-icon"><i data-lucide="sparkles"></i></div>      
-    <div class="adv-main">      
-        <span class="adv-title">Smart Insight</span>      
-        <div id="advisorContent" class="adv-scrollable">Menghitung...</div>      
-    </div>      
-</div>      <div class="card">      
-    <div class="card-title"><i data-lucide="pie-chart"></i> Alokasi Pengeluaran</div>      
-    <div class="chart-container"><canvas id="pieChart"></canvas></div>      
-</div>  </div>    <div id="history" class="page">      
-    <div class="card">      
-        <div class="header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">      
-            <h1 class="card-title" style="margin:0"><i data-lucide="history"></i> Riwayat</h1>      
-            <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:10px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:700; cursor:pointer">EXCEL</button>      
-        </div>      
-        <input type="month" id="filterMonth" onchange="renderAll()">      
-        <div id="transList"></div>      
-    </div>      
-</div>    <div id="add" class="page">      
-    <div class="card">      
-        <h1 class="card-title"><i data-lucide="plus-circle"></i> Catat Transaksi</h1>      
-        <input type="date" id="t-date">      
-        <select id="t-wallet">      
-            <option value="Tunai">💰 Dari Tunai</option>      
-            <option value="Bank">🏦 Dari Bank</option>      
-            <option value="E-Wallet">📱 Dari E-Wallet</option>      
-        </select>      
-        <select id="t-cat">      
-            <option>Makan & Minum</option>      
-            <option>Transportasi</option>      
-            <option>Belanja</option>      
-            <option>Tagihan</option>      
-            <option>Hiburan</option>      
-            <option>Lainnya</option>      
-        </select>      
-        <input type="number" id="t-amount" placeholder="Nominal (Contoh: 50000)">      
-        <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>      
-    </div>      
-</div>    <div id="settings" class="page">      
-    <div class="card">      
-        <h1 class="card-title"><i data-lucide="settings"></i> Atur Saldo</h1>      
-        <input type="number" id="set-cash" placeholder="Saldo Tunai">      
-        <input type="number" id="set-bank" placeholder="Saldo Bank">      
-        <input type="number" id="set-e" placeholder="Saldo E-Wallet">      
-        <button class="btn-primary" onclick="updateWallets()">Update Saldo</button>      
-    </div>    <div class="card">      
-    <h1 class="card-title"><i data-lucide="shield-alert"></i> Set Limit Kategori</h1>      
-    <select id="l-cat">      
-        <option>Makan & Minum</option>      
-        <option>Transportasi</option>      
-        <option>Belanja</option>      
-        <option>Tagihan</option>      
-        <option>Hiburan</option>      
-    </select>      
-    <input type="number" id="l-amount" placeholder="Batas Maksimal Rp">      
-    <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Set Limit</button>      
-    <div id="limitList" style="margin-top:15px; font-size:0.8rem"></div>      
-</div>      <div class="card">      
-    <h1 class="card-title"><i data-lucide="target"></i> Tujuan Menabung</h1>      
-    <input type="number" id="goal-input" placeholder="Contoh: 2000000">      
-    <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>      
-</div>      <div class="card">      
-    <h1 class="card-title"><i data-lucide="refresh-cw"></i> Sinkronisasi</h1>      
-    <button class="btn-primary" style="background:var(--accent)" onclick="forceSync()">Sync Sekarang</button>      
-</div>  </div>  </div>  <nav class="nav-bar">      
-    <div class="nav-item active" onclick="nav('home', this)"><i data-lucide="layout-grid"></i></div>      
-    <div class="nav-item" onclick="nav('history', this)"><i data-lucide="receipt"></i></div>      
-    <div class="nav-item" onclick="nav('add', this)"><i data-lucide="plus-circle" style="width:32px; height:32px; color:var(--primary)"></i></div>      
-    <div class="nav-item" onclick="nav('settings', this)"><i data-lucide="sliders"></i></div>      
-</nav>  <script type="module">      
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";      
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";    // PWA: Register Service Worker      
-if ('serviceWorker' in navigator) {      
-    navigator.serviceWorker.register('./service-worker.js')      
-    .then(() => console.log('Service Worker Registered'));      
-}      lucide.createIcons();
-const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
-const db = getFirestore(app);
+        <div class="master-balance">
+            <span class="master-label">Total Saldo Aktif</span>
+            <span class="master-amount" id="total-balance">Rp 0</span>
+        </div>
+        <div class="goal-info" id="goal-info" onclick="manageGoal()">
+            <i data-lucide="target" style="width:16px; vertical-align:middle"></i>
+            Target Tabungan: <span id="goal-amount">Rp 0</span>
+        </div>
 
-// Enable Offline Persistence
-enableIndexedDbPersistence(db).catch((err) => {
-console.error("Offline persistence failed", err);
-});
+        <div class="wallet-container">
+            <div class="w-card">
+                <div class="w-icon" style="background: rgba(45, 212, 191, 0.15); color: var(--primary);"><i data-lucide="banknote"></i></div>
+                <span class="w-name">Tunai</span>
+                <span class="w-val" id="w-cash">0</span>
+            </div>
+            <div class="w-card">
+                <div class="w-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--accent);"><i data-lucide="landmark"></i></div>
+                <span class="w-name">Bank</span>
+                <span class="w-val" id="w-bank">0</span>
+            </div>
+            <div class="w-card">
+                <div class="w-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);"><i data-lucide="smartphone"></i></div>
+                <span class="w-name">E-Wallet</span>
+                <span class="w-val" id="w-e">0</span>
+            </div>
+        </div>
 
-let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
-let pieChart;
-const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
-const fmtShort = (n) => new Intl.NumberFormat('id-ID').format(n);
+        <div class="advisor">
+            <div class="adv-icon"><i data-lucide="sparkles"></i></div>
+            <div class="adv-main">
+                <span class="adv-title">Smart Insight</span>
+                <div id="advisorContent" class="adv-scrollable">Menghitung...</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title"><i data-lucide="pie-chart"></i> Alokasi Pengeluaran</div>
+            <div class="chart-container"><canvas id="pieChart"></canvas></div>
+        </div>
+    </div>
 
-// Splash Screen Logic
-window.addEventListener('load', () => {
-setTimeout(() => {
-document.getElementById('splash-screen').style.opacity = '0';
-setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
-}, 1500);
-});
+    <div id="history" class="page">
+        <div class="card">
+            <div class="header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                <h1 class="card-title" style="margin:0"><i data-lucide="history"></i> Riwayat</h1>
+                <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:10px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:700; cursor:pointer">EXCEL</button>
+            </div>
+            <input type="month" id="filterMonth" onchange="renderAll()">
+            <div id="transList"></div>
+        </div>
+    </div>
 
-window.nav = (id, el) => {
-document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-document.getElementById(id).classList.add('active');
-if(el) el.classList.add('active');
-else document.querySelector([onclick="nav('${id}')"]).classList.add('active');
-};
+    <div id="add" class="page">
+        <div class="card">
+            <h1 class="card-title"><i data-lucide="plus-circle"></i> Catat Transaksi</h1>
+            <input type="date" id="t-date">
+            <select id="t-wallet">
+                <option value="Tunai">💰 Dari Tunai</option>
+                <option value="Bank">🏦 Dari Bank</option>
+                <option value="E-Wallet">📱 Dari E-Wallet</option>
+            </select>
+            <select id="t-cat">
+                <option>Makan & Minum</option>
+                <option>Transportasi</option>
+                <option>Belanja</option>
+                <option>Tagihan</option>
+                <option>Hiburan</option>
+                <option>Lainnya</option>
+            </select>
+            <input type="number" id="t-amount" placeholder="Nominal (Contoh: 50000)">
+            <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>
+        </div>
+    </div>
 
-window.toggleTheme = () => { document.body.classList.toggle('light-mode'); renderAll(); };
+    <div id="settings" class="page">
+        <div class="card">
+            <h1 class="card-title"><i data-lucide="settings"></i> Atur Saldo</h1>
+            <input type="number" id="set-cash" placeholder="Saldo Tunai">
+            <input type="number" id="set-bank" placeholder="Saldo Bank">
+            <input type="number" id="set-e" placeholder="Saldo E-Wallet">
+            <button class="btn-primary" onclick="updateWallets()">Update Saldo</button>
+        </div>
+        
+        <div class="card">
+            <h1 class="card-title"><i data-lucide="shield-alert"></i> Set Limit Kategori</h1>
+            <select id="l-cat">
+                <option>Makan & Minum</option>
+                <option>Transportasi</option>
+                <option>Belanja</option>
+                <option>Tagihan</option>
+                <option>Hiburan</option>
+            </select>
+            <input type="number" id="l-amount" placeholder="Batas Maksimal Rp">
+            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Set Limit</button>
+            <div id="limitList" style="margin-top:15px; font-size:0.8rem"></div>
+        </div>
 
-window.updateWallets = async () => {
-await setDoc(doc(db, "config", "wallets"), {
-Tunai: parseInt(document.getElementById('set-cash').value) || 0,
-Bank: parseInt(document.getElementById('set-bank').value) || 0,
-"E-Wallet": parseInt(document.getElementById('set-e').value) || 0
-});
-Swal.fire({ title: 'Saldo Diperbarui', icon: 'success', timer: 1500, showConfirmButton: false });
-};
+        <div class="card">
+            <h1 class="card-title"><i data-lucide="target"></i> Tujuan Menabung</h1>
+            <input type="number" id="goal-input" placeholder="Contoh: 2000000">
+            <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>
+        </div>
+        
+        <div class="card">
+            <h1 class="card-title"><i data-lucide="refresh-cw"></i> Sinkronisasi</h1>
+            <button class="btn-primary" style="background:var(--accent)" onclick="forceSync()">Sync Sekarang</button>
+        </div>
+    </div>
+</div>
 
-window.setGoal = async () => {
-const amount = parseInt(document.getElementById('goal-input').value) || 0;
-await setDoc(doc(db, "config", "goal"), { amount: amount });
-document.getElementById('goal-input').value = "";
-Swal.fire('Target Tabungan Set!', '', 'success');
-};
+<nav class="nav-bar">
+    <div class="nav-item active" onclick="nav('home', this)"><i data-lucide="layout-grid"></i></div>
+    <div class="nav-item" onclick="nav('history', this)"><i data-lucide="receipt"></i></div>
+    <div class="nav-item" onclick="nav('add', this)"><i data-lucide="plus-circle" style="width:32px; height:32px; color:var(--primary)"></i></div>
+    <div class="nav-item" onclick="nav('settings', this)"><i data-lucide="sliders"></i></div>
+</nav>
 
-window.manageGoal = async () => {
-const { value: amount } = await Swal.fire({
-title: 'Edit Target Tabungan',
-input: 'number',
-inputValue: store.goal,
-showCancelButton: true,
-confirmButtonText: 'Update',
-cancelButtonText: 'Hapus Target'
-});
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-if (amount) {      
-    await setDoc(doc(db, "config", "goal"), { amount: parseInt(amount) });      
-    Swal.fire('Updated!', '', 'success');      
-} else if (amount === "") {      
-    await setDoc(doc(db, "config", "goal"), { amount: 0 });      
-    Swal.fire('Target Dihapus!', '', 'success');      
-}
+    // PWA: Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js')
+        .then(() => console.log('Service Worker Registered'));
+    }
 
-};
+    lucide.createIcons();
+    const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
+    const db = getFirestore(app);
+    
+    // Enable Offline Persistence
+    enableIndexedDbPersistence(db).catch((err) => {
+        console.error("Offline persistence failed", err);
+    });
 
-window.setLimit = async () => {
-const cat = document.getElementById('l-cat').value;
-const amount = parseInt(document.getElementById('l-amount').value);
-if(!amount) return;
-await setDoc(doc(db, "config", "limits"), { [cat]: amount }, { merge: true });
-Swal.fire('Limit Kategori Set!', '', 'success');
-};
+    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
+    let pieChart;
+    const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
+    const fmtShort = (n) => new Intl.NumberFormat('id-ID').format(n);
 
-// ⚠️ SAVE TRANSACTION WITH ROBUST OFFLINE HANDLING ⚠️
-window.saveTransaction = async () => {
-const d = document.getElementById('t-date').value;
-const w = document.getElementById('t-wallet').value;
-const c = document.getElementById('t-cat').value;
-const a = parseInt(document.getElementById('t-amount').value);
+    // Splash Screen Logic
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            document.getElementById('splash-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
+        }, 1500);
+    });
 
-if(!a || !d) return Swal.fire('Isi nominal & tanggal!', '', 'warning');      
-      
-const res = await Swal.fire({      
-    title: 'Catat Transaksi?',      
-    text: `${c} sebesar ${fmt(a)}`,      
-    icon: 'question',      
-    showCancelButton: true,      
-    confirmButtonText: 'Ya, Catat!',      
-    cancelButtonText: 'Batal'      
-});      
+    window.nav = (id, el) => {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(el) el.classList.add('active');
+        else document.querySelector(`[onclick="nav('${id}')"]`).classList.add('active');
+    };
 
-if(res.isConfirmed) {      
-    Swal.fire({      
-        title: 'Menyimpan...',      
-        text: 'Data disimpan lokal (Mode Offline)',      
-        allowOutsideClick: false,      
-        didOpen: () => { Swal.showLoading(); }      
-    });      
+    window.toggleTheme = () => { document.body.classList.toggle('light-mode'); renderAll(); };
 
-    try {      
-        // 1. Simpan Transaksi      
-        await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });      
-              
-        // 2. Update Saldo lokal      
-        store.wallets[w] = (store.wallets[w] || 0) - a;      
-              
-        // 3. Update Saldo Firestore      
-        await setDoc(doc(db, "config", "wallets"), store.wallets);      
-              
-        document.getElementById('t-amount').value = "";      
-              
-        Swal.fire({       
-            title: 'Tercatat!',      
-            text: 'Data disimpan di HP. Sync saat online.',      
-            icon: 'success',       
-            timer: 2000,       
-            showConfirmButton: false       
-        });      
-        nav('home');      
-    } catch (error) {      
-        console.error("Save error:", error);      
-        Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan.', 'error');      
-    }      
-}
+    window.updateWallets = async () => {
+        await setDoc(doc(db, "config", "wallets"), {
+            Tunai: parseInt(document.getElementById('set-cash').value) || 0,
+            Bank: parseInt(document.getElementById('set-bank').value) || 0,
+            "E-Wallet": parseInt(document.getElementById('set-e').value) || 0
+        });
+        Swal.fire({ title: 'Saldo Diperbarui', icon: 'success', timer: 1500, showConfirmButton: false });
+    };
 
-};
+    window.setGoal = async () => {
+        const amount = parseInt(document.getElementById('goal-input').value) || 0;
+        await setDoc(doc(db, "config", "goal"), { amount: amount });
+        document.getElementById('goal-input').value = "";
+        Swal.fire('Target Tabungan Set!', '', 'success');
+    };
+    
+    window.manageGoal = async () => {
+        const { value: amount } = await Swal.fire({
+            title: 'Edit Target Tabungan',
+            input: 'number',
+            inputValue: store.goal,
+            showCancelButton: true,
+            confirmButtonText: 'Update',
+            cancelButtonText: 'Hapus Target'
+        });
+        
+        if (amount) {
+            await setDoc(doc(db, "config", "goal"), { amount: parseInt(amount) });
+            Swal.fire('Updated!', '', 'success');
+        } else if (amount === "") {
+            await setDoc(doc(db, "config", "goal"), { amount: 0 });
+            Swal.fire('Target Dihapus!', '', 'success');
+        }
+    };
 
-window.forceSync = async () => {
-Swal.fire({ title: 'Menyinkronkan...', text: 'Menunggu koneksi...', timer: 3000, showConfirmButton: false });
-};
+    window.setLimit = async () => {
+        const cat = document.getElementById('l-cat').value;
+        const amount = parseInt(document.getElementById('l-amount').value);
+        if(!amount) return;
+        await setDoc(doc(db, "config", "limits"), { [cat]: amount }, { merge: true });
+        Swal.fire('Limit Kategori Set!', '', 'success');
+    };
 
-window.renderAll = () => {
-const activeMonth = document.getElementById('filterMonth').value;
-let catMap = {};
-const listHtml = document.getElementById('transList');
-listHtml.innerHTML = "";
+    // ⚠️ SAVE TRANSACTION WITH CRITICAL ERROR HANDLING ⚠️
+    window.saveTransaction = async () => {
+        const d = document.getElementById('t-date').value;
+        const w = document.getElementById('t-wallet').value;
+        const c = document.getElementById('t-cat').value;
+        const a = parseInt(document.getElementById('t-amount').value);
+        
+        if(!a || !d) return Swal.fire('Isi nominal & tanggal!', '', 'warning');
+        
+        const res = await Swal.fire({
+            title: 'Catat Transaksi?',
+            text: `${c} sebesar ${fmt(a)}`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Catat!',
+            cancelButtonText: 'Batal'
+        });
 
-store.trans.forEach(d => {      
-    if(d.tanggal.startsWith(activeMonth)) {      
-        catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;      
-        listHtml.innerHTML += `      
-            <div class="t-item">      
-                <div class="t-info"><b>${d.kategori}</b><small>${d.tanggal} • ${d.dompet}</small></div>      
-                <div class="t-amt minus">- ${fmtShort(d.nominal)} <i data-lucide="x-circle" onclick="removeTrans('${d.id}', '${d.dompet}', ${d.nominal})" style="width:14px; margin-left:8px; cursor:pointer; color:var(--text-dim)"></i></div>      
-            </div>`;      
-    }      
-});      
+        if(res.isConfirmed) {
+            Swal.fire({
+                title: 'Menyimpan...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
 
-const totalRaw = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];      
-const disposableIncome = totalRaw - store.goal;      
-      
-document.getElementById('total-balance').innerText = fmt(disposableIncome);      
-document.getElementById('goal-amount').innerText = fmt(store.goal);      
-document.getElementById('w-cash').innerText = fmtShort(store.wallets.Tunai);      
-document.getElementById('w-bank').innerText = fmtShort(store.wallets.Bank);      
-document.getElementById('w-e').innerText = fmtShort(store.wallets["E-Wallet"]);      
+            try {
+                // 1. Simpan Transaksi
+                await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
+                
+                // 2. Update Saldo lokal & Server
+                store.wallets[w] = (store.wallets[w] || 0) - a;
+                await setDoc(doc(db, "config", "wallets"), store.wallets);
+                
+                document.getElementById('t-amount').value = "";
+                Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1500, showConfirmButton: false });
+                nav('home');
+            } catch (error) {
+                console.error("Save error:", error);
+                // Jika error, paksa reload untuk membersihkan antrean rusak
+                Swal.fire({
+                    title: 'Gagal!',
+                    text: 'Konflik data terdeteksi. Memuat ulang...',
+                    icon: 'error',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
+            }
+        }
+    };
+    
+    window.forceSync = async () => {
+        Swal.fire({ title: 'Menyinkronkan...', text: 'Menunggu koneksi...', timer: 3000, showConfirmButton: false });
+    };
 
-// Limit Check      
-let limitWarnings = [];      
-for (const [category, spent] of Object.entries(catMap)) {      
-    if (store.limits[category] && spent >= store.limits[category]) {      
-        limitWarnings.push(`<span class="warning-text">⚠️ Limit ${category} terlampaui! (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);      
-    } else if (store.limits[category] && spent >= store.limits[category] * 0.8) {      
-        limitWarnings.push(`<span class="warning-text" style="color:var(--warning)">📢 ${category} mendekati limit (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);      
-    }      
-}      
+    window.renderAll = () => {
+        const activeMonth = document.getElementById('filterMonth').value;
+        let catMap = {};
+        const listHtml = document.getElementById('transList');
+        if (listHtml) listHtml.innerHTML = "";
 
-const now = new Date();      
-const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();      
-const daysLeft = daysInMonth - now.getDate() + 1;      
-const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;      
-      
-let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.<br>`;      
-if (disposableIncome < 0) {      
-    advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;      
-}      
-      
-document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');      
+        store.trans.forEach(d => {
+            if(d.tanggal.startsWith(activeMonth)) {
+                catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;
+                if (listHtml) listHtml.innerHTML += `
+                    <div class="t-item">
+                        <div class="t-info"><b>${d.kategori}</b><small>${d.tanggal} • ${d.dompet}</small></div>
+                        <div class="t-amt minus">- ${fmtShort(d.nominal)} <i data-lucide="x-circle" onclick="removeTrans('${d.id}', '${d.dompet}', ${d.nominal})" style="width:14px; margin-left:8px; cursor:pointer; color:var(--text-dim)"></i></div>
+                    </div>`;
+            }
+        });
 
-updateChart(catMap);      
-lucide.createIcons();
+        const totalRaw = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];
+        const disposableIncome = totalRaw - store.goal;
+        
+        document.getElementById('total-balance').innerText = fmt(disposableIncome);
+        document.getElementById('goal-amount').innerText = fmt(store.goal);
+        document.getElementById('w-cash').innerText = fmtShort(store.wallets.Tunai);
+        document.getElementById('w-bank').innerText = fmtShort(store.wallets.Bank);
+        document.getElementById('w-e').innerText = fmtShort(store.wallets["E-Wallet"]);
 
-};
+        // Limit Check
+        let limitWarnings = [];
+        for (const [category, spent] of Object.entries(catMap)) {
+            if (store.limits[category] && spent >= store.limits[category]) {
+                limitWarnings.push(`<span class="warning-text">⚠️ Limit ${category} terlampaui! (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);
+            } else if (store.limits[category] && spent >= store.limits[category] * 0.8) {
+                limitWarnings.push(`<span class="warning-text" style="color:var(--warning)">📢 ${category} mendekati limit (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);
+            }
+        }
 
-window.removeTrans = async (id, wallet, nominal) => {
-const res = await Swal.fire({
-title: 'Hapus Transaksi?',
-text: "Data akan dihapus permanen!",
-icon: 'warning',
-showCancelButton: true,
-confirmButtonColor: '#ef4444',
-confirmButtonText: 'Ya, Hapus!'
-});
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const daysLeft = daysInMonth - now.getDate() + 1;
+        const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;
+        
+        let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.<br>`;
+        if (disposableIncome < 0) {
+            advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
+        }
+        
+        document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');
 
-if(res.isConfirmed) {      
-    await deleteDoc(doc(db, "pengeluaran", id));      
-    await setDoc(doc(db, "config", "wallets"), { [wallet]: store.wallets[wallet] + nominal }, { merge: true });      
-    Swal.fire({ title: 'Terhapus!', icon: 'success', timer: 1000, showConfirmButton: false });      
-}
+        updateChart(catMap);
+        lucide.createIcons();
+    };
 
-};
+    window.removeTrans = async (id, wallet, nominal) => {
+        const res = await Swal.fire({ 
+            title: 'Hapus Transaksi?', 
+            text: "Data akan dihapus permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Ya, Hapus!'
+        });
+        
+        if(res.isConfirmed) {
+            await deleteDoc(doc(db, "pengeluaran", id));
+            await setDoc(doc(db, "config", "wallets"), { [wallet]: store.wallets[wallet] + nominal }, { merge: true });
+            Swal.fire({ title: 'Terhapus!', icon: 'success', timer: 1000, showConfirmButton: false });
+        }
+    };
 
-window.exportToExcel = () => {
-const ws = XLSX.utils.json_to_sheet(store.trans);
-const wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, ws, "Keuangan");
-XLSX.writeFile(wb, Laporan_Agis_${new Date().toLocaleDateString()}.xlsx);
-};
+    window.exportToExcel = () => {
+        const ws = XLSX.utils.json_to_sheet(store.trans);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Keuangan");
+        XLSX.writeFile(wb, `Laporan_Agis_${new Date().toLocaleDateString()}.xlsx`);
+    };
 
-function updateChart(data) {
-const ctx = document.getElementById('pieChart').getContext('2d');
-if(pieChart) pieChart.destroy();
-const isLight = document.body.classList.contains('light-mode');
-const colors = isLight ? ['#0d9488','#2563eb','#d97706','#dc2626','#7c3aed'] : ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'];
-pieChart = new Chart(ctx, {
-type: 'doughnut',
-data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors, borderWidth: 0 }] },
-options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: true, position: 'bottom', labels: { color: isLight ? '#0f172a' : '#f8fafc', font: { size: 11 } } } } }
-});
-}
+    function updateChart(data) {
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        if(pieChart) pieChart.destroy();
+        const isLight = document.body.classList.contains('light-mode');
+        const colors = isLight ? ['#0d9488','#2563eb','#d97706','#dc2626','#7c3aed'] : ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'];
+        pieChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors, borderWidth: 0 }] },
+            options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: true, position: 'bottom', labels: { color: isLight ? '#0f172a' : '#f8fafc', font: { size: 11 } } } } }
+        });
+    }
 
-// Listeners
-document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
-document.getElementById('t-date').valueAsDate = new Date();
+    // Listeners
+    document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
+    document.getElementById('t-date').valueAsDate = new Date();
+    
+    // Stabilized Listeners
+    onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); }, (e) => console.log(e));
+    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); }, (e) => console.log(e));
+    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); }, (e) => console.log(e));
+    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); }, (e) => console.log(e));
 
-// Stabilized Listeners
-onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); }, (e) => console.log(e));
-onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); }, (e) => console.log(e));
-onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); }, (e) => console.log(e));
-onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); }, (e) => console.log(e));
-
-const statusBadge = document.getElementById('statusBadge');
-window.addEventListener('online', () => {
-statusBadge.innerText = "ONLINE";
-statusBadge.classList.replace('status-offline', 'status-online');
-});
-window.addEventListener('offline', () => {
-statusBadge.innerText = "OFFLINE";
-statusBadge.classList.replace('status-online', 'status-offline');
-});
-
-</script>  </body>
-
-</html> 
+    const statusBadge = document.getElementById('statusBadge');
+    window.addEventListener('online', () => {
+        statusBadge.innerText = "ONLINE";
+        statusBadge.classList.replace('status-offline', 'status-online');
+    });
+    window.addEventListener('offline', () => {
+        statusBadge.innerText = "OFFLINE";
+        statusBadge.classList.replace('status-online', 'status-offline');
+    });
+</script>
+</body>
+</html>
