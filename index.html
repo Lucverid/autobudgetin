@@ -7,6 +7,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
@@ -52,12 +53,17 @@
             box-shadow: 0 8px 32px rgba(0,0,0,.2);
         }
 
-        h1 { font-size: 15px; margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h1 { font-size: 16px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        
+        /* Icon Styling */
+        .icon-sm { width: 18px; height: 18px; }
+        .icon-md { width: 22px; height: 22px; }
 
         /* Offline Badge */
         .offline-badge {
-            background: var(--warning); color: #000; font-size: 10px;
-            padding: 2px 8px; border-radius: 10px; display: none;
+            background: var(--warning); color: #000; font-size: 10px; font-weight: 800;
+            padding: 2px 8px; border-radius: 20px; display: none;
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -72,6 +78,7 @@
             width: 100%; padding: 14px; border: none; border-radius: 14px;
             background: linear-gradient(135deg,var(--primary),var(--accent));
             color: #0f172a; font-weight: 800; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         button:active { transform: scale(0.98); }
 
@@ -79,17 +86,17 @@
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* Modern Nav Bar */
         .nav-bar {
-            position: fixed; bottom: 0; left: 0; right: 0; height: 75px;
-            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px);
+            position: fixed; bottom: 0; left: 0; right: 0; height: 80px;
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px);
             display: flex; justify-content: space-around; align-items: center;
-            border-top: 1px solid var(--border); z-index: 1000;
+            border-top: 1px solid var(--border); z-index: 1000; padding-bottom: 10px;
         }
         body.light-mode .nav-bar { background: rgba(255,255,255,0.9); }
-        .nav-item { cursor: pointer; text-align: center; color: #64748b; flex: 1; transition: 0.3s; }
-        .nav-item.active { color: var(--primary); font-weight: bold; }
-        .nav-icon { font-size: 1.4rem; display: block; margin-bottom: 2px; }
-        .nav-text { font-size: 0.65rem; text-transform: uppercase; }
+        .nav-item { cursor: pointer; text-align: center; color: #64748b; flex: 1; transition: 0.3s; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .nav-item.active { color: var(--primary); }
+        .nav-text { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px; }
 
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
         .stat-card { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 18px; border-left: 3px solid var(--primary); }
@@ -104,11 +111,12 @@
             border: 1px solid var(--border);
         }
         body.light-mode .item-list { background: rgba(0,0,0,0.02); }
-        .del-btn { background: none; color: var(--danger); width: auto; padding: 5px 10px; border: 1px solid var(--danger); font-size: 0.7rem; }
+        .del-btn { background: none; color: var(--danger); width: auto; padding: 5px; border: 1px solid var(--danger); }
 
         .insight-box {
             padding: 12px; border-radius: 12px; font-size: 0.8rem; margin-top: 15px;
-            border-left: 4px solid var(--primary); background: rgba(94, 234, 212, 0.15);
+            border-left: 4px solid var(--primary); background: rgba(94, 234, 212, 0.1);
+            display: flex; align-items: center; gap: 10px;
         }
         
         .progress-container { background: rgba(0,0,0,0.2); height: 8px; border-radius: 10px; overflow: hidden; margin: 8px 0; }
@@ -120,39 +128,48 @@
 <div class="container">
     <div id="home" class="page active">
         <div class="glass-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h1>📈 Analytics <span id="offlineStatus" class="offline-badge">OFFLINE</span></h1>
-                <button onclick="toggleTheme()" style="width: 40px; height: 40px; border-radius: 50%; padding: 0;">🌓</button>
+            <div class="header-row">
+                <h1><i data-lucide="bar-chart-3"></i> Analytics <span id="offlineStatus" class="offline-badge">OFFLINE</span></h1>
+                <button onclick="toggleTheme()" style="width: 40px; height: 40px; border-radius: 50%; padding: 0; background: var(--glass); color: var(--text);">
+                    <i data-lucide="sun-moon" class="icon-sm"></i>
+                </button>
             </div>
             <div class="stats-grid">
                 <div class="stat-card"><span class="stat-label">Total Budget</span><span id="h-budget" class="stat-val">Rp 0</span></div>
                 <div class="stat-card"><span class="stat-label">Sisa Saldo</span><span id="h-sisa" class="stat-val">Rp 0</span></div>
             </div>
-            <div id="insightBox" class="insight-box">🤖 AI sedang menganalisis...</div>
+            <div id="insightBox" class="insight-box">
+                <i data-lucide="sparkles" style="color: var(--primary)"></i>
+                <span id="insightText">AI sedang menganalisis...</span>
+            </div>
             <div class="chart-box"><canvas id="pieChart"></canvas></div>
         </div>
 
         <div class="glass-card">
-            <h1>🎯 Financial Goals</h1>
+            <h1><i data-lucide="target"></i> Financial Goals</h1>
             <div id="goalList"></div>
-            <button onclick="addGoal()" style="background: var(--warning); color: #000; margin-top: 10px;">+ Tambah Target</button>
+            <button onclick="addGoal()" style="background: var(--warning); color: #000; margin-top: 10px;">
+                <i data-lucide="plus-circle"></i> Tambah Target
+            </button>
         </div>
     </div>
 
     <div id="transaksi" class="page">
         <div class="glass-card">
-            <h1>💸 Tambah Pengeluaran</h1>
+            <h1><i data-lucide="plus-square"></i> Tambah Pengeluaran</h1>
             <input type="date" id="t-date">
             <select id="t-cat">
                 <option>Makan</option><option>Jajan</option><option>Bensin</option><option>Belanja</option><option>Kebutuhan</option>
             </select>
             <input type="number" id="t-amount" placeholder="Nominal Rp">
-            <label style="font-size: 0.8rem;"><input type="checkbox" id="t-repeat"> Pengeluaran Rutin</label>
-            <button onclick="saveTransaction()" style="margin-top:10px;">Simpan</button>
+            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <input type="checkbox" id="t-repeat" style="width: auto; margin: 0;"> Pengeluaran Rutin
+            </label>
+            <button onclick="saveTransaction()">Simpan Transaksi</button>
         </div>
 
         <div class="glass-card">
-            <h1>📜 Riwayat</h1>
+            <h1><i data-lucide="history"></i> Riwayat</h1>
             <input type="month" id="filterMonth" onchange="renderAll()">
             <div id="transList"></div>
         </div>
@@ -160,13 +177,13 @@
 
     <div id="settings" class="page">
         <div class="glass-card">
-            <h1>⚙️ Budget Utama</h1>
+            <h1><i data-lucide="wallet"></i> Budget Utama</h1>
             <input type="number" id="setBudgetInput" placeholder="Contoh: 5000000">
             <button onclick="updateGlobalBudget()">Update Budget</button>
         </div>
 
         <div class="glass-card">
-            <h1>⚠️ Limit Kategori</h1>
+            <h1><i data-lucide="shield-alert"></i> Limit Kategori</h1>
             <select id="l-cat">
                 <option>Makan</option><option>Jajan</option><option>Bensin</option><option>Belanja</option>
             </select>
@@ -179,13 +196,16 @@
 
 <nav class="nav-bar">
     <div class="nav-item active" onclick="nav('home', this)">
-        <span class="nav-icon">📊</span><span class="nav-text">Analytics</span>
+        <i data-lucide="pie-chart" class="icon-md"></i>
+        <span class="nav-text">Analytics</span>
     </div>
     <div class="nav-item" onclick="nav('transaksi', this)">
-        <span class="nav-icon">💸</span><span class="nav-text">Transaksi</span>
+        <i data-lucide="arrow-up-right" class="icon-md"></i>
+        <span class="nav-text">Transaksi</span>
     </div>
     <div class="nav-item" onclick="nav('settings', this)">
-        <span class="nav-icon">⚙️</span><span class="nav-text">Settings</span>
+        <i data-lucide="settings-2" class="icon-md"></i>
+        <span class="nav-text">Settings</span>
     </div>
 </nav>
 
@@ -195,6 +215,9 @@
         getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, 
         enableIndexedDbPersistence 
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
 
     const firebaseConfig = {
         apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8",
@@ -208,43 +231,39 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // AKTIFKAN OFFLINE PERSISTENCE (FITUR CACHE)
+    // FITUR OFFLINE (CACHE)
     enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.warn("Persistence failed: Multiple tabs open");
-        } else if (err.code == 'unimplemented') {
-            console.warn("Persistence not supported by browser");
-        }
+        console.warn("Persistence status:", err.code);
     });
 
-    // State
     let store = { trans: [], limits: {}, goals: [], budget: 0 };
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
 
-    // Navigasi & Theme
     window.nav = (id, el) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         el.classList.add('active');
     };
-    window.toggleTheme = () => document.body.classList.toggle('light-mode');
 
-    // Online/Offline Detection
+    window.toggleTheme = () => {
+        document.body.classList.toggle('light-mode');
+        renderAll(); // Re-render for chart colors
+    };
+
     window.addEventListener('online', () => {
         document.getElementById('offlineStatus').style.display = 'none';
-        Swal.fire({ title: 'Kembali Online', text: 'Data disinkronkan ke cloud', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+        Swal.fire({ title: 'Koneksi Pulih', text: 'Data disinkronkan', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
     });
     window.addEventListener('offline', () => {
         document.getElementById('offlineStatus').style.display = 'inline-block';
     });
 
-    // Actions
     window.updateGlobalBudget = async () => {
         const val = parseInt(document.getElementById('setBudgetInput').value);
         if(val) await setDoc(doc(db, "config", "budget"), { totalBudget: val });
-        Swal.fire('Updated!', 'Budget disimpan.', 'success');
+        Swal.fire('Updated!', 'Budget Utama diperbarui.', 'success');
     };
 
     window.saveTransaction = async () => {
@@ -252,28 +271,27 @@
         const c = document.getElementById('t-cat').value;
         const a = parseInt(document.getElementById('t-amount').value);
         const r = document.getElementById('t-repeat').checked;
-        if(!a || !d) return Swal.fire('Oops', 'Data tidak lengkap', 'warning');
+        if(!a || !d) return Swal.fire('Data Kosong', 'Harap isi nominal dan tanggal', 'warning');
         
-        // Firestore akan menyimpan secara lokal dulu jika offline
         await addDoc(collection(db, "pengeluaran"), { tanggal: d, kategori: c, nominal: a, repeat: r });
         document.getElementById('t-amount').value = "";
         
         if(!navigator.onLine) {
-            Swal.fire({ title: 'Tersimpan (Offline)', text: 'Akan di-sync saat ada internet', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+            Swal.fire({ title: 'Mode Offline', text: 'Tersimpan di cache lokal', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         }
     };
 
     window.addGoal = async () => {
         const { value: form } = await Swal.fire({
-            title: 'Target Tabungan',
-            html: '<input id="g-n" class="swal2-input" placeholder="Nama Barang"><input id="g-t" type="number" class="swal2-input" placeholder="Harga Target Rp">',
+            title: '🎯 Target Baru',
+            html: '<input id="g-n" class="swal2-input" placeholder="Barang/Tujuan"><input id="g-t" type="number" class="swal2-input" placeholder="Harga Target Rp">',
             preConfirm: () => [document.getElementById('g-n').value, document.getElementById('g-t').value]
         });
         if(form && form[0] && form[1]) await addDoc(collection(db, "goals"), { nama: form[0], target: parseInt(form[1]), terkumpul: 0 });
     };
 
     window.updateGoal = async (id, current) => {
-        const { value: amount } = await Swal.fire({ title: 'Tambah Tabungan', input: 'number' });
+        const { value: amount } = await Swal.fire({ title: '💰 Tambah Tabungan', input: 'number', inputPlaceholder: 'Masukkan nominal' });
         if(amount) await setDoc(doc(db, "goals", id), { terkumpul: parseInt(current) + parseInt(amount) }, { merge: true });
     };
 
@@ -286,7 +304,6 @@
     window.removeTrans = async (id) => { await deleteDoc(doc(db, "pengeluaran", id)); };
     window.removeLimit = async (id) => { await deleteDoc(doc(db, "limits", id)); };
 
-    // Rendering
     window.renderAll = () => {
         const activeMonth = document.getElementById('filterMonth').value;
         let monthlyTotal = 0, catMap = {};
@@ -299,8 +316,8 @@
                 catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;
                 listHtml.innerHTML += `
                     <div class="item-list">
-                        <span><b>${d.kategori}</b> ${d.repeat?'🔄':''}<br><small>${d.tanggal}</small></span>
-                        <span>${fmt(d.nominal)} <button class="del-btn" onclick="removeTrans('${d.id}')">✕</button></span>
+                        <span><b>${d.kategori}</b> ${d.repeat?'<i data-lucide="refresh-cw" style="width:10px"></i>':''}<br><small>${d.tanggal}</small></span>
+                        <span style="display:flex; align-items:center; gap:10px">${fmt(d.nominal)} <button class="del-btn" onclick="removeTrans('${d.id}')"><i data-lucide="trash-2" style="width:14px"></i></button></span>
                     </div>`;
             }
         });
@@ -322,42 +339,54 @@
 
         const lList = document.getElementById('limitList');
         lList.innerHTML = "";
-        let insight = "🤖 Pengeluaran aman 👍";
+        let insight = "Pengeluaran bulan ini dalam batas aman.";
         let overLimit = false;
 
         for(let k in store.limits) {
-            if((catMap[k] || 0) > store.limits[k]) {
+            const currentSpent = catMap[k] || 0;
+            if(currentSpent > store.limits[k]) {
                 overLimit = true;
-                insight = `🚨 Limit ${k} jebol!`;
+                insight = `Limit kategori ${k} sudah terlampaui!`;
             }
             lList.innerHTML += `
-                <div class="item-list ${catMap[k] > store.limits[k] ? 'danger' : ''}">
+                <div class="item-list ${currentSpent > store.limits[k] ? 'danger' : ''}">
                     <span>${k}: <b>${fmt(store.limits[k])}</b></span>
-                    <button class="del-btn" onclick="removeLimit('${k}')">✕</button>
+                    <button class="del-btn" onclick="removeLimit('${k}')"><i data-lucide="x" style="width:14px"></i></button>
                 </div>`;
         }
         
-        if(monthlyTotal > store.budget) insight = "⚠️ Budget terlampaui!";
-        document.getElementById('insightBox').innerText = insight;
-        document.getElementById('insightBox').style.background = overLimit || monthlyTotal > store.budget ? 'rgba(251, 113, 133, 0.2)' : 'rgba(94, 234, 212, 0.15)';
+        if(monthlyTotal > store.budget) insight = "Peringatan: Total pengeluaran melebihi budget utama!";
+        document.getElementById('insightText').innerText = insight;
+        document.getElementById('insightBox').style.borderLeftColor = overLimit || monthlyTotal > store.budget ? 'var(--danger)' : 'var(--primary)';
 
         updateChart(catMap);
+        lucide.createIcons(); // Refresh icons for dynamic elements
     };
 
     function updateChart(data) {
         const ctx = document.getElementById('pieChart');
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text');
         if(pieChart) pieChart.destroy();
         pieChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: Object.keys(data),
-                datasets: [{ data: Object.values(data), backgroundColor: ['#5eead4','#60a5fa','#facc15','#fb7185','#a855f7'] }]
+                datasets: [{ 
+                    data: Object.values(data), 
+                    backgroundColor: ['#5eead4','#60a5fa','#facc15','#fb7185','#a855f7'],
+                    borderWidth: 0 
+                }]
             },
-            options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: getComputedStyle(document.body).color } } } }
+            options: { 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { position: 'right', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 10 } } } 
+                },
+                cutout: '70%'
+            }
         });
     }
 
-    // Init Data Listeners (Tetap bekerja meskipun offline berkat Persistence)
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
 
@@ -375,7 +404,6 @@
         store.trans = s.docs.map(d => ({id:d.id, ...d.data()}));
         renderAll();
     });
-
 </script>
 </body>
 </html>
