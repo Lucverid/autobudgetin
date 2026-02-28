@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - Ultimate</title>
+    <title>Agis Finance AI - Pro v5</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -13,15 +13,9 @@
     
     <style>
         :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --primary: #2dd4bf;
-            --accent: #3b82f6;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
-            --border: rgba(255, 255, 255, 0.08);
+            --bg: #0f172a; --surface: #1e293b; --primary: #2dd4bf;
+            --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b;
+            --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255, 255, 255, 0.08);
             --glass: rgba(30, 41, 59, 0.7);
         }
         
@@ -32,22 +26,15 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            padding-bottom: 100px;
-            min-height: 100vh;
-            transition: all 0.3s ease;
-        }
-
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: all 0.3s ease; }
         .container { max-width: 450px; margin: auto; padding: 20px; }
 
-        /* HEADER & MASTER BALANCE */
+        /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .master-balance { text-align: center; margin-bottom: 30px; }
+        .master-balance { text-align: center; margin-bottom: 15px; }
         .master-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
         .master-amount { font-size: 2.2rem; font-weight: 800; display: block; margin-top: 5px; }
+        .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; }
 
         /* WALLET GRID */
         .wallet-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
@@ -60,7 +47,7 @@
         .w-name { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ADVISOR BOX */
+        /* ADVISOR BOX - UPDATED */
         .advisor {
             background: var(--surface); border-radius: 24px; padding: 20px;
             margin: 20px 0; border: 1px solid var(--border);
@@ -70,6 +57,7 @@
         .adv-text { font-size: 0.85rem; line-height: 1.5; }
         .adv-title { font-weight: 800; display: block; margin-bottom: 4px; color: var(--primary); }
         .warning-text { color: var(--danger); font-weight: 700; }
+        .safe-text { color: var(--primary); font-weight: 700; }
 
         /* GLASS CARD */
         .card {
@@ -97,7 +85,6 @@
         .t-info small { color: var(--text-dim); font-size: 0.75rem; }
         .t-amt { text-align: right; font-weight: 700; font-size: 0.95rem; }
         .t-amt.minus { color: var(--danger); }
-        .t-amt.plus { color: var(--primary); }
 
         /* NAV */
         .nav-bar {
@@ -114,8 +101,6 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }
         
         .offline-status { background: var(--danger); color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; display: none; }
-        
-        /* CHART FIX */
         .chart-container { height: 220px; margin-top: 10px; }
     </style>
 </head>
@@ -129,8 +114,12 @@
         </div>
 
         <div class="master-balance">
-            <span class="master-label">Total Saldo Gabungan</span>
+            <span class="master-label">Total Saldo Aktif</span>
             <span class="master-amount" id="total-balance">Rp 0</span>
+        </div>
+        <div class="goal-info" id="goal-info">
+            <i data-lucide="target" style="width:16px; vertical-align:middle"></i>
+            Target Tabungan: <span id="goal-amount">Rp 0</span>
         </div>
 
         <div class="wallet-container">
@@ -160,7 +149,7 @@
         </div>
         
         <div class="card">
-            <div class="card-title"><i data-lucide="pie-chart"></i> Alokasi Bulan Ini</div>
+            <div class="card-title"><i data-lucide="pie-chart"></i> Alokasi Pengeluaran</div>
             <div class="chart-container"><canvas id="pieChart"></canvas></div>
         </div>
     </div>
@@ -222,9 +211,9 @@
         </div>
 
         <div class="card">
-            <h1 class="card-title"><i data-lucide="target"></i> Goals Tracker</h1>
-            <div id="goalList"></div>
-            <button onclick="addGoal()" style="background:var(--warning); color:black; padding:12px; border-radius:12px; border:none; width:100%; font-weight:800; cursor:pointer">+ Target</button>
+            <h1 class="card-title"><i data-lucide="target"></i> Tujuan Menabung</h1>
+            <input type="number" id="goal-input" placeholder="Contoh: 2000000">
+            <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>
         </div>
     </div>
 </div>
@@ -245,7 +234,7 @@
     const db = getFirestore(app);
     enableIndexedDbPersistence(db).catch(() => {});
 
-    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goals: [], limits: {} };
+    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
     const fmtShort = (n) => new Intl.NumberFormat('id-ID').format(n);
@@ -270,12 +259,18 @@
         Swal.fire({ title: 'Saldo Diperbarui', icon: 'success', timer: 1500, showConfirmButton: false });
     };
 
+    window.setGoal = async () => {
+        const amount = parseInt(document.getElementById('goal-input').value) || 0;
+        await setDoc(doc(db, "config", "goal"), { amount: amount });
+        Swal.fire('Target Tabungan Set!', '', 'success');
+    };
+
     window.setLimit = async () => {
         const cat = document.getElementById('l-cat').value;
         const amount = parseInt(document.getElementById('l-amount').value);
         if(!amount) return;
         await setDoc(doc(db, "config", "limits"), { [cat]: amount }, { merge: true });
-        Swal.fire('Limit Set!', '', 'success');
+        Swal.fire('Limit Kategori Set!', '', 'success');
     };
 
     window.saveTransaction = async () => {
@@ -313,13 +308,17 @@
         });
 
         // 2. Balances
-        const total = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];
-        document.getElementById('total-balance').innerText = fmt(total);
+        const totalRaw = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];
+        const disposableIncome = totalRaw - store.goal;
+        
+        document.getElementById('total-balance').innerText = fmt(disposableIncome);
+        document.getElementById('goal-amount').innerText = fmt(store.goal);
+        
         document.getElementById('w-cash').innerText = fmtShort(store.wallets.Tunai);
         document.getElementById('w-bank').innerText = fmtShort(store.wallets.Bank);
         document.getElementById('w-e').innerText = fmtShort(store.wallets["E-Wallet"]);
 
-        // 3. AI Advisor & Limit Check
+        // 3. AI Advisor & Limit Check (Based on Disposable Income)
         let limitWarnings = [];
         for (const [category, spent] of Object.entries(catMap)) {
             if (store.limits[category] && spent >= store.limits[category]) {
@@ -330,31 +329,27 @@
         }
 
         const now = new Date();
-        const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1;
-        const daily = total > 0 ? total / daysLeft : 0;
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const daysLeft = daysInMonth - now.getDate() + 1;
         
-        document.getElementById('advisorContent').innerHTML = `Sisa ${daysLeft} hari. Jatah harian: <b>${fmt(Math.floor(daily))}</b>.${limitWarnings.join('')}`;
+        // Jatah harian dari uang yang BOLEH dihabiskan
+        const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;
+        
+        let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.`;
+        if (disposableIncome < 0) {
+            advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
+        }
 
-        // 4. Goals Render
-        const gList = document.getElementById('goalList');
-        gList.innerHTML = "";
-        store.goals.forEach(g => {
-            const perc = Math.min((g.terkumpul / g.target) * 100, 100);
-            gList.innerHTML += `
-                <div style="margin-bottom:10px; cursor:pointer" onclick="updateGoal('${g.id}', ${g.terkumpul})">
-                    <div style="display:flex; justify-content:space-between; font-size:0.8rem"><b>${g.nama}</b> <span>${perc.toFixed(0)}%</span></div>
-                    <div style="background:rgba(255,255,255,0.1); height:6px; border-radius:10px"><div style="width:${perc}%; height:100%; background:var(--primary); border-radius:10px"></div></div>
-                </div>`;
-        });
+        document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');
 
-        // 5. Render Limits List
+        // 4. Render Limits List
         const lList = document.getElementById('limitList');
         lList.innerHTML = "";
         for (const [cat, amt] of Object.entries(store.limits)) {
             lList.innerHTML += `<div><b>${cat}</b>: ${fmt(amt)}</div>`;
         }
 
-        // 6. UPDATE CHART
+        // 5. UPDATE CHART
         updateChart(catMap);
         lucide.createIcons();
     };
@@ -367,20 +362,6 @@
         }
     };
 
-    window.addGoal = async () => {
-        const { value: f } = await Swal.fire({
-            title: 'Target Baru',
-            html: '<input id="gn" class="swal2-input" placeholder="Nama"><input id="gt" type="number" class="swal2-input" placeholder="Target Rp">',
-            preConfirm: () => [document.getElementById('gn').value, document.getElementById('gt').value]
-        });
-        if(f && f[0]) await addDoc(collection(db, "goals"), { nama: f[0], target: parseInt(f[1]), terkumpul: 0 });
-    };
-
-    window.updateGoal = async (id, cur) => {
-        const { value: v } = await Swal.fire({ title: 'Nabung Berapa?', input: 'number' });
-        if(v) await setDoc(doc(db, "goals", id), { terkumpul: parseInt(cur) + parseInt(v) }, { merge: true });
-    };
-
     window.exportToExcel = () => {
         const ws = XLSX.utils.json_to_sheet(store.trans);
         const wb = XLSX.utils.book_new();
@@ -388,7 +369,6 @@
         XLSX.writeFile(wb, `Laporan_Agis_${new Date().toLocaleDateString()}.xlsx`);
     };
 
-    // FUNGSI CHART
     function updateChart(data) {
         const ctx = document.getElementById('pieChart').getContext('2d');
         if(pieChart) pieChart.destroy();
@@ -399,26 +379,8 @@
         
         pieChart = new Chart(ctx, {
             type: 'doughnut',
-            data: { 
-                labels: Object.keys(data), 
-                datasets: [{ 
-                    data: Object.values(data), 
-                    backgroundColor: colors, 
-                    borderWidth: 0,
-                    hoverOffset: 10
-                }] 
-            },
-            options: { 
-                maintainAspectRatio: false, 
-                cutout: '75%', 
-                plugins: { 
-                    legend: { 
-                        display: true, 
-                        position: 'bottom',
-                        labels: { color: isLight ? '#0f172a' : '#f8fafc', font: { size: 11 } }
-                    } 
-                } 
-            }
+            data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors, borderWidth: 0 }] },
+            options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: true, position: 'bottom', labels: { color: isLight ? '#0f172a' : '#f8fafc', font: { size: 11 } } } } }
         });
     }
 
@@ -428,10 +390,9 @@
     
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
-    onSnapshot(collection(db, "goals"), (s) => { store.goals = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
     onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
 
-    // Offline Detection
     window.addEventListener('online', () => document.getElementById('offlineStatus').style.display = 'none');
     window.addEventListener('offline', () => document.getElementById('offlineStatus').style.display = 'block');
 </script>
