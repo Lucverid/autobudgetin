@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v16</title>
+    <title>Agis Finance AI - PWA v17</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -186,21 +186,23 @@
     <div id="add" class="page">
         <div class="card">
             <h1 class="card-title"><i data-lucide="plus-circle"></i> Catat Transaksi</h1>
-            <input type="date" id="t-date">
-            <select id="t-wallet">
-                <option value="Tunai">💰 Dari Tunai</option>
-                <option value="Bank">🏦 Dari Bank</option>
-                <option value="E-Wallet">📱 Dari E-Wallet</option>
-            </select>
-            <select id="t-cat">
-                <option>Makan & Minum</option>
-                <option>Transportasi</option>
-                <option>Belanja</option>
-                <option>Tagihan</option>
-                <option>Hiburan</option>
-                <option>Lainnya</option>
-            </select>
-            <input type="number" id="t-amount" placeholder="Nominal (Contoh: 50000)">
+            <form id="transForm">
+                <input type="date" id="t-date">
+                <select id="t-wallet">
+                    <option value="Tunai">💰 Dari Tunai</option>
+                    <option value="Bank">🏦 Dari Bank</option>
+                    <option value="E-Wallet">📱 Dari E-Wallet</option>
+                </select>
+                <select id="t-cat">
+                    <option>Makan & Minum</option>
+                    <option>Transportasi</option>
+                    <option>Belanja</option>
+                    <option>Tagihan</option>
+                    <option>Hiburan</option>
+                    <option>Lainnya</option>
+                </select>
+                <input type="number" id="t-amount" placeholder="Nominal (Contoh: 50000)">
+            </form>
             <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>
         </div>
     </div>
@@ -281,7 +283,6 @@
     });
 
     window.nav = (id, el) => {
-        // Pengecekan Null untuk mencegah error TypeError
         const pages = document.querySelectorAll('.page');
         const navItems = document.querySelectorAll('.nav-item');
         const targetPage = document.getElementById(id);
@@ -373,9 +374,7 @@
         });
 
         try {
-            // Menggunakan Transaksi Firestore untuk menangani race condition
             await runTransaction(db, async (transaction) => {
-                // 1. Baca saldo terbaru di dalam transaksi
                 const walletRef = doc(db, "config", "wallets");
                 const walletSnap = await transaction.get(walletRef);
                 
@@ -385,22 +384,22 @@
 
                 const currentWallets = walletSnap.data();
                 
-                // 2. Cek saldo cukup
                 if ((currentWallets[w] || 0) < a) {
                     throw "Saldo tidak cukup!";
                 }
 
-                // 3. Update saldo menggunakan transaction.update
                 transaction.update(walletRef, {
                     [w]: (currentWallets[w] || 0) - a
                 });
 
-                // 4. Tambah transaksi baru
                 const newTransRef = doc(collection(db, "pengeluaran"));
                 transaction.set(newTransRef, { tanggal: d, dompet: w, kategori: c, nominal: a });
             });
             
-            document.getElementById('t-amount').value = "";
+            // ✅ FIX 2: RESET FORM TOTAL TOTAL
+            document.getElementById('transForm').reset();
+            document.getElementById('t-date').valueAsDate = new Date(); // Reset date to today
+
             Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1500, showConfirmButton: false });
             nav('home');
         } catch (error) {
@@ -417,14 +416,23 @@
         Swal.fire({ title: 'Menyinkronkan...', text: 'Menunggu koneksi...', timer: 3000, showConfirmButton: false });
     };
 
+    // ✅ FIX 1: AUTO SELECT MONTH & SECURE RENDER
     window.renderAll = () => {
-        const activeMonth = document.getElementById('filterMonth').value;
+        const monthInput = document.getElementById('filterMonth');
+        
+        // Pastikan selalu ada bulan aktif (bulan sekarang)
+        let activeMonth = monthInput.value;
+        if (!activeMonth) {
+            activeMonth = new Date().toISOString().slice(0,7);
+            monthInput.value = activeMonth;
+        }
+
         let catMap = {};
         const listHtml = document.getElementById('transList');
         if (listHtml) listHtml.innerHTML = "";
 
         store.trans.forEach(d => {
-            if(d.tanggal.startsWith(activeMonth)) {
+            if(d.tanggal && d.tanggal.startsWith(activeMonth)) {
                 catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;
                 if (listHtml) listHtml.innerHTML += `
                     <div class="t-item">
@@ -481,7 +489,6 @@
         
         if(res.isConfirmed) {
             await deleteDoc(doc(db, "pengeluaran", id));
-            // Menggunakan updateDoc untuk aman dari konflik
             await updateDoc(doc(db, "config", "wallets"), {
                 [wallet]: store.wallets[wallet] + nominal
             });
@@ -508,8 +515,7 @@
         });
     }
 
-    // Listeners
-    document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
+    // Initialize
     document.getElementById('t-date').valueAsDate = new Date();
     
     // Stabilized Listeners
