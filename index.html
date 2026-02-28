@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v13</title>
+    <title>Agis Finance AI - PWA v12</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -211,7 +211,7 @@
             <input type="number" id="set-cash" placeholder="Saldo Tunai">
             <input type="number" id="set-bank" placeholder="Saldo Bank">
             <input type="number" id="set-e" placeholder="Saldo E-Wallet">
-            <button class="btn-primary" onclick="updateWallets()"><i data-lucide="refresh-cw" style="vertical-align:middle; margin-right:8px;"></i>Update Saldo</button>
+            <button class="btn-primary" onclick="updateWallets()">Update Saldo</button>
         </div>
         
         <div class="card">
@@ -224,14 +224,14 @@
                 <option>Hiburan</option>
             </select>
             <input type="number" id="l-amount" placeholder="Batas Maksimal Rp">
-            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()"><i data-lucide="shield-check" style="vertical-align:middle; margin-right:8px;"></i>Set Limit</button>
+            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Set Limit</button>
             <div id="limitList" style="margin-top:15px; font-size:0.8rem"></div>
         </div>
 
         <div class="card">
             <h1 class="card-title"><i data-lucide="target"></i> Tujuan Menabung</h1>
             <input type="number" id="goal-input" placeholder="Contoh: 2000000">
-            <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()"><i data-lucide="target" style="vertical-align:middle; margin-right:8px;"></i>Set Target Tabungan</button>
+            <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>
         </div>
         
         <div class="card">
@@ -474,7 +474,6 @@
     }
 
     // Listeners
-    // ⚠️ OTOMATIS FILTER BULAN BERJALAN ⚠️
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
     
