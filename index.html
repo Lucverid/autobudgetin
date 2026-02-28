@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v12</title>
+    <title>Agis Finance AI - PWA v13</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -61,7 +61,7 @@
         .w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ⚠️ SMART INSIGHT (LAYOUT FIXED + SCROLLABLE) ⚠️ */
+        /* Smart Insight */
         .advisor {
             background: var(--surface);
             border-radius: 24px;
@@ -71,7 +71,7 @@
             display: flex;
             gap: 15px;
             align-items: flex-start;
-            height: 150px; /* Tinggi Tetap */
+            height: 150px;
         }
         
         .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0; }
@@ -81,14 +81,14 @@
             display: flex;
             flex-direction: column;
             height: 100%;
-            overflow: hidden; /* Judul tidak scroll */
+            overflow: hidden;
         }
         
         .adv-title { font-weight: 800; display: block; color: var(--primary); font-size: 0.9rem; margin-bottom: 5px; }
         
         .adv-scrollable {
             flex: 1;
-            overflow-y: auto; /* Hanya isi peringatan yang scroll */
+            overflow-y: auto;
             font-size: 0.85rem;
             line-height: 1.5;
             padding-right: 5px;
@@ -333,7 +333,7 @@
         Swal.fire('Limit Kategori Set!', '', 'success');
     };
 
-    // ⚠️ SAVE TRANSACTION WITH OFFLINE INFO ⚠️
+    // ⚠️ SAVE TRANSACTION WITH ROBUST OFFLINE HANDLING ⚠️
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
@@ -352,7 +352,6 @@
         });
 
         if(res.isConfirmed) {
-            // Animasi Loading
             Swal.fire({
                 title: 'Menyimpan...',
                 text: 'Data disimpan lokal (Mode Offline)',
@@ -361,12 +360,17 @@
             });
 
             try {
+                // 1. Simpan Transaksi
                 await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
-                await setDoc(doc(db, "config", "wallets"), { [w]: store.wallets[w] - a }, { merge: true });
+                
+                // 2. Update Saldo lokal
+                store.wallets[w] = (store.wallets[w] || 0) - a;
+                
+                // 3. Update Saldo Firestore
+                await setDoc(doc(db, "config", "wallets"), store.wallets);
                 
                 document.getElementById('t-amount').value = "";
                 
-                // Notifikasi sukses informatif
                 Swal.fire({ 
                     title: 'Tercatat!',
                     text: 'Data disimpan di HP. Sync saat online.',
@@ -376,6 +380,7 @@
                 });
                 nav('home');
             } catch (error) {
+                console.error("Save error:", error);
                 Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan.', 'error');
             }
         }
@@ -477,12 +482,12 @@
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
     
-    onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
-    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
-    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
-    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+    // Stabilized Listeners
+    onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); }, (e) => console.log(e));
+    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); }, (e) => console.log(e));
+    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); }, (e) => console.log(e));
+    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); }, (e) => console.log(e));
 
-    // Status Online/Offline
     const statusBadge = document.getElementById('statusBadge');
     window.addEventListener('online', () => {
         statusBadge.innerText = "ONLINE";
