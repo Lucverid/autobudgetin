@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - Pro v6</title>
+    <title>Agis Finance AI - PWA v7</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -31,6 +31,8 @@
 
         /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        
         .master-balance { text-align: center; margin-bottom: 15px; }
         .master-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
         .master-amount { font-size: 2.2rem; font-weight: 800; display: block; margin-top: 5px; }
@@ -100,7 +102,10 @@
         .page.active { display: block; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }
         
-        .offline-status { background: var(--danger); color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; display: none; }
+        .status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
+        .status-online { background: rgba(45, 212, 191, 0.2); color: var(--primary); }
+        .status-offline { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        
         .chart-container { height: 220px; margin-top: 10px; }
     </style>
 </head>
@@ -109,7 +114,9 @@
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
-            <span id="offlineStatus" class="offline-status">OFFLINE</span>
+            <div class="header-left">
+                <span id="statusBadge" class="status-badge status-online">ONLINE</span>
+            </div>
             <button onclick="toggleTheme()" style="background:none; border:none; color:var(--text-dim); cursor:pointer"><i data-lucide="sun-moon"></i></button>
         </div>
 
@@ -233,7 +240,11 @@
     lucide.createIcons();
     const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
     const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(() => {});
+    
+    // 🔥 PENTING: Aktifkan persistensi lokal untuk offline
+    enableIndexedDbPersistence(db).catch((err) => {
+        console.error("Offline persistence failed", err);
+    });
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
@@ -267,7 +278,6 @@
         Swal.fire('Target Tabungan Set!', '', 'success');
     };
     
-    // Fitur Tambahan: Edit & Hapus Goal
     window.manageGoal = async () => {
         const { value: amount } = await Swal.fire({
             title: 'Edit Target Tabungan',
@@ -281,7 +291,7 @@
         if (amount) {
             await setDoc(doc(db, "config", "goal"), { amount: parseInt(amount) });
             Swal.fire('Updated!', '', 'success');
-        } else if (amount === "") { // User klik tombol hapus
+        } else if (amount === "") {
             await setDoc(doc(db, "config", "goal"), { amount: 0 });
             Swal.fire('Target Dihapus!', '', 'success');
         }
@@ -302,6 +312,7 @@
         const a = parseInt(document.getElementById('t-amount').value);
         if(!a || !d) return Swal.fire('Isi nominal & tanggal!', '', 'warning');
         
+        // Data akan tersimpan di cache lokal dulu, lalu sync ke firebase kalau online
         await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
         await setDoc(doc(db, "config", "wallets"), { [w]: store.wallets[w] - a }, { merge: true });
         
@@ -340,7 +351,7 @@
         document.getElementById('w-bank').innerText = fmtShort(store.wallets.Bank);
         document.getElementById('w-e').innerText = fmtShort(store.wallets["E-Wallet"]);
 
-        // 3. AI Advisor & Limit Check (Based on Disposable Income)
+        // 3. AI Advisor & Limit Check
         let limitWarnings = [];
         for (const [category, spent] of Object.entries(catMap)) {
             if (store.limits[category] && spent >= store.limits[category]) {
@@ -405,7 +416,7 @@
         });
     }
 
-    // Firebase Data Listeners
+    // Firebase Data Listeners (Automatic Sync)
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
     
@@ -414,8 +425,18 @@
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
     onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
 
-    window.addEventListener('online', () => document.getElementById('offlineStatus').style.display = 'none');
-    window.addEventListener('offline', () => document.getElementById('offlineStatus').style.display = 'block');
+    // Status Online/Offline
+    const statusBadge = document.getElementById('statusBadge');
+    window.addEventListener('online', () => {
+        statusBadge.innerText = "ONLINE";
+        statusBadge.classList.remove('status-offline');
+        statusBadge.classList.add('status-online');
+    });
+    window.addEventListener('offline', () => {
+        statusBadge.innerText = "OFFLINE";
+        statusBadge.classList.remove('status-online');
+        statusBadge.classList.add('status-offline');
+    });
 </script>
 </body>
 </html>
