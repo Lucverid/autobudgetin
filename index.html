@@ -3,95 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Budget Pro v4.0</title>
+    <title>Agis Finance AI - Pro</title>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary: #00d4ff; --secondary: #00ffae; --warning: #facc15;
-            --danger: #ff4d6d; --bg: #0b1120; --card: rgba(30, 41, 59, 0.7);
+            --bg:#0f172a;
+            --glass:rgba(255,255,255,0.07);
+            --border:rgba(255,255,255,0.15);
+            --primary:#5eead4;
+            --accent:#60a5fa;
+            --danger:#fb7185;
+            --warning: #facc15;
+            --text:#e2e8f0;
+            --card: rgba(30, 41, 59, 0.7);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: #f8fafc; padding-bottom: 90px; overflow-x: hidden; }
         
-        /* Navigasi Modern */
-        .nav-bar {
-            position: fixed; bottom: 0; left: 0; right: 0; height: 75px;
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(15px);
-            display: flex; justify-content: space-around; align-items: center;
-            border-top: 1px solid rgba(255,255,255,0.1); z-index: 1000;
+        body.light-mode {
+            --bg: #f1f5f9; --glass: rgba(0, 0, 0, 0.05);
+            --border: rgba(0, 0, 0, 0.1); --text: #0f172a;
+            --card: rgba(255, 255, 255, 0.8);
         }
-        .nav-item { cursor: pointer; text-align: center; color: #64748b; flex: 1; transition: 0.3s; }
-        .nav-item.active { color: var(--primary); }
-        .nav-icon { font-size: 1.4rem; display: block; }
-        .nav-text { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; margin-top: 4px; }
 
-        /* Page System */
-        .page { display: none; padding: 20px; animation: fadeIn 0.4s ease; }
-        .page.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 0.3s, color 0.3s; }
+        body {
+            background: radial-gradient(circle at top left,#1e293b,#0f172a);
+            color: var(--text); padding-bottom: 90px; min-height: 100vh;
+        }
+        body.light-mode { background: #f1f5f9; }
 
+        .container { max-width: 480px; margin: auto; padding: 20px; }
+
+        /* Glow Effects */
+        body::before,body::after{
+            content:"";position:fixed;width:300px;height:300px;
+            border-radius:50%;filter:blur(120px);z-index:-1;
+        }
+        body::before{background:var(--primary);top:-100px;left:-100px;opacity:.2}
+        body::after{background:var(--accent);bottom:-100px;right:-100px;opacity:.2}
+
+        /* Glass Card */
         .glass-card {
-            background: var(--card); backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 22px; border-radius: 24px; margin-bottom: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            background: var(--card); backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px; padding: 20px; margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.2);
         }
 
-        h1 { font-size: 1.1rem; margin-bottom: 18px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        h1 { font-size: 15px; margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
 
-        /* Form Elements */
         input, select {
-            width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
-            background: #1e293b; color: white; outline: none; margin-bottom: 12px; font-size: 0.9rem;
+            width: 100%; padding: 14px; border-radius: 14px; border: 1px solid var(--border);
+            background: rgba(255,255,255,.05); color: var(--text); margin-bottom: 12px; outline: none;
         }
+        body.light-mode input, body.light-mode select { background: rgba(0,0,0,0.03); border: 1px solid #ccc; color: #0f172a; }
+
         button {
-            width: 100%; padding: 14px; border: none; border-radius: 12px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            color: #0b1120; font-weight: 800; cursor: pointer; transition: 0.3s;
+            width: 100%; padding: 14px; border: none; border-radius: 14px;
+            background: linear-gradient(135deg,var(--primary),var(--accent));
+            color: #0f172a; font-weight: 800; cursor: pointer; transition: 0.3s;
         }
         button:active { transform: scale(0.98); }
 
-        /* Stats & Chart */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .stat-card { background: rgba(0,0,0,0.3); padding: 16px; border-radius: 18px; border-left: 3px solid var(--primary); }
+        /* Page System */
+        .page { display: none; animation: fadeIn 0.4s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Navigation */
+        .nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 75px;
+            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px);
+            display: flex; justify-content: space-around; align-items: center;
+            border-top: 1px solid var(--border); z-index: 1000;
+        }
+        body.light-mode .nav-bar { background: rgba(255,255,255,0.9); }
+        .nav-item { cursor: pointer; text-align: center; color: #64748b; flex: 1; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-icon { font-size: 1.4rem; display: block; margin-bottom: 2px; }
+        .nav-text { font-size: 0.65rem; text-transform: uppercase; }
+
+        /* Dashboard Elements */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .stat-card { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 18px; border-left: 3px solid var(--primary); }
         .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
         .stat-val { font-size: 1rem; font-weight: 800; display: block; margin-top: 4px; }
         
-        .chart-box { height: 220px; margin-top: 10px; position: relative; }
+        .chart-box { height: 180px; margin-top: 15px; position: relative; }
 
         /* List Items */
-        .list-item {
+        .item-list {
             background: rgba(255,255,255,0.03); padding: 14px; border-radius: 14px;
             margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
         }
+        body.light-mode .item-list { background: rgba(0,0,0,0.02); }
         .del-btn { background: none; color: var(--danger); width: auto; padding: 5px 10px; border: 1px solid var(--danger); font-size: 0.7rem; }
 
-        .alert-pill {
-            padding: 10px; border-radius: 12px; background: rgba(255, 77, 109, 0.15);
-            border: 1px solid var(--danger); color: var(--danger); font-size: 0.8rem; margin-top: 10px;
+        .insight-box {
+            padding: 12px; border-radius: 12px; font-size: 0.8rem; margin-top: 15px;
+            border-left: 4px solid var(--primary); background: rgba(94, 234, 212, 0.15);
         }
+        
+        /* Goals Progress */
+        .progress-container { background: rgba(0,0,0,0.2); height: 8px; border-radius: 10px; overflow: hidden; margin: 8px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: 0.5s; }
     </style>
 </head>
 <body>
 
+<div class="container">
     <div id="home" class="page active">
         <div class="glass-card">
-            <h1>📈 Ringkasan Analytics</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>📈 Analytics</h1>
+                <button onclick="toggleTheme()" style="width: 40px; height: 40px; border-radius: 50%; padding: 0;">🌓</button>
+            </div>
             <div class="stats-grid">
                 <div class="stat-card"><span class="stat-label">Total Budget</span><span id="h-budget" class="stat-val">Rp 0</span></div>
                 <div class="stat-card"><span class="stat-label">Sisa Saldo</span><span id="h-sisa" class="stat-val">Rp 0</span></div>
             </div>
-            <div id="alertBox"></div>
+            <div id="insightBox" class="insight-box">🤖 AI sedang menganalisis...</div>
             <div class="chart-box"><canvas id="pieChart"></canvas></div>
         </div>
 
         <div class="glass-card">
-            <h1>📊 Perbandingan Bulanan</h1>
-            <div class="chart-box"><canvas id="barChart"></canvas></div>
+            <h1>🎯 Financial Goals</h1>
+            <div id="goalList"></div>
+            <button onclick="addGoal()" style="background: var(--warning); color: #000; margin-top: 10px;">+ Tambah Target</button>
         </div>
     </div>
 
@@ -100,56 +142,54 @@
             <h1>💸 Tambah Pengeluaran</h1>
             <input type="date" id="t-date">
             <select id="t-cat">
-                <option>Makan</option><option>Jajan</option><option>Bensin</option><option>Belanja</option><option>Kebutuhan</option><option>Lainnya</option>
+                <option>Makan</option><option>Jajan</option><option>Bensin</option><option>Belanja</option><option>Kebutuhan</option>
             </select>
             <input type="number" id="t-amount" placeholder="Nominal Rp">
-            <button onclick="saveTransaction()">Simpan Transaksi</button>
+            <label style="font-size: 0.8rem;"><input type="checkbox" id="t-repeat"> Pengeluaran Rutin</label>
+            <button onclick="saveTransaction()" style="margin-top:10px;">Simpan</button>
         </div>
 
         <div class="glass-card">
-            <h1>📜 Riwayat Transaksi</h1>
-            <div style="display:flex; gap:10px; margin-bottom:15px">
-                <input type="month" id="filterMonth" onchange="renderAll()" style="margin:0">
-                <button onclick="exportCSV()" style="width:70px; background:#475569; color:white">📂</button>
-            </div>
+            <h1>📜 Riwayat</h1>
+            <input type="month" id="filterMonth" onchange="renderAll()">
             <div id="transList"></div>
         </div>
     </div>
 
     <div id="settings" class="page">
         <div class="glass-card">
-            <h1>⚙️ Konfigurasi Budget</h1>
-            <label>Budget Utama Bulanan</label>
+            <h1>⚙️ Budget Utama</h1>
             <input type="number" id="setBudgetInput" placeholder="Contoh: 5000000">
             <button onclick="updateGlobalBudget()">Update Budget</button>
         </div>
 
         <div class="glass-card">
-            <h1>⚠️ Limit Per Kategori</h1>
+            <h1>⚠️ Limit Kategori</h1>
             <select id="l-cat">
-                <option>Makan</option><option>Jajan</option><option>Bensin</option><option>Belanja</option><option>Kebutuhan</option>
+                <option>Makan</option><option>Jajan</option><option>Bensin</option><option>Belanja</option>
             </select>
             <input type="number" id="l-max" placeholder="Limit Nominal Rp">
-            <button onclick="updateLimit()" style="background: var(--warning); color: #000;">Set Limit</button>
-            <div id="limitList" style="margin-top:20px"></div>
+            <button onclick="updateLimit()" style="background: var(--danger); color: white;">Set Limit</button>
+            <div id="limitList" style="margin-top:15px"></div>
         </div>
     </div>
+</div>
 
-    <nav class="nav-bar">
-        <div class="nav-item active" onclick="nav('home', this)">
-            <span class="nav-icon">📊</span><span class="nav-text">Analytics</span>
-        </div>
-        <div class="nav-item" onclick="nav('transaksi', this)">
-            <span class="nav-icon">💸</span><span class="nav-text">Transaksi</span>
-        </div>
-        <div class="nav-item" onclick="nav('settings', this)">
-            <span class="nav-icon">⚙️</span><span class="nav-text">Set Limit</span>
-        </div>
-    </nav>
+<nav class="nav-bar">
+    <div class="nav-item active" onclick="nav('home', this)">
+        <span class="nav-icon">📊</span><span class="nav-text">Analytics</span>
+    </div>
+    <div class="nav-item" onclick="nav('transaksi', this)">
+        <span class="nav-icon">💸</span><span class="nav-text">Transaksi</span>
+    </div>
+    <div class="nav-item" onclick="nav('settings', this)">
+        <span class="nav-icon">⚙️</span><span class="nav-text">Settings</span>
+    </div>
+</nav>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8",
@@ -163,138 +203,150 @@
     const db = getFirestore(app);
 
     // State
-    let dataStore = [], limitStore = {}, globalBudget = 0;
-    let pieChart, barChart;
-    const format = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
+    let store = { trans: [], limits: {}, goals: [], budget: 0 };
+    let pieChart;
+    const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
 
-    // Navigasi
+    // Navigasi & Theme
     window.nav = (id, el) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         el.classList.add('active');
     };
+    window.toggleTheme = () => document.body.classList.toggle('light-mode');
 
-    // Firebase Actions
+    // Actions
     window.updateGlobalBudget = async () => {
         const val = parseInt(document.getElementById('setBudgetInput').value);
         if(val) await setDoc(doc(db, "config", "budget"), { totalBudget: val });
-        Swal.fire('Updated!', 'Budget bulanan telah disimpan.', 'success');
+        Swal.fire('Updated!', 'Budget disimpan.', 'success');
     };
 
     window.saveTransaction = async () => {
-        const date = document.getElementById('t-date').value;
-        const cat = document.getElementById('t-cat').value;
-        const amt = parseInt(document.getElementById('t-amount').value);
-        if(!amt || !date) return Swal.fire('Oops', 'Data belum lengkap', 'warning');
-        await addDoc(collection(db, "pengeluaran"), { tanggal: date, kategori: cat, nominal: amt, timestamp: new Date() });
+        const d = document.getElementById('t-date').value;
+        const c = document.getElementById('t-cat').value;
+        const a = parseInt(document.getElementById('t-amount').value);
+        const r = document.getElementById('t-repeat').checked;
+        if(!a || !d) return Swal.fire('Oops', 'Data tidak lengkap', 'warning');
+        await addDoc(collection(db, "pengeluaran"), { tanggal: d, kategori: c, nominal: a, repeat: r });
         document.getElementById('t-amount').value = "";
     };
 
+    window.addGoal = async () => {
+        const { value: form } = await Swal.fire({
+            title: 'Target Tabungan',
+            html: '<input id="g-n" class="swal2-input" placeholder="Nama Barang"><input id="g-t" type="number" class="swal2-input" placeholder="Harga Target Rp">',
+            preConfirm: () => [document.getElementById('g-n').value, document.getElementById('g-t').value]
+        });
+        if(form && form[0] && form[1]) await addDoc(collection(db, "goals"), { nama: form[0], target: parseInt(form[1]), terkumpul: 0 });
+    };
+
+    window.updateGoal = async (id, current) => {
+        const { value: amount } = await Swal.fire({ title: 'Tambah Tabungan', input: 'number' });
+        if(amount) await setDoc(doc(db, "goals", id), { terkumpul: parseInt(current) + parseInt(amount) }, { merge: true });
+    };
+
     window.updateLimit = async () => {
-        const kat = document.getElementById('l-cat').value;
-        const nom = parseInt(document.getElementById('l-max').value);
-        if(nom) await setDoc(doc(db, "limits", kat), { kategori: kat, max: nom });
+        const k = document.getElementById('l-cat').value;
+        const n = parseInt(document.getElementById('l-max').value);
+        if(n) await setDoc(doc(db, "limits", k), { kategori: k, max: n });
     };
 
     window.removeTrans = async (id) => { await deleteDoc(doc(db, "pengeluaran", id)); };
     window.removeLimit = async (id) => { await deleteDoc(doc(db, "limits", id)); };
 
-    window.exportCSV = () => {
-        let csv = "Tanggal,Kategori,Nominal\n";
-        dataStore.forEach(d => { csv += `${d.tanggal},${d.kategori},${d.nominal}\n`; });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'Laporan_AgisBudget.csv'; a.click();
-    };
-
     // Rendering
     window.renderAll = () => {
         const activeMonth = document.getElementById('filterMonth').value;
-        let monthlyTotal = 0, catMap = {}, monthlyTrend = {};
+        let monthlyTotal = 0, catMap = {};
 
-        // Process Data
+        // Riwayat
         const listHtml = document.getElementById('transList');
         listHtml.innerHTML = "";
-
-        dataStore.forEach(d => {
-            const m = d.tanggal.slice(0, 7);
-            monthlyTrend[m] = (monthlyTrend[m] || 0) + d.nominal;
-
-            if(m === activeMonth) {
+        store.trans.forEach(d => {
+            if(d.tanggal.startsWith(activeMonth)) {
                 monthlyTotal += d.nominal;
                 catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;
                 listHtml.innerHTML += `
-                    <div class="list-item">
-                        <span><b>${d.kategori}</b><br><small>${d.tanggal}</small></span>
-                        <span>${format(d.nominal)} <button class="del-btn" onclick="removeTrans('${d.id}')">✕</button></span>
+                    <div class="item-list">
+                        <span><b>${d.kategori}</b> ${d.repeat?'🔄':''}<br><small>${d.tanggal}</small></span>
+                        <span>${fmt(d.nominal)} <button class="del-btn" onclick="removeTrans('${d.id}')">✕</button></span>
                     </div>`;
             }
         });
 
-        // Update Stats
-        document.getElementById('h-budget').innerText = format(globalBudget);
-        document.getElementById('h-sisa').innerText = format(globalBudget - monthlyTotal);
+        // Stats
+        document.getElementById('h-budget').innerText = fmt(store.budget);
+        document.getElementById('h-sisa').innerText = fmt(store.budget - monthlyTotal);
 
-        // Limit Alerts
-        const alertBox = document.getElementById('alertBox');
-        alertBox.innerHTML = "";
-        for(let k in limitStore) {
-            if(catMap[k] > limitStore[k]) {
-                alertBox.innerHTML += `<div class="alert-pill">🚨 Limit ${k} Jebol! (${format(catMap[k])})</div>`;
-            }
-        }
-
-        updateCharts(catMap, monthlyTrend);
-    };
-
-    function updateCharts(catData, trendData) {
-        // Pie Chart
-        const ctxPie = document.getElementById('pieChart');
-        if(pieChart) pieChart.destroy();
-        pieChart = new Chart(ctxPie, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(catData),
-                datasets: [{ data: Object.values(catData), backgroundColor: ['#00d4ff','#00ffae','#facc15','#ff4d6d','#a855f7','#6366f1'] }]
-            },
-            options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 10 } } } } }
+        // Goals
+        const gList = document.getElementById('goalList');
+        gList.innerHTML = "";
+        store.goals.forEach(g => {
+            const perc = Math.min((g.terkumpul / g.target) * 100, 100);
+            gList.innerHTML += `
+                <div class="item-list" style="display:block; cursor:pointer" onclick="updateGoal('${g.id}', ${g.terkumpul})">
+                    <div style="display:flex; justify-content:space-between"><b>${g.nama}</b><span>${perc.toFixed(1)}%</span></div>
+                    <div class="progress-container"><div class="progress-fill" style="width:${perc}%"></div></div>
+                    <small>${fmt(g.terkumpul)} / ${fmt(g.target)}</small>
+                </div>`;
         });
 
-        // Bar Chart (Monthly Trend)
-        const ctxBar = document.getElementById('barChart');
-        if(barChart) barChart.destroy();
-        const sortedMonths = Object.keys(trendData).sort();
-        barChart = new Chart(ctxBar, {
-            type: 'bar',
+        // Limits & Insight AI
+        const lList = document.getElementById('limitList');
+        lList.innerHTML = "";
+        let insight = "🤖 Pengeluaran aman 👍";
+        let overLimit = false;
+
+        for(let k in store.limits) {
+            if((catMap[k] || 0) > store.limits[k]) {
+                overLimit = true;
+                insight = `🚨 Limit ${k} jebol!`;
+            }
+            lList.innerHTML += `
+                <div class="item-list ${catMap[k] > store.limits[k] ? 'danger' : ''}">
+                    <span>${k}: <b>${fmt(store.limits[k])}</b></span>
+                    <button class="del-btn" onclick="removeLimit('${k}')">✕</button>
+                </div>`;
+        }
+        
+        if(monthlyTotal > store.budget) insight = "⚠️ Budget terlampaui!";
+        document.getElementById('insightBox').innerText = insight;
+        document.getElementById('insightBox').style.background = overLimit || monthlyTotal > store.budget ? 'rgba(251, 113, 133, 0.2)' : 'rgba(94, 234, 212, 0.15)';
+
+        updateChart(catMap);
+    };
+
+    function updateChart(data) {
+        const ctx = document.getElementById('pieChart');
+        if(pieChart) pieChart.destroy();
+        pieChart = new Chart(ctx, {
+            type: 'doughnut',
             data: {
-                labels: sortedMonths,
-                datasets: [{ label: 'Total Pengeluaran', data: sortedMonths.map(m => trendData[m]), backgroundColor: varColor('--primary') }]
+                labels: Object.keys(data),
+                datasets: [{ data: Object.values(data), backgroundColor: ['#5eead4','#60a5fa','#facc15','#fb7185','#a855f7'] }]
             },
-            options: { maintainAspectRatio: false, scales: { y: { ticks: { color: '#64748b' } }, x: { ticks: { color: '#64748b' } } } }
+            options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: getComputedStyle(document.body).color } } } }
         });
     }
 
-    function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name); }
-
-    // Init & Listeners
+    // Init
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
 
-    onSnapshot(doc(db, "config", "budget"), (s) => { if(s.exists()) globalBudget = s.data().totalBudget; renderAll(); });
+    onSnapshot(doc(db, "config", "budget"), (s) => { if(s.exists()) store.budget = s.data().totalBudget; renderAll(); });
     onSnapshot(collection(db, "limits"), (s) => {
-        limitStore = {};
-        const lList = document.getElementById('limitList');
-        lList.innerHTML = "<h1>Limit Saat Ini</h1>";
-        s.forEach(d => {
-            const data = d.data(); limitStore[data.kategori] = data.max;
-            lList.innerHTML += `<div class="list-item"><span>${data.kategori}: ${format(data.max)}</span><button class="del-btn" onclick="removeLimit('${data.kategori}')">Hapus</button></div>`;
-        });
+        store.limits = {};
+        s.forEach(d => store.limits[d.data().kategori] = d.data().max);
+        renderAll();
+    });
+    onSnapshot(collection(db, "goals"), (s) => {
+        store.goals = s.docs.map(d => ({id:d.id, ...d.data()}));
         renderAll();
     });
     onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => {
-        dataStore = s.docs.map(d => ({id: d.id, ...d.data()}));
+        store.trans = s.docs.map(d => ({id:d.id, ...d.data()}));
         renderAll();
     });
 
