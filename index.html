@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v14</title>
+    <title>Agis Finance AI - PWA v16</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -250,7 +250,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, runTransaction, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // PWA: Register Service Worker
     if ('serviceWorker' in navigator) {
@@ -262,8 +262,8 @@
     const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
     const db = getFirestore(app);
     
-    // Enable Offline Persistence
-    enableIndexedDbPersistence(db).catch((err) => {
+    // Enable Offline Persistence with Bonus Improvement
+    enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch((err) => {
         console.error("Offline persistence failed", err);
     });
 
@@ -333,7 +333,7 @@
         Swal.fire('Limit Kategori Set!', '', 'success');
     };
 
-    // ⚠️ SAVE TRANSACTION WITH CRITICAL ERROR HANDLING ⚠️
+    // ⚠️ SAVE TRANSACTION WITH ROBUST TRANSACTION HANDLING ⚠️
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
@@ -351,37 +351,52 @@
             cancelButtonText: 'Batal'
         });
 
-        if(res.isConfirmed) {
-            Swal.fire({
-                title: 'Menyimpan...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
+        if(!res.isConfirmed) return;
 
-            try {
-                // 1. Simpan Transaksi
-                await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
+        Swal.fire({
+            title: 'Menyimpan...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        try {
+            // Menggunakan Transaksi Firestore untuk menangani race condition
+            await runTransaction(db, async (transaction) => {
+                // 1. Baca saldo terbaru di dalam transaksi
+                const walletRef = doc(db, "config", "wallets");
+                const walletSnap = await transaction.get(walletRef);
                 
-                // 2. Update Saldo lokal & Server
-                store.wallets[w] = (store.wallets[w] || 0) - a;
-                await setDoc(doc(db, "config", "wallets"), store.wallets);
+                if (!walletSnap.exists()) {
+                    throw "Dokumen saldo tidak ditemukan!";
+                }
+
+                const currentWallets = walletSnap.data();
                 
-                document.getElementById('t-amount').value = "";
-                Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1500, showConfirmButton: false });
-                nav('home');
-            } catch (error) {
-                console.error("Save error:", error);
-                // Jika error, paksa reload untuk membersihkan antrean rusak
-                Swal.fire({
-                    title: 'Gagal!',
-                    text: 'Konflik data terdeteksi. Memuat ulang...',
-                    icon: 'error',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => {
-                    location.reload();
+                // 2. Cek saldo cukup
+                if ((currentWallets[w] || 0) < a) {
+                    throw "Saldo tidak cukup!";
+                }
+
+                // 3. Update saldo menggunakan transaction.update (lebih aman daripada setDoc)
+                transaction.update(walletRef, {
+                    [w]: (currentWallets[w] || 0) - a
                 });
-            }
+
+                // 4. Tambah transaksi baru
+                const newTransRef = doc(collection(db, "pengeluaran"));
+                transaction.set(newTransRef, { tanggal: d, dompet: w, kategori: c, nominal: a });
+            });
+            
+            document.getElementById('t-amount').value = "";
+            Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1500, showConfirmButton: false });
+            nav('home');
+        } catch (error) {
+            console.error("Save error:", error);
+            Swal.fire({
+                title: 'Gagal!',
+                text: error.toString(),
+                icon: 'error'
+            });
         }
     };
     
@@ -453,7 +468,10 @@
         
         if(res.isConfirmed) {
             await deleteDoc(doc(db, "pengeluaran", id));
-            await setDoc(doc(db, "config", "wallets"), { [wallet]: store.wallets[wallet] + nominal }, { merge: true });
+            // Menggunakan updateDoc untuk menghapus transaksi
+            await updateDoc(doc(db, "config", "wallets"), {
+                [wallet]: store.wallets[wallet] + nominal
+            });
             Swal.fire({ title: 'Terhapus!', icon: 'success', timer: 1000, showConfirmButton: false });
         }
     };
