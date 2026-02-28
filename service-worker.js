@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v10'; // Versi baru agar cache diperbarui
+const CACHE_NAME = 'agis-finance-v7'; // Versi baru agar cache diperbarui
 const ASSETS = [
   './index.html',
   './manifest.json',
