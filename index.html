@@ -61,7 +61,7 @@
         .w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ⚠️ SMART INSIGHT (LAYOUT FIXED + SCROLLABLE) ⚠️ */
+        /* Smart Insight */
         .advisor {
             background: var(--surface);
             border-radius: 24px;
@@ -71,7 +71,7 @@
             display: flex;
             gap: 15px;
             align-items: flex-start;
-            height: 150px; /* Tinggi Tetap */
+            height: 150px;
         }
         
         .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0; }
@@ -81,14 +81,14 @@
             display: flex;
             flex-direction: column;
             height: 100%;
-            overflow: hidden; /* Judul tidak scroll */
+            overflow: hidden;
         }
         
         .adv-title { font-weight: 800; display: block; color: var(--primary); font-size: 0.9rem; margin-bottom: 5px; }
         
         .adv-scrollable {
             flex: 1;
-            overflow-y: auto; /* Hanya isi peringatan yang scroll */
+            overflow-y: auto;
             font-size: 0.85rem;
             line-height: 1.5;
             padding-right: 5px;
@@ -121,7 +121,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3>Agis Finance AI</h3>
-    <p style="color:var(--text-dim); font-size:0.9rem">Memuat data lokal...</p>
+    <p style="color:var(--text-dim); font-size:0.9rem">Memuat data...</p>
 </div>
 
 <div class="container">
@@ -211,7 +211,7 @@
             <input type="number" id="set-cash" placeholder="Saldo Tunai">
             <input type="number" id="set-bank" placeholder="Saldo Bank">
             <input type="number" id="set-e" placeholder="Saldo E-Wallet">
-            <button class="btn-primary" onclick="updateWallets()"><i data-lucide="refresh-cw" style="vertical-align:middle; margin-right:8px;"></i>Update Saldo</button>
+            <button class="btn-primary" onclick="updateWallets()">Update Saldo</button>
         </div>
         
         <div class="card">
@@ -224,14 +224,14 @@
                 <option>Hiburan</option>
             </select>
             <input type="number" id="l-amount" placeholder="Batas Maksimal Rp">
-            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()"><i data-lucide="shield-check" style="vertical-align:middle; margin-right:8px;"></i>Set Limit</button>
+            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Set Limit</button>
             <div id="limitList" style="margin-top:15px; font-size:0.8rem"></div>
         </div>
 
         <div class="card">
             <h1 class="card-title"><i data-lucide="target"></i> Tujuan Menabung</h1>
             <input type="number" id="goal-input" placeholder="Contoh: 2000000">
-            <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()"><i data-lucide="target" style="vertical-align:middle; margin-right:8px;"></i>Set Target Tabungan</button>
+            <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>
         </div>
         
         <div class="card">
@@ -333,7 +333,6 @@
         Swal.fire('Limit Kategori Set!', '', 'success');
     };
 
-    // ⚠️ SAVE TRANSACTION WITH OFFLINE INFO ⚠️
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
@@ -352,7 +351,6 @@
         });
 
         if(res.isConfirmed) {
-            // Animasi Loading
             Swal.fire({
                 title: 'Menyimpan...',
                 text: 'Data disimpan lokal (Mode Offline)',
@@ -366,7 +364,6 @@
                 
                 document.getElementById('t-amount').value = "";
                 
-                // Notifikasi sukses informatif
                 Swal.fire({ 
                     title: 'Tercatat!',
                     text: 'Data disimpan di HP. Sync saat online.',
@@ -474,7 +471,6 @@
     }
 
     // Listeners
-    // ⚠️ OTOMATIS FILTER BULAN BERJALAN ⚠️
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
     
@@ -483,7 +479,6 @@
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
     onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
 
-    // Status Online/Offline
     const statusBadge = document.getElementById('statusBadge');
     window.addEventListener('online', () => {
         statusBadge.innerText = "ONLINE";
