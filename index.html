@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v8</title>
+    <title>Agis Finance AI - PWA v9</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -44,7 +44,7 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Header, Cards, Nav (Sama seperti v7) */
+        /* Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
         .status-online { background: rgba(45, 212, 191, 0.2); color: var(--primary); }
@@ -54,29 +54,42 @@
         .master-amount { font-size: 2.2rem; font-weight: 800; display: block; }
         .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }
 
+        /* Wallet */
         .wallet-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
         .w-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
         .w-icon { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
         .w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        .advisor { background: var(--surface); border-radius: 24px; padding: 20px; border: 1px solid var(--border); display: flex; gap: 15px; }
-        .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; }
+        /* ⚠️ PERBAIKAN CSS DI SINI ⚠️ */
+        .advisor {
+            background: var(--surface);
+            border-radius: 24px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            height: 150px; /* Tinggi Tetap */
+            overflow-y: auto; /* Bisa di-scroll */
+        }
+        
+        .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0;}
         .adv-text { font-size: 0.85rem; line-height: 1.5; }
         .adv-title { font-weight: 800; display: block; color: var(--primary); }
         .warning-text { color: var(--danger); font-weight: 700; }
         .safe-text { color: var(--primary); font-weight: 700; }
 
+        /* Card, Input, Button */
         .card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
         .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
-
         input, select { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 16px; border-radius: 16px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
-        .btn-danger { background: var(--danger); color: white; padding: 16px; border-radius: 16px; border: none; font-weight: 800; width: 100%; cursor: pointer; margin-top: 10px;}
-
         .t-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
         .t-amt.minus { color: var(--danger); }
 
+        /* Nav */
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 70px; background: var(--surface); border-radius: 25px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; }
         .nav-item { color: var(--text-dim); cursor: pointer; }
         .nav-item.active { color: var(--primary); }
@@ -204,10 +217,9 @@
             <input type="number" id="goal-input" placeholder="Contoh: 2000000">
             <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>
         </div>
-
+        
         <div class="card">
             <h1 class="card-title"><i data-lucide="refresh-cw"></i> Sinkronisasi</h1>
-            <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:10px">Data tersinkronisasi otomatis saat online. Klik tombol untuk memaksa sync jika ada data tertunda.</p>
             <button class="btn-primary" style="background:var(--accent)" onclick="forceSync()">Sync Sekarang</button>
         </div>
     </div>
@@ -222,7 +234,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, waitForPendingWrites } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // PWA: Register Service Worker
     if ('serviceWorker' in navigator) {
@@ -249,7 +261,7 @@
         setTimeout(() => {
             document.getElementById('splash-screen').style.opacity = '0';
             setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
-        }, 1500); // Tampilkan splash screen minimal 1.5 detik
+        }, 1500);
     });
 
     window.nav = (id, el) => {
@@ -321,20 +333,20 @@
         nav('home');
     };
     
-    // Fitur Sync Manual
     window.forceSync = async () => {
         Swal.fire({ title: 'Menyinkronkan...', text: 'Menunggu koneksi...', timer: 3000, showConfirmButton: false });
-        // Firebase otomatis sync kalau online, function ini hanya untuk memancing UI
     };
 
     window.renderAll = () => {
         const activeMonth = document.getElementById('filterMonth').value;
         let catMap = {};
+        const listHtml = document.getElementById('transList');
+        listHtml.innerHTML = "";
 
         store.trans.forEach(d => {
             if(d.tanggal.startsWith(activeMonth)) {
                 catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;
-                document.getElementById('transList').innerHTML += `
+                listHtml.innerHTML += `
                     <div class="t-item">
                         <div class="t-info"><b>${d.kategori}</b><small>${d.tanggal} • ${d.dompet}</small></div>
                         <div class="t-amt minus">- ${fmtShort(d.nominal)} <i data-lucide="x-circle" onclick="removeTrans('${d.id}', '${d.dompet}', ${d.nominal})" style="width:14px; margin-left:8px; cursor:pointer; color:var(--text-dim)"></i></div>
