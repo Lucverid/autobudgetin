@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v6'; // Naikkan versi di sini
+const CACHE_NAME = 'agis-finance-v9'; // Naikkan versi di sini
 const ASSETS = [
   './index.html',
   './manifest.json',
