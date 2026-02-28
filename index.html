@@ -60,7 +60,7 @@
         .w-name { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ADVISOR BOX - UPDATED */
+        /* ADVISOR BOX */
         .advisor {
             background: var(--surface); border-radius: 24px; padding: 20px;
             margin: 20px 0; border: 1px solid var(--border);
@@ -114,6 +114,9 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }
         
         .offline-status { background: var(--danger); color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; display: none; }
+        
+        /* CHART FIX */
+        .chart-container { height: 220px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -154,6 +157,11 @@
                 <span class="adv-title">Smart Insight</span>
                 <span id="advisorContent">Menghitung...</span>
             </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title"><i data-lucide="pie-chart"></i> Alokasi Bulan Ini</div>
+            <div class="chart-container"><canvas id="pieChart"></canvas></div>
         </div>
     </div>
 
@@ -238,6 +246,7 @@
     enableIndexedDbPersistence(db).catch(() => {});
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goals: [], limits: {} };
+    let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
     const fmtShort = (n) => new Intl.NumberFormat('id-ID').format(n);
 
@@ -345,6 +354,8 @@
             lList.innerHTML += `<div><b>${cat}</b>: ${fmt(amt)}</div>`;
         }
 
+        // 6. UPDATE CHART
+        updateChart(catMap);
         lucide.createIcons();
     };
 
@@ -376,6 +387,40 @@
         XLSX.utils.book_append_sheet(wb, ws, "Keuangan");
         XLSX.writeFile(wb, `Laporan_Agis_${new Date().toLocaleDateString()}.xlsx`);
     };
+
+    // FUNGSI CHART
+    function updateChart(data) {
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        if(pieChart) pieChart.destroy();
+        
+        const isLight = document.body.classList.contains('light-mode');
+        const colors = isLight ? 
+            ['#0d9488','#2563eb','#d97706','#dc2626','#7c3aed'] : ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'];
+        
+        pieChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { 
+                labels: Object.keys(data), 
+                datasets: [{ 
+                    data: Object.values(data), 
+                    backgroundColor: colors, 
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }] 
+            },
+            options: { 
+                maintainAspectRatio: false, 
+                cutout: '75%', 
+                plugins: { 
+                    legend: { 
+                        display: true, 
+                        position: 'bottom',
+                        labels: { color: isLight ? '#0f172a' : '#f8fafc', font: { size: 11 } }
+                    } 
+                } 
+            }
+        });
+    }
 
     // Firebase Data Listeners
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
