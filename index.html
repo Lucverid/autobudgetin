@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v17</title>
+    <title>Agis Finance AI - PWA v18</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -254,28 +254,30 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, runTransaction, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // PWA: Register Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js')
-        .then(() => console.log('Service Worker Registered'));
+        navigator.serviceWorker.register('./service-worker.js');
     }
 
     lucide.createIcons();
     const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
     const db = getFirestore(app);
     
-    // Enable Offline Persistence with Bonus Improvement
-    enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch((err) => {
-        console.error("Offline persistence failed", err);
-    });
+    enableIndexedDbPersistence(db, { synchronizeTabs: true });
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
     const fmtShort = (n) => new Intl.NumberFormat('id-ID').format(n);
 
-    // Splash Screen Logic
+    // ✅ FIX: Inisialisasi Bulan Sekarang saat Load
     window.addEventListener('load', () => {
+        document.getElementById('t-date').valueAsDate = new Date();
+        const monthInput = document.getElementById('filterMonth');
+        if (monthInput) {
+            monthInput.value = new Date().toISOString().slice(0,7);
+            renderAll(); // Render ulang dengan bulan yang benar
+        }
+        
         setTimeout(() => {
             document.getElementById('splash-screen').style.opacity = '0';
             setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
@@ -286,20 +288,12 @@
         const pages = document.querySelectorAll('.page');
         const navItems = document.querySelectorAll('.nav-item');
         const targetPage = document.getElementById(id);
-        
         if (!targetPage) return;
-
         pages.forEach(p => p.classList.remove('active'));
         navItems.forEach(n => n.classList.remove('active'));
-        
         targetPage.classList.add('active');
-        
-        if(el) {
-            el.classList.add('active');
-        } else {
-            const defaultNav = document.querySelector(`[onclick="nav('${id}')"]`);
-            if(defaultNav) defaultNav.classList.add('active');
-        }
+        if(el) el.classList.add('active');
+        else document.querySelector(`[onclick="nav('${id}')"]`)?.classList.add('active');
     };
 
     window.toggleTheme = () => { document.body.classList.toggle('light-mode'); renderAll(); };
@@ -329,7 +323,6 @@
             confirmButtonText: 'Update',
             cancelButtonText: 'Hapus Target'
         });
-        
         if (amount) {
             await setDoc(doc(db, "config", "goal"), { amount: parseInt(amount) });
             Swal.fire('Updated!', '', 'success');
@@ -347,7 +340,6 @@
         Swal.fire('Limit Kategori Set!', '', 'success');
     };
 
-    // ⚠️ SAVE TRANSACTION WITH ROBUST TRANSACTION HANDLING ⚠️
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
@@ -366,49 +358,26 @@
         });
 
         if(!res.isConfirmed) return;
-
-        Swal.fire({
-            title: 'Menyimpan...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
+        Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
         try {
             await runTransaction(db, async (transaction) => {
                 const walletRef = doc(db, "config", "wallets");
                 const walletSnap = await transaction.get(walletRef);
-                
-                if (!walletSnap.exists()) {
-                    throw "Dokumen saldo tidak ditemukan!";
-                }
-
+                if (!walletSnap.exists()) throw "Dokumen saldo tidak ditemukan!";
                 const currentWallets = walletSnap.data();
-                
-                if ((currentWallets[w] || 0) < a) {
-                    throw "Saldo tidak cukup!";
-                }
-
-                transaction.update(walletRef, {
-                    [w]: (currentWallets[w] || 0) - a
-                });
-
+                if ((currentWallets[w] || 0) < a) throw "Saldo tidak cukup!";
+                transaction.update(walletRef, { [w]: (currentWallets[w] || 0) - a });
                 const newTransRef = doc(collection(db, "pengeluaran"));
                 transaction.set(newTransRef, { tanggal: d, dompet: w, kategori: c, nominal: a });
             });
-            
-            // ✅ FIX 2: RESET FORM TOTAL TOTAL
             document.getElementById('transForm').reset();
-            document.getElementById('t-date').valueAsDate = new Date(); // Reset date to today
-
+            document.getElementById('t-date').valueAsDate = new Date();
             Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1500, showConfirmButton: false });
             nav('home');
         } catch (error) {
             console.error("Save error:", error);
-            Swal.fire({
-                title: 'Gagal!',
-                text: error.toString(),
-                icon: 'error'
-            });
+            Swal.fire({ title: 'Gagal!', text: error.toString(), icon: 'error' });
         }
     };
     
@@ -416,17 +385,11 @@
         Swal.fire({ title: 'Menyinkronkan...', text: 'Menunggu koneksi...', timer: 3000, showConfirmButton: false });
     };
 
-    // ✅ FIX 1: AUTO SELECT MONTH & SECURE RENDER
     window.renderAll = () => {
         const monthInput = document.getElementById('filterMonth');
-        
-        // Pastikan selalu ada bulan aktif (bulan sekarang)
-        let activeMonth = monthInput.value;
-        if (!activeMonth) {
-            activeMonth = new Date().toISOString().slice(0,7);
-            monthInput.value = activeMonth;
-        }
+        if (!monthInput.value) return; // Tunggu inisialisasi
 
+        let activeMonth = monthInput.value;
         let catMap = {};
         const listHtml = document.getElementById('transList');
         if (listHtml) listHtml.innerHTML = "";
@@ -451,7 +414,6 @@
         document.getElementById('w-bank').innerText = fmtShort(store.wallets.Bank);
         document.getElementById('w-e').innerText = fmtShort(store.wallets["E-Wallet"]);
 
-        // Limit Check
         let limitWarnings = [];
         for (const [category, spent] of Object.entries(catMap)) {
             if (store.limits[category] && spent >= store.limits[category]) {
@@ -467,12 +429,9 @@
         const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;
         
         let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.<br>`;
-        if (disposableIncome < 0) {
-            advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
-        }
+        if (disposableIncome < 0) advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
         
         document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');
-
         updateChart(catMap);
         lucide.createIcons();
     };
@@ -486,12 +445,9 @@
             confirmButtonColor: '#ef4444',
             confirmButtonText: 'Ya, Hapus!'
         });
-        
         if(res.isConfirmed) {
             await deleteDoc(doc(db, "pengeluaran", id));
-            await updateDoc(doc(db, "config", "wallets"), {
-                [wallet]: store.wallets[wallet] + nominal
-            });
+            await updateDoc(doc(db, "config", "wallets"), { [wallet]: store.wallets[wallet] + nominal });
             Swal.fire({ title: 'Terhapus!', icon: 'success', timer: 1000, showConfirmButton: false });
         }
     };
@@ -515,24 +471,14 @@
         });
     }
 
-    // Initialize
-    document.getElementById('t-date').valueAsDate = new Date();
-    
-    // Stabilized Listeners
-    onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); }, (e) => console.log(e));
-    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); }, (e) => console.log(e));
-    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); }, (e) => console.log(e));
-    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); }, (e) => console.log(e));
+    onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
+    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
+    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
+    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
 
     const statusBadge = document.getElementById('statusBadge');
-    window.addEventListener('online', () => {
-        statusBadge.innerText = "ONLINE";
-        statusBadge.classList.replace('status-offline', 'status-online');
-    });
-    window.addEventListener('offline', () => {
-        statusBadge.innerText = "OFFLINE";
-        statusBadge.classList.replace('status-online', 'status-offline');
-    });
+    window.addEventListener('online', () => { statusBadge.innerText = "ONLINE"; statusBadge.classList.replace('status-offline', 'status-online'); });
+    window.addEventListener('offline', () => { statusBadge.innerText = "OFFLINE"; statusBadge.classList.replace('status-online', 'status-offline'); });
 </script>
 </body>
 </html>
