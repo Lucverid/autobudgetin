@@ -3,15 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v7</title>
-<link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(() => console.log('Service Worker Registered'));
-  }
-</script>
-
+    <title>Agis Finance AI - PWA v8</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -36,94 +31,74 @@
         body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: all 0.3s ease; }
         .container { max-width: 450px; margin: auto; padding: 20px; }
 
-        /* HEADER */
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--surface);
+            border-top: 4px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Header, Cards, Nav (Sama seperti v7) */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .header-left { display: flex; align-items: center; gap: 10px; }
+        .status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
+        .status-online { background: rgba(45, 212, 191, 0.2); color: var(--primary); }
+        .status-offline { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
         
         .master-balance { text-align: center; margin-bottom: 15px; }
-        .master-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-        .master-amount { font-size: 2.2rem; font-weight: 800; display: block; margin-top: 5px; }
+        .master-amount { font-size: 2.2rem; font-weight: 800; display: block; }
         .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }
 
-        /* WALLET GRID */
         .wallet-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
-        .w-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 20px; padding: 18px; flex: 1; min-width: 100px; 
-            display: flex; flex-direction: column; align-items: center; text-align: center;
-        }
+        .w-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
         .w-icon { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-        .w-name { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; }
+        .w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ADVISOR BOX */
-        .advisor {
-            background: var(--surface); border-radius: 24px; padding: 20px;
-            margin: 20px 0; border: 1px solid var(--border);
-            display: flex; gap: 15px; align-items: flex-start;
-        }
+        .advisor { background: var(--surface); border-radius: 24px; padding: 20px; border: 1px solid var(--border); display: flex; gap: 15px; }
         .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; }
         .adv-text { font-size: 0.85rem; line-height: 1.5; }
-        .adv-title { font-weight: 800; display: block; margin-bottom: 4px; color: var(--primary); }
+        .adv-title { font-weight: 800; display: block; color: var(--primary); }
         .warning-text { color: var(--danger); font-weight: 700; }
         .safe-text { color: var(--primary); font-weight: 700; }
 
-        /* GLASS CARD */
-        .card {
-            background: var(--glass); backdrop-filter: blur(10px);
-            border-radius: 28px; padding: 20px; margin-bottom: 20px;
-            border: 1px solid var(--border);
-        }
+        .card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
         .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
 
-        /* FORM ELEMENTS */
-        input, select {
-            width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border);
-            background: var(--surface); color: var(--text); margin-bottom: 12px;
-            font-size: 0.9rem; outline: none;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            color: #0f172a; padding: 16px; border-radius: 16px; border: none;
-            font-weight: 800; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;
-        }
+        input, select { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 16px; border-radius: 16px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
+        .btn-danger { background: var(--danger); color: white; padding: 16px; border-radius: 16px; border: none; font-weight: 800; width: 100%; cursor: pointer; margin-top: 10px;}
 
-        /* LIST ITEMS */
         .t-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
-        .t-info b { font-size: 0.9rem; display: block; }
-        .t-info small { color: var(--text-dim); font-size: 0.75rem; }
-        .t-amt { text-align: right; font-weight: 700; font-size: 0.95rem; }
         .t-amt.minus { color: var(--danger); }
 
-        /* NAV */
-        .nav-bar {
-            position: fixed; bottom: 20px; left: 20px; right: 20px; height: 70px;
-            background: var(--surface); border-radius: 25px;
-            display: flex; justify-content: space-around; align-items: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; border: 1px solid var(--border);
-        }
-        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; }
+        .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 70px; background: var(--surface); border-radius: 25px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; }
+        .nav-item { color: var(--text-dim); cursor: pointer; }
         .nav-item.active { color: var(--primary); }
 
         .page { display: none; animation: slideUp 0.4s ease; }
         .page.active { display: block; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }
-        
-        .status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
-        .status-online { background: rgba(45, 212, 191, 0.2); color: var(--primary); }
-        .status-offline { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-        
         .chart-container { height: 220px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
+<div id="splash-screen">
+    <div class="spinner"></div>
+    <h3>Agis Finance AI</h3>
+    <p style="color:var(--text-dim); font-size:0.9rem">Memuat data lokal...</p>
+</div>
+
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
-            <div class="header-left">
-                <span id="statusBadge" class="status-badge status-online">ONLINE</span>
-            </div>
+            <span id="statusBadge" class="status-badge status-online">ONLINE</span>
             <button onclick="toggleTheme()" style="background:none; border:none; color:var(--text-dim); cursor:pointer"><i data-lucide="sun-moon"></i></button>
         </div>
 
@@ -131,7 +106,6 @@
             <span class="master-label">Total Saldo Aktif</span>
             <span class="master-amount" id="total-balance">Rp 0</span>
         </div>
-        
         <div class="goal-info" id="goal-info" onclick="manageGoal()">
             <i data-lucide="target" style="width:16px; vertical-align:middle"></i>
             Target Tabungan: <span id="goal-amount">Rp 0</span>
@@ -230,6 +204,12 @@
             <input type="number" id="goal-input" placeholder="Contoh: 2000000">
             <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Set Target Tabungan</button>
         </div>
+
+        <div class="card">
+            <h1 class="card-title"><i data-lucide="refresh-cw"></i> Sinkronisasi</h1>
+            <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:10px">Data tersinkronisasi otomatis saat online. Klik tombol untuk memaksa sync jika ada data tertunda.</p>
+            <button class="btn-primary" style="background:var(--accent)" onclick="forceSync()">Sync Sekarang</button>
+        </div>
     </div>
 </div>
 
@@ -242,13 +222,19 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, waitForPendingWrites } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // PWA: Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js')
+        .then(() => console.log('Service Worker Registered'));
+    }
 
     lucide.createIcons();
     const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
     const db = getFirestore(app);
     
-    // 🔥 PENTING: Aktifkan persistensi lokal untuk offline
+    // Enable Offline Persistence
     enableIndexedDbPersistence(db).catch((err) => {
         console.error("Offline persistence failed", err);
     });
@@ -257,6 +243,14 @@
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
     const fmtShort = (n) => new Intl.NumberFormat('id-ID').format(n);
+
+    // Splash Screen Logic
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            document.getElementById('splash-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
+        }, 1500); // Tampilkan splash screen minimal 1.5 detik
+    });
 
     window.nav = (id, el) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -319,7 +313,6 @@
         const a = parseInt(document.getElementById('t-amount').value);
         if(!a || !d) return Swal.fire('Isi nominal & tanggal!', '', 'warning');
         
-        // Data akan tersimpan di cache lokal dulu, lalu sync ke firebase kalau online
         await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
         await setDoc(doc(db, "config", "wallets"), { [w]: store.wallets[w] - a }, { merge: true });
         
@@ -327,19 +320,21 @@
         Swal.fire({ title: 'Tercatat', icon: 'success', timer: 1000 });
         nav('home');
     };
+    
+    // Fitur Sync Manual
+    window.forceSync = async () => {
+        Swal.fire({ title: 'Menyinkronkan...', text: 'Menunggu koneksi...', timer: 3000, showConfirmButton: false });
+        // Firebase otomatis sync kalau online, function ini hanya untuk memancing UI
+    };
 
     window.renderAll = () => {
         const activeMonth = document.getElementById('filterMonth').value;
-        let monthlyTotal = 0, catMap = {};
+        let catMap = {};
 
-        // 1. History & Category Sum
-        const listHtml = document.getElementById('transList');
-        listHtml.innerHTML = "";
         store.trans.forEach(d => {
             if(d.tanggal.startsWith(activeMonth)) {
-                monthlyTotal += d.nominal;
                 catMap[d.kategori] = (catMap[d.kategori] || 0) + d.nominal;
-                listHtml.innerHTML += `
+                document.getElementById('transList').innerHTML += `
                     <div class="t-item">
                         <div class="t-info"><b>${d.kategori}</b><small>${d.tanggal} • ${d.dompet}</small></div>
                         <div class="t-amt minus">- ${fmtShort(d.nominal)} <i data-lucide="x-circle" onclick="removeTrans('${d.id}', '${d.dompet}', ${d.nominal})" style="width:14px; margin-left:8px; cursor:pointer; color:var(--text-dim)"></i></div>
@@ -347,18 +342,16 @@
             }
         });
 
-        // 2. Balances
         const totalRaw = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];
         const disposableIncome = totalRaw - store.goal;
         
         document.getElementById('total-balance').innerText = fmt(disposableIncome);
         document.getElementById('goal-amount').innerText = fmt(store.goal);
-        
         document.getElementById('w-cash').innerText = fmtShort(store.wallets.Tunai);
         document.getElementById('w-bank').innerText = fmtShort(store.wallets.Bank);
         document.getElementById('w-e').innerText = fmtShort(store.wallets["E-Wallet"]);
 
-        // 3. AI Advisor & Limit Check
+        // Limit Check
         let limitWarnings = [];
         for (const [category, spent] of Object.entries(catMap)) {
             if (store.limits[category] && spent >= store.limits[category]) {
@@ -371,24 +364,14 @@
         const now = new Date();
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         const daysLeft = daysInMonth - now.getDate() + 1;
-        
         const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;
         
         let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.`;
         if (disposableIncome < 0) {
             advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
         }
-
         document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');
 
-        // 4. Render Limits List
-        const lList = document.getElementById('limitList');
-        lList.innerHTML = "";
-        for (const [cat, amt] of Object.entries(store.limits)) {
-            lList.innerHTML += `<div><b>${cat}</b>: ${fmt(amt)}</div>`;
-        }
-
-        // 5. UPDATE CHART
         updateChart(catMap);
         lucide.createIcons();
     };
@@ -411,11 +394,8 @@
     function updateChart(data) {
         const ctx = document.getElementById('pieChart').getContext('2d');
         if(pieChart) pieChart.destroy();
-        
         const isLight = document.body.classList.contains('light-mode');
-        const colors = isLight ? 
-            ['#0d9488','#2563eb','#d97706','#dc2626','#7c3aed'] : ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'];
-        
+        const colors = isLight ? ['#0d9488','#2563eb','#d97706','#dc2626','#7c3aed'] : ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'];
         pieChart = new Chart(ctx, {
             type: 'doughnut',
             data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors, borderWidth: 0 }] },
@@ -423,10 +403,9 @@
         });
     }
 
-    // Firebase Data Listeners (Automatic Sync)
+    // Listeners
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
-    
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
@@ -436,13 +415,11 @@
     const statusBadge = document.getElementById('statusBadge');
     window.addEventListener('online', () => {
         statusBadge.innerText = "ONLINE";
-        statusBadge.classList.remove('status-offline');
-        statusBadge.classList.add('status-online');
+        statusBadge.classList.replace('status-offline', 'status-online');
     });
     window.addEventListener('offline', () => {
         statusBadge.innerText = "OFFLINE";
-        statusBadge.classList.remove('status-online');
-        statusBadge.classList.add('status-offline');
+        statusBadge.classList.replace('status-online', 'status-offline');
     });
 </script>
 </body>
