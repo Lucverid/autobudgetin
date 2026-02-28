@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v9</title>
+    <title>Agis Finance AI - PWA v10</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -61,7 +61,7 @@
         .w-name { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ⚠️ PERBAIKAN CSS DI SINI ⚠️ */
+        /* ⚠️ SMART INSIGHT (LAYOUT DIPERBAIKI) ⚠️ */
         .advisor {
             background: var(--surface);
             border-radius: 24px;
@@ -71,14 +71,30 @@
             display: flex;
             gap: 15px;
             align-items: flex-start;
-            height: 150px; /* Tinggi Tetap */
-            overflow-y: auto; /* Bisa di-scroll */
+            height: 150px; /* Tinggi Total Tetap */
         }
         
-        .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0;}
-        .adv-text { font-size: 0.85rem; line-height: 1.5; }
-        .adv-title { font-weight: 800; display: block; color: var(--primary); }
-        .warning-text { color: var(--danger); font-weight: 700; }
+        .adv-icon { background: var(--primary); color: #000; padding: 10px; border-radius: 15px; flex-shrink: 0; }
+        
+        .adv-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden; /* Judul tidak bisa di-scroll */
+        }
+        
+        .adv-title { font-weight: 800; display: block; color: var(--primary); font-size: 0.9rem; margin-bottom: 5px; }
+        
+        .adv-scrollable {
+            flex: 1;
+            overflow-y: auto; /* Hanya konten peringatan yang di-scroll */
+            font-size: 0.85rem;
+            line-height: 1.5;
+            padding-right: 5px;
+        }
+
+        .warning-text { color: var(--danger); font-weight: 700; display: block; margin-bottom: 4px; }
         .safe-text { color: var(--primary); font-weight: 700; }
 
         /* Card, Input, Button */
@@ -144,9 +160,9 @@
 
         <div class="advisor">
             <div class="adv-icon"><i data-lucide="sparkles"></i></div>
-            <div class="adv-text">
+            <div class="adv-main">
                 <span class="adv-title">Smart Insight</span>
-                <span id="advisorContent">Menghitung...</span>
+                <div id="advisorContent" class="adv-scrollable">Menghitung...</div>
             </div>
         </div>
         
@@ -367,9 +383,9 @@
         let limitWarnings = [];
         for (const [category, spent] of Object.entries(catMap)) {
             if (store.limits[category] && spent >= store.limits[category]) {
-                limitWarnings.push(`<br><span class="warning-text">⚠️ Limit ${category} terlampaui! (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);
+                limitWarnings.push(`<span class="warning-text">⚠️ Limit ${category} terlampaui! (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);
             } else if (store.limits[category] && spent >= store.limits[category] * 0.8) {
-                limitWarnings.push(`<br><span class="warning-text" style="color:var(--warning)">📢 ${category} mendekati limit (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);
+                limitWarnings.push(`<span class="warning-text" style="color:var(--warning)">📢 ${category} mendekati limit (${fmtShort(spent)}/${fmtShort(store.limits[category])})</span>`);
             }
         }
 
@@ -378,10 +394,12 @@
         const daysLeft = daysInMonth - now.getDate() + 1;
         const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;
         
-        let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.`;
+        let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.<br>`;
         if (disposableIncome < 0) {
             advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
         }
+        
+        // Update konten Smart Insight
         document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');
 
         updateChart(catMap);
