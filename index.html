@@ -45,7 +45,6 @@
         body::before{background:var(--primary);top:-100px;left:-100px;opacity:.2}
         body::after{background:var(--accent);bottom:-100px;right:-100px;opacity:.2}
 
-        /* Glass Card */
         .glass-card {
             background: var(--card); backdrop-filter: blur(20px);
             border: 1px solid var(--border);
@@ -54,6 +53,14 @@
         }
 
         h1 { font-size: 15px; margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+        /* Offline Badge */
+        .offline-badge {
+            background: var(--warning); color: #000; font-size: 10px;
+            padding: 2px 8px; border-radius: 10px; display: none;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         input, select {
             width: 100%; padding: 14px; border-radius: 14px; border: 1px solid var(--border);
@@ -68,12 +75,10 @@
         }
         button:active { transform: scale(0.98); }
 
-        /* Page System */
         .page { display: none; animation: fadeIn 0.4s ease; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Navigation */
         .nav-bar {
             position: fixed; bottom: 0; left: 0; right: 0; height: 75px;
             background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px);
@@ -86,7 +91,6 @@
         .nav-icon { font-size: 1.4rem; display: block; margin-bottom: 2px; }
         .nav-text { font-size: 0.65rem; text-transform: uppercase; }
 
-        /* Dashboard Elements */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
         .stat-card { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 18px; border-left: 3px solid var(--primary); }
         .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
@@ -94,7 +98,6 @@
         
         .chart-box { height: 180px; margin-top: 15px; position: relative; }
 
-        /* List Items */
         .item-list {
             background: rgba(255,255,255,0.03); padding: 14px; border-radius: 14px;
             margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
@@ -108,7 +111,6 @@
             border-left: 4px solid var(--primary); background: rgba(94, 234, 212, 0.15);
         }
         
-        /* Goals Progress */
         .progress-container { background: rgba(0,0,0,0.2); height: 8px; border-radius: 10px; overflow: hidden; margin: 8px 0; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: 0.5s; }
     </style>
@@ -119,7 +121,7 @@
     <div id="home" class="page active">
         <div class="glass-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h1>📈 Analytics</h1>
+                <h1>📈 Analytics <span id="offlineStatus" class="offline-badge">OFFLINE</span></h1>
                 <button onclick="toggleTheme()" style="width: 40px; height: 40px; border-radius: 50%; padding: 0;">🌓</button>
             </div>
             <div class="stats-grid">
@@ -189,7 +191,10 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { 
+        getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, 
+        enableIndexedDbPersistence 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8",
@@ -199,8 +204,18 @@
         messagingSenderId: "725272276839",
         appId: "1:725272276839:web:d95f1643629c97edae09c2"
     };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+    // AKTIFKAN OFFLINE PERSISTENCE (FITUR CACHE)
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.warn("Persistence failed: Multiple tabs open");
+        } else if (err.code == 'unimplemented') {
+            console.warn("Persistence not supported by browser");
+        }
+    });
 
     // State
     let store = { trans: [], limits: {}, goals: [], budget: 0 };
@@ -216,6 +231,15 @@
     };
     window.toggleTheme = () => document.body.classList.toggle('light-mode');
 
+    // Online/Offline Detection
+    window.addEventListener('online', () => {
+        document.getElementById('offlineStatus').style.display = 'none';
+        Swal.fire({ title: 'Kembali Online', text: 'Data disinkronkan ke cloud', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+    });
+    window.addEventListener('offline', () => {
+        document.getElementById('offlineStatus').style.display = 'inline-block';
+    });
+
     // Actions
     window.updateGlobalBudget = async () => {
         const val = parseInt(document.getElementById('setBudgetInput').value);
@@ -229,8 +253,14 @@
         const a = parseInt(document.getElementById('t-amount').value);
         const r = document.getElementById('t-repeat').checked;
         if(!a || !d) return Swal.fire('Oops', 'Data tidak lengkap', 'warning');
+        
+        // Firestore akan menyimpan secara lokal dulu jika offline
         await addDoc(collection(db, "pengeluaran"), { tanggal: d, kategori: c, nominal: a, repeat: r });
         document.getElementById('t-amount').value = "";
+        
+        if(!navigator.onLine) {
+            Swal.fire({ title: 'Tersimpan (Offline)', text: 'Akan di-sync saat ada internet', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+        }
     };
 
     window.addGoal = async () => {
@@ -261,7 +291,6 @@
         const activeMonth = document.getElementById('filterMonth').value;
         let monthlyTotal = 0, catMap = {};
 
-        // Riwayat
         const listHtml = document.getElementById('transList');
         listHtml.innerHTML = "";
         store.trans.forEach(d => {
@@ -276,11 +305,9 @@
             }
         });
 
-        // Stats
         document.getElementById('h-budget').innerText = fmt(store.budget);
         document.getElementById('h-sisa').innerText = fmt(store.budget - monthlyTotal);
 
-        // Goals
         const gList = document.getElementById('goalList');
         gList.innerHTML = "";
         store.goals.forEach(g => {
@@ -293,7 +320,6 @@
                 </div>`;
         });
 
-        // Limits & Insight AI
         const lList = document.getElementById('limitList');
         lList.innerHTML = "";
         let insight = "🤖 Pengeluaran aman 👍";
@@ -331,7 +357,7 @@
         });
     }
 
-    // Init
+    // Init Data Listeners (Tetap bekerja meskipun offline berkat Persistence)
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
 
