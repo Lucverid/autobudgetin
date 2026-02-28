@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v11</title>
+    <title>Agis Finance AI - PWA v12</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -262,7 +262,7 @@
     const app = initializeApp({apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2"});
     const db = getFirestore(app);
     
-    // Enable Offline Persistence (Data tetap tersimpan saat offline)
+    // Enable Offline Persistence
     enableIndexedDbPersistence(db).catch((err) => {
         console.error("Offline persistence failed", err);
     });
@@ -333,7 +333,7 @@
         Swal.fire('Limit Kategori Set!', '', 'success');
     };
 
-    // SAVE TRANSACTION WITH CONFIRMATION
+    // ⚠️ SAVE TRANSACTION WITH OFFLINE INFO ⚠️
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
@@ -342,7 +342,6 @@
         
         if(!a || !d) return Swal.fire('Isi nominal & tanggal!', '', 'warning');
         
-        // Animasi Konfirmasi Sebelum
         const res = await Swal.fire({
             title: 'Catat Transaksi?',
             text: `${c} sebesar ${fmt(a)}`,
@@ -353,13 +352,32 @@
         });
 
         if(res.isConfirmed) {
-            await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
-            await setDoc(doc(db, "config", "wallets"), { [w]: store.wallets[w] - a }, { merge: true });
-            
-            document.getElementById('t-amount').value = "";
-            // Animasi Konfirmasi Sesudah
-            Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1000, showConfirmButton: false });
-            nav('home');
+            // Animasi Loading
+            Swal.fire({
+                title: 'Menyimpan...',
+                text: 'Data disimpan lokal (Mode Offline)',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
+                await setDoc(doc(db, "config", "wallets"), { [w]: store.wallets[w] - a }, { merge: true });
+                
+                document.getElementById('t-amount').value = "";
+                
+                // Notifikasi sukses informatif
+                Swal.fire({ 
+                    title: 'Tercatat!',
+                    text: 'Data disimpan di HP. Sync saat online.',
+                    icon: 'success', 
+                    timer: 2000, 
+                    showConfirmButton: false 
+                });
+                nav('home');
+            } catch (error) {
+                Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan.', 'error');
+            }
         }
     };
     
@@ -413,14 +431,12 @@
             advisorHtml = `<span class="warning-text">⚠️ Uang konsumsi habis! Tabungan terpakai!</span>`;
         }
         
-        // Update konten Smart Insight (yang bisa di-scroll)
         document.getElementById('advisorContent').innerHTML = advisorHtml + limitWarnings.join('');
 
         updateChart(catMap);
         lucide.createIcons();
     };
 
-    // ⚠️ HAPUS RIWAYAT DENGAN KONFIRMASI ⚠️
     window.removeTrans = async (id, wallet, nominal) => {
         const res = await Swal.fire({ 
             title: 'Hapus Transaksi?', 
@@ -432,11 +448,8 @@
         });
         
         if(res.isConfirmed) {
-            // Hapus dari Firebase (akan sync otomatis saat online)
             await deleteDoc(doc(db, "pengeluaran", id));
-            // Kembalikan saldo
             await setDoc(doc(db, "config", "wallets"), { [wallet]: store.wallets[wallet] + nominal }, { merge: true });
-            
             Swal.fire({ title: 'Terhapus!', icon: 'success', timer: 1000, showConfirmButton: false });
         }
     };
@@ -464,7 +477,6 @@
     document.getElementById('filterMonth').value = new Date().toISOString().slice(0, 7);
     document.getElementById('t-date').valueAsDate = new Date();
     
-    // Auto-render saat data berubah (Firebase menangani offline persistence)
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
