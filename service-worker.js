@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v1';
+const CACHE_NAME = 'agis-finance-v3'; // Versi baru agar cache diperbarui
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -9,7 +9,7 @@ const ASSETS = [
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
 ];
 
-// Install dan simpan semua file ke cache
+// Install service worker dan cache aset
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -18,7 +18,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// Saat offline, ambil dari cache
+// Layani aset dari cache saat offline
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
