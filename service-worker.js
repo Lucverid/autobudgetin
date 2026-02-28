@@ -1,7 +1,11 @@
-const CACHE_NAME = 'agis-finance-v100'; // Versi baru agar cache diperbarui
+const CACHE_NAME = 'agis-finance-v5'; // Naikkan versi di sini
 const ASSETS = [
   './index.html',
   './manifest.json',
+  // Icon dompet yang baru
+  './icon-192.png',
+  './icon-512.png',
+  // Library eksternal
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://cdn.jsdelivr.net/npm/sweetalert2@11',
   'https://unpkg.com/lucide@latest',
@@ -23,6 +27,18 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request);
+    })
+  );
+});
+
+// Hapus cache lama jika ada pembaruan versi
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME)
+        .map(name => caches.delete(name))
+      );
     })
   );
 });
