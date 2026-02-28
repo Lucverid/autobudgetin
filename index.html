@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - Pro v5</title>
+    <title>Agis Finance AI - Pro v6</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -34,7 +34,7 @@
         .master-balance { text-align: center; margin-bottom: 15px; }
         .master-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
         .master-amount { font-size: 2.2rem; font-weight: 800; display: block; margin-top: 5px; }
-        .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; }
+        .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }
 
         /* WALLET GRID */
         .wallet-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
@@ -47,7 +47,7 @@
         .w-name { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; }
         .w-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 5px; }
 
-        /* ADVISOR BOX - UPDATED */
+        /* ADVISOR BOX */
         .advisor {
             background: var(--surface); border-radius: 24px; padding: 20px;
             margin: 20px 0; border: 1px solid var(--border);
@@ -117,7 +117,8 @@
             <span class="master-label">Total Saldo Aktif</span>
             <span class="master-amount" id="total-balance">Rp 0</span>
         </div>
-        <div class="goal-info" id="goal-info">
+        
+        <div class="goal-info" id="goal-info" onclick="manageGoal()">
             <i data-lucide="target" style="width:16px; vertical-align:middle"></i>
             Target Tabungan: <span id="goal-amount">Rp 0</span>
         </div>
@@ -262,7 +263,28 @@
     window.setGoal = async () => {
         const amount = parseInt(document.getElementById('goal-input').value) || 0;
         await setDoc(doc(db, "config", "goal"), { amount: amount });
+        document.getElementById('goal-input').value = "";
         Swal.fire('Target Tabungan Set!', '', 'success');
+    };
+    
+    // Fitur Tambahan: Edit & Hapus Goal
+    window.manageGoal = async () => {
+        const { value: amount } = await Swal.fire({
+            title: 'Edit Target Tabungan',
+            input: 'number',
+            inputValue: store.goal,
+            showCancelButton: true,
+            confirmButtonText: 'Update',
+            cancelButtonText: 'Hapus Target'
+        });
+        
+        if (amount) {
+            await setDoc(doc(db, "config", "goal"), { amount: parseInt(amount) });
+            Swal.fire('Updated!', '', 'success');
+        } else if (amount === "") { // User klik tombol hapus
+            await setDoc(doc(db, "config", "goal"), { amount: 0 });
+            Swal.fire('Target Dihapus!', '', 'success');
+        }
     };
 
     window.setLimit = async () => {
@@ -332,7 +354,6 @@
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         const daysLeft = daysInMonth - now.getDate() + 1;
         
-        // Jatah harian dari uang yang BOLEH dihabiskan
         const daily = disposableIncome > 0 ? disposableIncome / daysLeft : 0;
         
         let advisorHtml = `Sisa ${daysLeft} hari. Jatah harian: <span class="safe-text">${fmt(Math.floor(daily))}</span>.`;
