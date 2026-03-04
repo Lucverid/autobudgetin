@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - Final Hybrid</title>
+    <title>Agis Finance AI - CDN Stable</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
-    <script src="chart.min.js"></script>
-    <script src="sweetalert2.all.min.js"></script>
-    <script src="lucide.min.js"></script>
-    <script src="xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     
     <style>
         :root {
@@ -24,7 +24,7 @@
             --text-dim: #64748b; --border: rgba(0,0,0,0.06);
             --glass: rgba(255, 255, 255, 0.8);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: 0.3s; overflow-x: hidden; }
         .container { max-width: 450px; margin: auto; padding: 20px; }
 
@@ -37,7 +37,7 @@
         .spinner { width: 40px; height: 40px; border: 4px solid var(--surface); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Status & Header */
+        /* Header & Status */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         #statusBadge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
         .master-balance { text-align: center; margin-bottom: 20px; }
@@ -46,18 +46,18 @@
         .card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 24px; padding: 20px; margin-bottom: 15px; border: 1px solid var(--border); }
         .w-container { display: flex; gap: 10px; margin-bottom: 20px; }
         .w-card { background: var(--surface); flex: 1; padding: 15px; border-radius: 20px; text-align: center; border: 1px solid var(--border); }
-        .w-val { display: block; font-weight: 800; font-size: 0.9rem; margin-top: 5px; }
 
-        /* History */
-        .t-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        /* Transactions */
+        .t-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: center; }
         .t-amt { color: var(--danger); font-weight: bold; }
 
-        /* Nav */
+        /* Bottom Nav */
         .nav-bar { position: fixed; bottom: 15px; left: 15px; right: 15px; height: 70px; background: var(--surface); border-radius: 22px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000; }
-        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; }
+        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.2s; }
         .nav-item.active { color: var(--primary); transform: scale(1.1); }
+        
         .page { display: none; }
-        .page.active { display: block; animation: fadeIn 0.3s; }
+        .page.active { display: block; animation: fadeIn 0.3s forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         input, select { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
@@ -78,25 +78,25 @@
             <button onclick="document.body.classList.toggle('light-mode')" style="background:none; border:none; color:var(--text-dim);"><i data-lucide="sun-moon"></i></button>
         </div>
         <div class="master-balance">
-            <small style="color:var(--text-dim)">Disposable Income</small>
+            <small style="color:var(--text-dim)">Sisa Saldo Aman</small>
             <span class="master-amount" id="total-balance">Rp 0</span>
             <small id="goal-tag" style="color:var(--warning)"></small>
         </div>
         <div class="w-container">
-            <div class="w-card"><small>Tunai</small><span class="w-val" id="w-cash">0</span></div>
-            <div class="w-card"><small>Bank</small><span class="w-val" id="w-bank">0</span></div>
-            <div class="w-card"><small>E-Wallet</small><span class="w-val" id="w-e">0</span></div>
+            <div class="w-card"><small>Tunai</small><span class="w-val" id="w-cash" style="display:block; font-weight:800;">0</span></div>
+            <div class="w-card"><small>Bank</small><span class="w-val" id="w-bank" style="display:block; font-weight:800;">0</span></div>
+            <div class="w-card"><small>E-Wallet</small><span class="w-val" id="w-e" style="display:block; font-weight:800;">0</span></div>
         </div>
         <div class="card">
             <div style="height: 200px;"><canvas id="pieChart"></canvas></div>
-            <div id="ai-insight" style="margin-top:15px; font-size:0.85rem; border-top:1px solid var(--border); padding-top:10px; color:var(--primary)"></div>
+            <div id="ai-insight" style="margin-top:15px; font-size:0.8rem; border-top:1px solid var(--border); padding-top:10px; color:var(--primary)"></div>
         </div>
     </div>
 
     <div id="history" class="page">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
             <h3>Riwayat</h3>
-            <button onclick="exportToExcel()" style="color:var(--primary); background:none; border:none; font-size:0.8rem;">Unduh Excel</button>
+            <button onclick="exportToExcel()" style="color:var(--primary); background:none; border:none; font-size:0.7rem; font-weight:bold;">UNDUH EXCEL</button>
         </div>
         <input type="month" id="filterMonth" onchange="renderAll()">
         <div id="transList"></div>
@@ -112,25 +112,28 @@
                 <option value="E-Wallet">📱 E-Wallet</option>
             </select>
             <select id="t-cat">
-                <option>Makan & Minum</option><option>Transportasi</option>
-                <option>Belanja</option><option>Tagihan</option>
-                <option>Hiburan</option><option>Lainnya</option>
+                <option>Makan & Minum</option>
+                <option>Transportasi</option>
+                <option>Belanja</option>
+                <option>Tagihan</option>
+                <option>Hiburan</option>
+                <option>Lainnya</option>
             </select>
             <input type="number" id="t-amount" placeholder="Nominal Rp">
-            <button class="btn-save" onclick="saveTransaction()">SIMPAN DATA</button>
+            <button class="btn-save" onclick="saveTransaction()">SIMPAN TRANSAKSI</button>
         </div>
     </div>
 
     <div id="settings" class="page">
         <div class="card">
-            <h3>Atur Saldo & Target</h3><br>
-            <input type="number" id="set-cash" placeholder="Update Tunai">
-            <input type="number" id="set-bank" placeholder="Update Bank">
-            <input type="number" id="set-e" placeholder="Update E-Wallet">
-            <button class="btn-save" onclick="updateWallets()">Update Saldo</button>
+            <h3>Update Saldo</h3><br>
+            <input type="number" id="set-cash" placeholder="Saldo Tunai">
+            <input type="number" id="set-bank" placeholder="Saldo Bank">
+            <input type="number" id="set-e" placeholder="Saldo E-Wallet">
+            <button class="btn-save" onclick="updateWallets()">SIMPAN SALDO</button>
             <hr style="margin:20px 0; opacity:0.1">
-            <input type="number" id="goal-input" placeholder="Target Menabung Rp">
-            <button class="btn-save" style="background:var(--warning)" onclick="setGoal()">Set Target</button>
+            <input type="number" id="goal-input" placeholder="Target Nabung Bulanan">
+            <button class="btn-save" style="background:var(--warning)" onclick="setGoal()">SIMPAN TARGET</button>
         </div>
     </div>
 </div>
@@ -143,8 +146,9 @@
 </nav>
 
 <script type="module">
-    import { initializeApp } from "./firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, updateDoc } from "./firebase-firestore.js";
+    // FIREBASE SDK VIA CDN (ESM.SH)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, query, orderBy, enableIndexedDbPersistence, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8",
@@ -154,7 +158,9 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(() => {});
+
+    // Aktifkan Offline Persistence
+    enableIndexedDbPersistence(db).catch(() => console.warn("Persistence failed"));
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0 };
     let pieChart;
@@ -165,7 +171,7 @@
         lucide.createIcons();
         document.getElementById('t-date').valueAsDate = new Date();
         document.getElementById('filterMonth').value = new Date().toISOString().slice(0,7);
-        setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 1000);
+        setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 2000);
     };
 
     window.nav = (id, el) => {
@@ -175,7 +181,7 @@
         el.classList.add('active');
     };
 
-    // --- HYBRID STABLE SAVE ---
+    // --- HYBRID ACTIONS ---
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
@@ -186,14 +192,16 @@
         if (store.wallets[w] < a) return Swal.fire('Saldo Kurang!', '', 'error');
 
         try {
-            // Step 1: Update Saldo (Optimistic)
+            // Optimistic Update Saldo
             await updateDoc(doc(db, "config", "wallets"), { [w]: store.wallets[w] - a });
-            // Step 2: Tambah Riwayat
-            await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
+            // Simpan Riwayat
+            await addDoc(collection(db, "pengeluaran"), { 
+                tanggal: d, dompet: w, kategori: c, nominal: a, timestamp: Date.now() 
+            });
             
             document.getElementById('t-amount').value = "";
             Swal.fire({ title: 'Tersimpan!', icon: 'success', timer: 1000, showConfirmButton: false });
-            nav('home', document.querySelector('.nav-item'));
+            nav('home', document.querySelectorAll('.nav-item')[0]);
         } catch (e) {
             Swal.fire('Error', e.message, 'error');
         }
@@ -232,20 +240,22 @@
             }
         });
 
-        const totalCash = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];
+        const totalCash = (store.wallets.Tunai || 0) + (store.wallets.Bank || 0) + (store.wallets["E-Wallet"] || 0);
         const disposable = totalCash - store.goal;
         
         document.getElementById('total-balance').innerText = fmt(disposable);
-        document.getElementById('goal-tag').innerText = store.goal > 0 ? `(Target Tabungan: ${fmt(store.goal)})` : "";
+        document.getElementById('goal-tag').innerText = store.goal > 0 ? `(Target Nabung: ${fmt(store.goal)})` : "";
         document.getElementById('w-cash').innerText = fmt(store.wallets.Tunai);
         document.getElementById('w-bank').innerText = fmt(store.wallets.Bank);
         document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"]);
 
-        // AI Simple Insight
-        const dailyLimit = disposable / 30;
-        document.getElementById('ai-insight').innerText = disposable > 0 
-            ? `💡 Jatah harian aman kamu: ${fmt(Math.floor(dailyLimit))}` 
-            : "⚠️ Waduh Agis, saldo kamu di bawah target tabungan!";
+        // AI Insight
+        const now = new Date();
+        const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1;
+        const daily = disposable > 0 ? (disposable / daysLeft) : 0;
+        document.getElementById('ai-insight').innerHTML = disposable > 0 
+            ? `💡 Sisa hari: ${daysLeft}. Jatah harian kamu: <b>${fmt(Math.floor(daily))}</b>`
+            : "⚠️ Agis, pengeluaran kamu sudah melewati batas tabungan!";
 
         updateChart(catMap);
     };
@@ -259,11 +269,11 @@
                 labels: Object.keys(data), 
                 datasets: [{ data: Object.values(data), backgroundColor: ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'], borderWidth: 0 }] 
             },
-            options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } } }
+            options: { maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } } }
         });
     }
 
-    // --- SNAPSHOT LISTENERS (SYNC INDICATOR) ---
+    // --- DATA SYNC & INDICATOR ---
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
     onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => {
@@ -271,9 +281,9 @@
         
         const badge = document.getElementById('statusBadge');
         if (s.metadata.hasPendingWrites) {
-            badge.innerText = "☁️ Syncing..."; badge.style.color = "var(--warning)";
+            badge.innerText = "☁️ SYNCING..."; badge.style.color = "var(--warning)";
         } else {
-            badge.innerText = navigator.onLine ? "✅ Synced" : "📴 Offline";
+            badge.innerText = navigator.onLine ? "✅ SYNCED" : "📴 OFFLINE";
             badge.style.color = navigator.onLine ? "var(--primary)" : "var(--text-dim)";
         }
         renderAll();
@@ -283,7 +293,7 @@
         const ws = XLSX.utils.json_to_sheet(store.trans);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Data");
-        XLSX.writeFile(wb, "Agis_Finance.xlsx");
+        XLSX.writeFile(wb, "Keuangan_Agis.xlsx");
     };
 </script>
 </body>
