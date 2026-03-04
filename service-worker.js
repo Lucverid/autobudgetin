@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v19-1';
+const CACHE_NAME = 'agis-finance-v19-2';
 
 // Hanya pre-cache aset internal yang pasti ada di repo kamu
 const PRE_CACHE = [
