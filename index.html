@@ -7,16 +7,14 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
-    <script src="libs/chart.min.js"></script>
-    <script src="libs/sweetalert2.all.min.js"></script>
-    <script src="libs/lucide.min.js"></script>
-    <script src="libs/xlsx.full.min.js"></script>
-
-    <script src="libs/firebase-app.js"></script>
-    <script src="libs/firebase-firestore.js"></script>
+    <script src="chart.min.js"></script>
+    <script src="sweetalert2.all.min.js"></script>
+    <script src="lucide.min.js"></script>
+    <script src="xlsx.full.min.js"></script>
+    <script src="firebase-app.js"></script>
+    <script src="firebase-firestore.js"></script>
 
     <style>
-        /* CSS tetap sama seperti sebelumnya, pastikan font juga lokal jika ingin 100% offline */
         :root {
             --bg: #0f172a; --surface: #1e293b; --primary: #2dd4bf;
             --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b;
@@ -28,15 +26,15 @@
             --text-dim: #64748b; --border: rgba(0,0,0,0.06);
             --glass: rgba(255, 255, 255, 0.8);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; overflow-x: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: 0.3s; }
         .container { max-width: 450px; margin: auto; padding: 20px; }
 
         /* Splash Screen */
         #splash-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
+            justify-content: center; align-items: center; z-index: 9999; transition: 0.5s;
         }
         .spinner { width: 40px; height: 40px; border: 4px solid var(--surface);
             border-top: 4px solid var(--primary); border-radius: 50%;
@@ -44,59 +42,62 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* UI Components */
+        /* UI */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 800; }
+        .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 800; transition: 0.3s; }
         .status-online { background: rgba(45, 212, 191, 0.15); color: var(--primary); }
         .status-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
         .master-balance { text-align: center; margin-bottom: 10px; }
-        .master-amount { font-size: 2.4rem; font-weight: 800; display: block; }
+        .master-amount { font-size: 2.4rem; font-weight: 800; display: block; color: var(--primary); }
         .card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
         
-        /* Navigation */
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 75px; background: var(--surface); border-radius: 25px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; }
-        .nav-item { color: var(--text-dim); cursor: pointer; padding: 10px; }
-        .nav-item.active { color: var(--primary); }
-        .page { display: none; }
+        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); transform: scale(1.2); }
+        .page { display: none; animation: fadeIn 0.3s; }
         .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div id="splash-screen">
     <div class="spinner"></div>
-    <h3 id="splash-text">Menyiapkan Database Lokal...</h3>
+    <h3 id="splash-text" style="color: var(--primary)">Agis Finance AI</h3>
+    <p style="color: var(--text-dim); font-size: 0.8rem; margin-top: 10px;">Offline-Ready Engine</p>
 </div>
 
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
             <span id="statusBadge" class="status-badge status-online">Online</span>
-            <button onclick="toggleTheme()" style="background:none; border:none; color:var(--text-dim);"><i data-lucide="sun-moon"></i></button>
+            <h2 style="font-size: 1.2rem;">Halo, Agis!</h2>
         </div>
         <div class="master-balance">
-            <span style="color:var(--text-dim)">Saldo Bersih</span>
+            <span style="color:var(--text-dim)">Total Saldo Anda</span>
             <span class="master-amount" id="total-balance">Rp 0</span>
         </div>
-        <div id="advisorContent" class="card" style="font-size: 0.9rem; border-left: 4px solid var(--primary);">
-            Menganalisis...
-        </div>
         <div class="card">
-            <canvas id="pieChart" style="height: 200px;"></canvas>
+            <canvas id="pieChart" style="max-height: 200px;"></canvas>
         </div>
     </div>
 
     <div id="add" class="page">
         <div class="card">
-            <h3>Catat Pengeluaran</h3><br>
+            <h3 style="margin-bottom: 15px;">Catat Pengeluaran</h3>
+            <label>Tanggal</label>
             <input type="date" id="t-date">
+            <label>Pilih Dompet</label>
             <select id="t-wallet">
                 <option value="Tunai">Tunai</option>
                 <option value="Bank">Bank</option>
                 <option value="E-Wallet">E-Wallet</option>
             </select>
-            <input type="number" id="t-amount" placeholder="Nominal">
-            <button class="btn-primary" onclick="saveTransaction()" style="width:100%; padding:15px; border-radius:15px; background:var(--primary); border:none; font-weight:bold;">Simpan</button>
+            <label>Nominal (Rp)</label>
+            <input type="number" id="t-amount" placeholder="Contoh: 50000">
+            <button onclick="saveTransaction()" style="width:100%; padding:15px; border-radius:15px; background:var(--primary); border:none; font-weight:bold; color:#0f172a; cursor:pointer;">SIMPAN TRANSAKSI</button>
         </div>
     </div>
 </div>
@@ -107,47 +108,78 @@
 </nav>
 
 <script>
-    // Versi 8 Compat (Bisa jalan tanpa type="module")
+    // Konfigurasi Firebase Anda
     const firebaseConfig = {
         apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8",
         projectId: "trackingmoney-bb785",
         appId: "1:725272276839:web:d95f1643629c97edae09c2"
     };
 
+    // Inisialisasi
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // AKTIFKAN OFFLINE PERSISTENCE
-    firebase.firestore().enablePersistence({ synchronizeTabs: true })
-        .catch(err => console.error("Persistence error", err));
+    // AKTIFKAN PERSISTENCE (KUNCI OFFLINE)
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+        console.error("Gagal aktivasi offline storage:", err.code);
+    });
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 } };
+    let myChart;
 
-    // Init App
     window.onload = () => {
         lucide.createIcons();
         document.getElementById('t-date').valueAsDate = new Date();
         
-        // Listener Realtime (Tetap jalan meski offline pakai cache)
+        // Pantau Status Koneksi
+        const updateStatus = () => {
+            const badge = document.getElementById('statusBadge');
+            badge.innerText = navigator.onLine ? 'Online' : 'Offline';
+            badge.className = `status-badge ${navigator.onLine ? 'status-online' : 'status-offline'}`;
+        };
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+        updateStatus();
+
+        // Ambil Data Saldo (Realtime)
         db.collection("config").doc("wallets").onSnapshot(doc => {
             if(doc.exists()) store.wallets = doc.data();
             renderUI();
         });
 
+        // Ambil Transaksi
         db.collection("pengeluaran").orderBy("tanggal", "desc").onSnapshot(snap => {
             store.trans = snap.docs.map(d => ({id: d.id, ...d.data()}));
             renderUI();
         });
 
         setTimeout(() => {
-            document.getElementById('splash-screen').style.display = 'none';
-        }, 1000);
+            document.getElementById('splash-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
+        }, 1500);
     };
 
     function renderUI() {
-        const total = store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"];
-        document.getElementById('total-balance').innerText = "Rp " + total.toLocaleString();
-        // Update Chart & Advisor disini...
+        const total = Object.values(store.wallets).reduce((a, b) => a + b, 0);
+        document.getElementById('total-balance').innerText = "Rp " + total.toLocaleString('id-ID');
+        updateChart();
+    }
+
+    function updateChart() {
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(store.wallets),
+                datasets: [{
+                    data: Object.values(store.wallets),
+                    backgroundColor: ['#2dd4bf', '#3b82f6', '#f59e0b'],
+                    borderWidth: 0
+                }]
+            },
+            options: { plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }
+        });
     }
 
     function nav(id, el) {
@@ -160,21 +192,30 @@
     async function saveTransaction() {
         const amt = parseInt(document.getElementById('t-amount').value);
         const wallet = document.getElementById('t-wallet').value;
-        
-        // Simpan ke Firestore (Akan masuk antrian offline jika tidak ada sinyal)
-        await db.collection("pengeluaran").add({
-            nominal: amt,
-            dompet: wallet,
-            tanggal: document.getElementById('t-date').value
-        });
-        
-        // Update Saldo (Local update dulu, nanti sync ke cloud)
-        const newSaldo = store.wallets[wallet] - amt;
-        await db.collection("config").doc("wallets").update({ [wallet]: newSaldo });
-        
-        Swal.fire('Tersimpan!', '', 'success');
-        nav('home', document.querySelector('.nav-item'));
+        const date = document.getElementById('t-date').value;
+
+        if(!amt) return Swal.fire('Opps!', 'Isi nominal dulu ya', 'warning');
+
+        try {
+            // Firestore otomatis simpan di antrean jika offline
+            await db.collection("pengeluaran").add({ nominal: amt, dompet: wallet, tanggal: date });
+            const newSaldo = (store.wallets[wallet] || 0) - amt;
+            await db.collection("config").doc("wallets").update({ [wallet]: newSaldo });
+
+            Swal.fire('Berhasil!', 'Data tersimpan secara lokal', 'success');
+            document.getElementById('t-amount').value = '';
+            nav('home', document.querySelector('.nav-item'));
+        } catch (e) {
+            console.error(e);
+        }
     }
 </script>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+    }
+</script>
+
 </body>
 </html>
