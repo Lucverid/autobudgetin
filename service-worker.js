@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v10';
+const CACHE_NAME = 'agis-finance-v18';
 
 const STATIC_ASSETS = [
   './',
