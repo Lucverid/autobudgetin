@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - v19.2</title>
+    <title>Agis Finance AI - v19.3</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -27,10 +27,18 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        ::-webkit-scrollbar { width: 0px; }
-
         body { background-color: var(--bg); color: var(--text); padding-bottom: 110px; min-height: 100vh; transition: background 0.3s; overflow-x: hidden; }
         .container { max-width: 500px; margin: auto; padding: 20px; }
+
+        /* Splash Screen Fix */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10000;
+            transition: all 0.5s ease;
+        }
+        .spinner { width: 45px; height: 45px; border: 4px solid var(--surface); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* Privacy Blur */
         .blur-active .master-amount, .blur-active .w-val, .blur-active .t-amt, 
@@ -38,18 +46,9 @@
             filter: blur(12px); pointer-events: none; user-select: none;
         }
 
-        #splash-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
-        .spinner { width: 40px; height: 40px; border: 4px solid var(--surface); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Header & Balance */
+        /* UI Elements */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 12px; font-weight: 800; text-transform: uppercase; transition: 0.3s; }
+        .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 12px; font-weight: 800; text-transform: uppercase; }
         .status-online { background: rgba(45, 212, 191, 0.15); color: var(--primary); }
         .status-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
         .btn-icon { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -58,40 +57,32 @@
         .master-amount { font-size: clamp(2rem, 9vw, 2.8rem); font-weight: 800; display: block; letter-spacing: -1.5px; }
         .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }
 
-        /* Wallet Cards v19.2 - Stabilized */
+        /* Wallets */
         .wallet-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
         .w-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 18px 8px; display: flex; flex-direction: column; align-items: center; min-width: 0; }
-        .w-icon { width: 46px; height: 46px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; flex-shrink: 0; }
+        .w-icon { width: 46px; height: 46px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
         .w-icon i { width: 22px !important; height: 22px !important; }
         .w-name { font-size: 0.6rem; color: var(--text-dim); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
-        .w-val { font-size: clamp(0.65rem, 3.2vw, 0.8rem); font-weight: 800; width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .w-val { font-size: clamp(0.6rem, 3vw, 0.8rem); font-weight: 800; width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* Advisor */
-        .advisor { background: var(--surface); border-radius: 28px; padding: 18px; margin: 25px 0; border: 1px solid var(--border); display: flex; gap: 15px; align-items: flex-start; height: 155px; overflow: hidden; }
-        .adv-icon { width: 44px; height: 44px; background: var(--primary); color: #0f172a; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .adv-main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-        .adv-scrollable { flex: 1; overflow-y: auto; font-size: 0.82rem; line-height: 1.6; color: var(--text-dim); }
-
-        /* History List Fix */
+        /* History */
         .t-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
-        .t-info { display: flex; flex-direction: column; gap: 4px; flex: 1; padding-right: 10px; }
-        .t-cat-name { font-weight: 700; font-size: 0.95rem; color: var(--text); }
-        .t-sub-info { font-size: 0.75rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
-        .t-amt { font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
-        .t-amt.minus { color: var(--danger); }
+        .t-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+        .t-cat-name { font-weight: 700; font-size: 0.95rem; }
+        .t-sub-info { font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 6px; }
+        .t-amt { font-weight: 800; font-size: 0.9rem; color: var(--danger); }
 
         /* Navigation */
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 75px; background: var(--surface); border-radius: 28px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); z-index: 1000; border: 1px solid var(--border); max-width: 460px; margin: 0 auto; }
-        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; }
+        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; padding: 10px; }
         .nav-item.active { color: var(--primary); transform: translateY(-5px); }
 
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
-        input, select { width: 100%; padding: 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; outline: none; }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
-        .page { display: none; animation: slideUp 0.3s ease; }
+        .page { display: none; }
         .page.active { display: block; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } }
+        input, select { width: 100%; padding: 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; outline: none; }
     </style>
 </head>
 <body>
@@ -99,7 +90,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 5px;">OFFLINE-READY v19.2</p>
+    <p id="splash-status" style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">Connecting to Database...</p>
 </div>
 
 <div class="container">
@@ -140,14 +131,6 @@
             </div>
         </div>
 
-        <div class="advisor">
-            <div class="adv-icon"><i data-lucide="sparkles"></i></div>
-            <div class="adv-main">
-                <span style="font-weight:800; color:var(--primary); font-size:0.85rem; margin-bottom:5px">Smart Insight</span>
-                <div id="advisorContent" class="adv-scrollable">Memuat data...</div>
-            </div>
-        </div>
-        
         <div class="card">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center">
                 <div style="font-weight:700; display:flex; align-items:center; gap:8px"><i data-lucide="pie-chart"></i> Pengeluaran</div>
@@ -159,18 +142,15 @@
 
     <div id="history" class="page">
         <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-                <h2 style="font-size:1rem; font-weight:700">Riwayat</h2>
-                <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:12px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:800; cursor:pointer">XLSX</button>
-            </div>
+            <h2 style="font-size:1rem; margin-bottom:15px">Riwayat</h2>
             <input type="month" id="filterMonth" onchange="renderAll()">
-            <div id="transList" style="max-height: 450px; overflow-y: auto; padding-right: 5px;"></div>
+            <div id="transList" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
     </div>
 
     <div id="add" class="page">
         <div class="card">
-            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Catat Baru</h2>
+            <h2 style="font-size:1rem; margin-bottom:15px">Catat Baru</h2>
             <form id="transForm">
                 <input type="date" id="t-date">
                 <select id="t-wallet">
@@ -181,27 +161,17 @@
                 </select>
                 <input type="number" id="t-amount" placeholder="Nominal" inputmode="numeric">
             </form>
-            <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>
+            <button class="btn-primary" onclick="saveTransaction()">Simpan</button>
         </div>
     </div>
 
     <div id="settings" class="page">
         <div class="card">
-            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Update Saldo</h2>
+            <h2 style="font-size:1rem; margin-bottom:15px">Update Saldo</h2>
             <input type="number" id="set-cash" placeholder="Saldo Tunai">
             <input type="number" id="set-bank" placeholder="Saldo Bank">
             <input type="number" id="set-e" placeholder="Saldo E-Wallet">
-            <button class="btn-primary" onclick="updateWallets()">Simpan Saldo</button>
-        </div>
-        <div class="card">
-            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Tabungan & Limit</h2>
-            <input type="number" id="goal-input" placeholder="Target Tabungan">
-            <button class="btn-primary" style="background:var(--warning); color:#000" onclick="setGoal()">Update Target</button>
-            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:20px">
-                <select id="l-cat"><option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option></select>
-                <input type="number" id="l-amount" placeholder="Limit Bulanan">
-                <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
-            </div>
+            <button class="btn-primary" onclick="updateWallets()">Simpan</button>
         </div>
     </div>
 </div>
@@ -221,14 +191,24 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // FIX: Tunggu persistence aktif sebelum listener lain jalan
-    try {
-        await enableIndexedDbPersistence(db, { synchronizeTabs: true });
-    } catch (err) { console.log("Persistence error:", err.code); }
+    // Aktifkan Offline secara background (biar gak macet)
+    enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch((err) => console.log("Offline disabled"));
 
-    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
+    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0 };
     let pieChart;
-    const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n);
+    const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
+
+    // Fungsi Hilangkan Splash Screen
+    const hideSplash = () => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.style.opacity = '0';
+            setTimeout(() => splash.style.display = 'none', 500);
+        }
+    };
+
+    // Fallback: Jika database lemot, tetap buka aplikasi setelah 5 detik
+    setTimeout(hideSplash, 5000);
 
     window.nav = (id, el) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -244,50 +224,23 @@
         lucide.createIcons();
     };
 
-    window.toggleTheme = () => { document.body.classList.toggle('light-mode'); renderAll(); };
-
     window.saveTransaction = async () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
         const c = document.getElementById('t-cat').value;
         const a = parseInt(document.getElementById('t-amount').value);
         if(!a || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
-        
         try {
             await updateDoc(doc(db, "config", "wallets"), { [w]: increment(-a) });
             await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
-            document.getElementById('transForm').reset();
-            document.getElementById('t-date').valueAsDate = new Date();
             nav('home');
-            if(!navigator.onLine) Swal.fire({ title: 'Tersimpan Offline', text: 'Akan sinkron otomatis saat online', icon: 'info', timer: 2000 });
-        } catch (e) { Swal.fire('Gagal!', e.message, 'error'); }
+        } catch (e) { console.log(e); }
     };
 
     window.updateWallets = async () => {
         const data = { Tunai: parseInt(document.getElementById('set-cash').value) || 0, Bank: parseInt(document.getElementById('set-bank').value) || 0, "E-Wallet": parseInt(document.getElementById('set-e').value) || 0 };
         await setDoc(doc(db, "config", "wallets"), data);
         Swal.fire('Sukses', 'Saldo diperbarui', 'success');
-    };
-
-    window.setLimit = async () => {
-        const cat = document.getElementById('l-cat').value;
-        const val = parseInt(document.getElementById('l-amount').value) || 0;
-        await setDoc(doc(db, "config", "limits"), { [cat]: val }, { merge: true });
-        Swal.fire('Limit Set', `Anggaran ${cat} diatur.`, 'success');
-    };
-
-    window.setGoal = async () => {
-        const amount = parseInt(document.getElementById('goal-input').value) || 0;
-        await setDoc(doc(db, "config", "goal"), { amount });
-        Swal.fire('Target!', 'Target tabungan disimpan', 'success');
-    };
-
-    window.removeTrans = async (id, wallet, nominal) => {
-        const confirm = await Swal.fire({ title: 'Hapus?', text: "Saldo akan dikembalikan", icon: 'warning', showCancelButton: true });
-        if(confirm.isConfirmed) {
-            await updateDoc(doc(db, "config", "wallets"), { [wallet]: increment(nominal) });
-            await deleteDoc(doc(db, "pengeluaran", id));
-        }
     };
 
     window.renderAll = () => {
@@ -302,42 +255,22 @@
                 totalSpent += t.nominal;
                 if (list) list.innerHTML += `
                 <div class="t-item">
-                    <div class="t-info">
-                        <span class="t-cat-name">${t.kategori}</span>
-                        <div class="t-sub-info"><span>${t.tanggal}</span><span style="opacity:0.3">•</span><span>${t.dompet}</span></div>
-                    </div>
-                    <div class="t-amt minus">- ${fmt(t.nominal)} <i data-lucide="trash-2" onclick="removeTrans('${t.id}', '${t.dompet}', ${t.nominal})" style="width:16px; cursor:pointer; opacity:0.3"></i></div>
+                    <div class="t-info"><span class="t-cat-name">${t.kategori}</span><div class="t-sub-info"><span>${t.tanggal}</span><span>•</span><span>${t.dompet}</span></div></div>
+                    <div class="t-amt">- ${fmt(t.nominal)}</div>
                 </div>`;
             }
         });
 
-        const totalWallets = (store.wallets.Tunai || 0) + (store.wallets.Bank || 0) + (store.wallets["E-Wallet"] || 0);
-        const disposable = totalWallets - (store.goal || 0);
-
-        document.getElementById('total-balance').innerText = fmt(disposable);
-        document.getElementById('goal-amount').innerText = fmt(store.goal || 0);
-        document.getElementById('w-cash').innerText = fmt(store.wallets.Tunai || 0);
-        document.getElementById('w-bank').innerText = fmt(store.wallets.Bank || 0);
-        document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"] || 0);
+        document.getElementById('total-balance').innerText = fmt((store.wallets.Tunai + store.wallets.Bank + store.wallets["E-Wallet"]) - store.goal);
+        document.getElementById('goal-amount').innerText = fmt(store.goal);
+        document.getElementById('w-cash').innerText = fmt(store.wallets.Tunai);
+        document.getElementById('w-bank').innerText = fmt(store.wallets.Bank);
+        document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"]);
         document.getElementById('chart-total-val').innerText = fmt(totalSpent);
 
-        let alerts = [];
-        for (const [c, v] of Object.entries(cats)) {
-            const lim = store.limits[c];
-            if(lim && v > lim) {
-                alerts.push(`<div style="margin-bottom:12px; font-size:0.8rem;">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b><br><span style="font-size:0.75rem; opacity:0.8">(Limit ${fmt(lim)} terlewati ${fmt(v-lim)})</span></div>`);
-            } else if(lim && v >= lim * 0.8) {
-                alerts.push(`<div style="margin-bottom:12px; font-size:0.8rem;">📢 <b>${c}: ${fmt(v)}</b><br><span style="font-size:0.75rem; opacity:0.8">Hampir habis. Sisa: ${fmt(lim-v)}</span></div>`);
-            }
-        }
-        
-        const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate() + 1;
-        const daily = disposable > 0 ? disposable / days : 0;
-        let baseMsg = `<div style="margin-bottom:10px;">Jatah harian: <span style="color:var(--primary); font-weight:700;">${fmt(Math.floor(daily))}</span></div>`;
-        document.getElementById('advisorContent').innerHTML = baseMsg + alerts.join('');
-        
         updateChart(cats);
         lucide.createIcons();
+        hideSplash(); // Pastikan splash hilang saat data pertama kali masuk
     };
 
     function updateChart(data) {
@@ -346,39 +279,33 @@
         pieChart = new Chart(ctx, {
             type: 'doughnut',
             data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'], borderWidth: 0 }] },
-            options: { maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { color: document.body.classList.contains('light-mode')?'#0f172a':'#f8fafc', boxWidth: 10, font: {size: 10} } } } }
+            options: { maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10 } } } }
         });
     }
 
-    window.exportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(store.trans);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Records");
-        XLSX.writeFile(wb, `Agis_Finance_Report.xlsx`);
-    };
-
-    window.addEventListener('load', () => {
-        document.getElementById('t-date').valueAsDate = new Date();
-        document.getElementById('filterMonth').value = new Date().toISOString().slice(0,7);
-        if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
-        setTimeout(() => { document.getElementById('splash-screen').style.opacity = '0'; setTimeout(()=>document.getElementById('splash-screen').style.display='none', 500); }, 1200);
-    });
-
-    // Indikator Offline yang Responsif
+    // Monitoring Status Koneksi
     const updateStatus = () => {
         const b = document.getElementById('statusBadge');
-        if(navigator.onLine) { b.innerText = "Online"; b.className = "status-badge status-online"; }
-        else { b.innerText = "Offline"; b.className = "status-badge status-offline"; }
+        b.innerText = navigator.onLine ? "Online" : "Offline";
+        b.className = `status-badge ${navigator.onLine ? 'status-online' : 'status-offline'}`;
     };
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
     updateStatus();
 
-    // Listener Data dengan Offline Support
+    // Data Listeners
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
-    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
-    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); renderAll(); });
+    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { 
+        store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); 
+        renderAll(); 
+    });
+
+    window.addEventListener('load', () => {
+        document.getElementById('t-date').valueAsDate = new Date();
+        document.getElementById('filterMonth').value = new Date().toISOString().slice(0,7);
+        lucide.createIcons();
+    });
 </script>
 </body>
 </html>
