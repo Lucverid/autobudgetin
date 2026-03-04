@@ -21,13 +21,8 @@
             --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255, 255, 255, 0.08);
             --glass: rgba(30, 41, 59, 0.7);
         }
-        body.light-mode {
-            --bg: #f8fafc; --surface: #ffffff; --text: #0f172a;
-            --text-dim: #64748b; --border: rgba(0,0,0,0.06);
-            --glass: rgba(255, 255, 255, 0.8);
-        }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: 0.3s; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; }
         .container { max-width: 450px; margin: auto; padding: 20px; }
 
         /* Splash Screen */
@@ -42,62 +37,75 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* UI */
+        /* Header & Balance */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 800; transition: 0.3s; }
+        .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 800; }
         .status-online { background: rgba(45, 212, 191, 0.15); color: var(--primary); }
         .status-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .master-balance { text-align: center; margin-bottom: 10px; }
-        .master-amount { font-size: 2.4rem; font-weight: 800; display: block; color: var(--primary); }
+        
+        .master-balance { text-align: center; margin-bottom: 20px; position: relative; }
+        .master-amount { font-size: 2.2rem; font-weight: 800; display: block; color: var(--primary); min-height: 50px; }
+        .btn-sensor { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 5px; }
+
         .card { background: var(--glass); backdrop-filter: blur(10px); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
         
+        /* Chart Info */
+        .chart-container { position: relative; text-align: center; }
+        .expense-info { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); }
+        .expense-label { font-size: 0.85rem; color: var(--text-dim); }
+        .expense-value { font-size: 1.2rem; font-weight: 700; color: var(--danger); display: block; }
+
         input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 75px; background: var(--surface); border-radius: 25px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; }
         .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; }
         .nav-item.active { color: var(--primary); transform: scale(1.2); }
-        .page { display: none; animation: fadeIn 0.3s; }
+        .page { display: none; }
         .page.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div id="splash-screen">
     <div class="spinner"></div>
-    <h3 id="splash-text" style="color: var(--primary)">Agis Finance AI</h3>
-    <p style="color: var(--text-dim); font-size: 0.8rem; margin-top: 10px;">Offline-Ready Engine</p>
+    <h3 style="color: var(--primary)">Agis Finance AI</h3>
 </div>
 
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
             <span id="statusBadge" class="status-badge status-online">Online</span>
-            <h2 style="font-size: 1.2rem;">Halo, Agis!</h2>
+            <button onclick="toggleSensor()" class="btn-sensor">
+                <i id="sensorIcon" data-lucide="eye"></i>
+            </button>
         </div>
+
         <div class="master-balance">
-            <span style="color:var(--text-dim)">Total Saldo Anda</span>
+            <span style="color:var(--text-dim)">Total Saldo</span>
             <span class="master-amount" id="total-balance">Rp 0</span>
         </div>
-        <div class="card">
-            <canvas id="pieChart" style="max-height: 200px;"></canvas>
+
+        <div class="card chart-container">
+            <h4 style="margin-bottom:15px; font-size:0.9rem;">Distribusi Dompet</h4>
+            <canvas id="pieChart" style="max-height: 180px;"></canvas>
+            <div class="expense-info">
+                <span class="expense-label">Total Pengeluaran Bulan Ini</span>
+                <span class="expense-value" id="total-expense">Rp 0</span>
+            </div>
         </div>
     </div>
 
     <div id="add" class="page">
         <div class="card">
-            <h3 style="margin-bottom: 15px;">Catat Pengeluaran</h3>
-            <label>Tanggal</label>
+            <h3 style="margin-bottom: 15px;">Tambah Catatan</h3>
             <input type="date" id="t-date">
-            <label>Pilih Dompet</label>
             <select id="t-wallet">
                 <option value="Tunai">Tunai</option>
                 <option value="Bank">Bank</option>
                 <option value="E-Wallet">E-Wallet</option>
             </select>
-            <label>Nominal (Rp)</label>
-            <input type="number" id="t-amount" placeholder="Contoh: 50000">
-            <button onclick="saveTransaction()" style="width:100%; padding:15px; border-radius:15px; background:var(--primary); border:none; font-weight:bold; color:#0f172a; cursor:pointer;">SIMPAN TRANSAKSI</button>
+            <input type="number" id="t-amount" placeholder="Nominal Rp">
+            <button onclick="saveTransaction()" style="width:100%; padding:15px; border-radius:15px; background:var(--primary); border:none; font-weight:bold; color:#0f172a;">SIMPAN</button>
         </div>
     </div>
 </div>
@@ -108,77 +116,85 @@
 </nav>
 
 <script>
-    // Konfigurasi Firebase Anda
     const firebaseConfig = {
         apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8",
         projectId: "trackingmoney-bb785",
         appId: "1:725272276839:web:d95f1643629c97edae09c2"
     };
 
-    // Inisialisasi
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
-    // AKTIFKAN PERSISTENCE (KUNCI OFFLINE)
-    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-        console.error("Gagal aktivasi offline storage:", err.code);
-    });
+    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 } };
     let myChart;
+    let isHidden = false; // Status Sensor
 
     window.onload = () => {
         lucide.createIcons();
         document.getElementById('t-date').valueAsDate = new Date();
         
-        // Pantau Status Koneksi
-        const updateStatus = () => {
-            const badge = document.getElementById('statusBadge');
-            badge.innerText = navigator.onLine ? 'Online' : 'Offline';
-            badge.className = `status-badge ${navigator.onLine ? 'status-online' : 'status-offline'}`;
-        };
-        window.addEventListener('online', updateStatus);
-        window.addEventListener('offline', updateStatus);
-        updateStatus();
-
-        // Ambil Data Saldo (Realtime)
+        // Listener Database
         db.collection("config").doc("wallets").onSnapshot(doc => {
             if(doc.exists()) store.wallets = doc.data();
             renderUI();
         });
 
-        // Ambil Transaksi
-        db.collection("pengeluaran").orderBy("tanggal", "desc").onSnapshot(snap => {
-            store.trans = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        db.collection("pengeluaran").onSnapshot(snap => {
+            store.trans = snap.docs.map(d => d.data());
             renderUI();
         });
 
         setTimeout(() => {
             document.getElementById('splash-screen').style.opacity = '0';
             setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
-        }, 1500);
+        }, 1000);
     };
 
+    function toggleSensor() {
+        isHidden = !isHidden;
+        const icon = document.getElementById('sensorIcon');
+        icon.setAttribute('data-lucide', isHidden ? 'eye-off' : 'eye');
+        lucide.createIcons();
+        renderUI();
+    }
+
     function renderUI() {
-        const total = Object.values(store.wallets).reduce((a, b) => a + b, 0);
-        document.getElementById('total-balance').innerText = "Rp " + total.toLocaleString('id-ID');
+        // Hitung Saldo
+        const totalSaldo = Object.values(store.wallets).reduce((a, b) => a + b, 0);
+        document.getElementById('total-balance').innerText = isHidden ? "Rp ••••••" : "Rp " + totalSaldo.toLocaleString('id-ID');
+
+        // Hitung Pengeluaran
+        const totalExp = store.trans.reduce((a, b) => a + (b.nominal || 0), 0);
+        document.getElementById('total-expense').innerText = isHidden ? "Rp ••••••" : "Rp " + totalExp.toLocaleString('id-ID');
+
         updateChart();
     }
 
     function updateChart() {
         const ctx = document.getElementById('pieChart').getContext('2d');
         if (myChart) myChart.destroy();
+        
+        // Jika sensor aktif, tampilkan data dummy tapi label tetap
+        const chartData = isHidden ? [1, 1, 1] : Object.values(store.wallets);
+
         myChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: Object.keys(store.wallets),
                 datasets: [{
-                    data: Object.values(store.wallets),
+                    data: chartData,
                     backgroundColor: ['#2dd4bf', '#3b82f6', '#f59e0b'],
                     borderWidth: 0
                 }]
             },
-            options: { plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }
+            options: { 
+                plugins: { 
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } },
+                    tooltip: { enabled: !isHidden } // Matikan tooltip kalau lagi disensor
+                },
+                cutout: '70%'
+            }
         });
     }
 
@@ -194,20 +210,15 @@
         const wallet = document.getElementById('t-wallet').value;
         const date = document.getElementById('t-date').value;
 
-        if(!amt) return Swal.fire('Opps!', 'Isi nominal dulu ya', 'warning');
+        if(!amt) return Swal.fire('Error', 'Isi nominal!', 'error');
 
-        try {
-            // Firestore otomatis simpan di antrean jika offline
-            await db.collection("pengeluaran").add({ nominal: amt, dompet: wallet, tanggal: date });
-            const newSaldo = (store.wallets[wallet] || 0) - amt;
-            await db.collection("config").doc("wallets").update({ [wallet]: newSaldo });
+        await db.collection("pengeluaran").add({ nominal: amt, dompet: wallet, tanggal: date });
+        const newSaldo = (store.wallets[wallet] || 0) - amt;
+        await db.collection("config").doc("wallets").update({ [wallet]: newSaldo });
 
-            Swal.fire('Berhasil!', 'Data tersimpan secara lokal', 'success');
-            document.getElementById('t-amount').value = '';
-            nav('home', document.querySelector('.nav-item'));
-        } catch (e) {
-            console.error(e);
-        }
+        Swal.fire('Sukses', 'Tersimpan!', 'success');
+        document.getElementById('t-amount').value = '';
+        nav('home', document.querySelector('.nav-item'));
     }
 </script>
 
@@ -216,6 +227,5 @@
         navigator.serviceWorker.register('service-worker.js');
     }
 </script>
-
 </body>
 </html>
