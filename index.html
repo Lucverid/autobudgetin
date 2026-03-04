@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - PWA v18.4</title>
+    <title>Agis Finance AI - v18.8</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -27,23 +27,17 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* Clean Scrollbar */
+        /* Hide scrollbar but keep functionality */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
-        .adv-scrollable, #transList { scrollbar-width: none; -ms-overflow-style: none; }
+        .adv-scrollable { scrollbar-width: none; -ms-overflow-style: none; }
 
         body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; transition: background 0.3s; overflow-x: hidden; }
         .container { max-width: 500px; margin: auto; padding: 20px; }
 
-        /* Privacy Blur Logic */
-        .blur-active .master-amount, 
-        .blur-active .w-val, 
-        .blur-active .t-amt, 
-        .blur-active #goal-amount,
-        .blur-active .safe-text,
-        .blur-active #chart-total-val {
-            filter: blur(10px);
-            pointer-events: none;
-            user-select: none;
+        /* Privacy Logic */
+        .blur-active .master-amount, .blur-active .w-val, .blur-active .t-amt, 
+        .blur-active #goal-amount, .blur-active .safe-text, .blur-active #chart-total-val {
+            filter: blur(12px); pointer-events: none; user-select: none;
         }
 
         /* Splash Screen */
@@ -53,91 +47,67 @@
             justify-content: center; align-items: center; z-index: 9999;
             transition: opacity 0.5s ease;
         }
-        .spinner { width: 40px; height: 40px; border: 4px solid var(--surface);
-            border-top: 4px solid var(--primary); border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--surface); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Header Components */
+        /* General Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .header-left { display: flex; gap: 10px; align-items: center; }
         .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 12px; font-weight: 800; text-transform: uppercase; }
         .status-online { background: rgba(45, 212, 191, 0.15); color: var(--primary); }
         .status-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        
-        .btn-icon { 
-            background: var(--surface); border: 1px solid var(--border); 
-            color: var(--text); width: 40px; height: 40px; border-radius: 12px; 
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-        }
+        .btn-icon { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-        /* Balance & Stats */
         .master-balance { text-align: center; margin-bottom: 10px; }
         .master-amount { font-size: clamp(1.8rem, 8vw, 2.5rem); font-weight: 800; display: block; letter-spacing: -1px; transition: filter 0.3s; }
         .goal-info { text-align: center; font-size: 0.85rem; color: var(--warning); margin-bottom: 30px; font-weight: 600; cursor: pointer; }
 
         .wallet-container { display: flex; gap: 10px; margin-bottom: 25px; }
         .w-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 12px; flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
-        .w-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
-        .w-name { font-size: 0.6rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+        .w-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; flex-shrink: 0; }
         .w-val { font-size: 0.85rem; font-weight: 800; margin-top: 4px; transition: filter 0.3s; width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Smart Insight Advisor */
-        .advisor { background: var(--surface); border-radius: 28px; padding: 20px; margin: 25px 0; border: 1px solid var(--border); display: flex; gap: 15px; height: 140px; position: relative; }
-        .adv-icon { background: var(--primary); color: #0f172a; padding: 12px; border-radius: 18px; flex-shrink: 0; align-self: flex-start; }
-        .adv-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .adv-title { font-weight: 800; color: var(--primary); font-size: 0.9rem; margin-bottom: 4px; }
-        .adv-scrollable { flex: 1; overflow-y: auto; font-size: 0.85rem; line-height: 1.6; color: var(--text-dim); }
-        .warning-text { color: var(--danger); font-weight: 700; display: block; }
-        .safe-text { color: var(--primary); font-weight: 700; }
-
-        /* General Card & Forms */
-        .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); width: 100%; }
-        .card-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-        input, select { width: 100%; padding: 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; font-size: 0.95rem; outline: none; transition: border 0.3s; }
-        input:focus { border-color: var(--primary); }
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
-
-        /* Chart Header (Sejajar & Flexible) */
-        .chart-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 20px; 
-            gap: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
+        /* FIXED ADVISOR (Clean & Sealed) */
+        .advisor { 
+            background: var(--surface); border-radius: 28px; padding: 18px; 
+            margin: 25px 0; border: 1px solid var(--border); 
+            display: flex; gap: 15px; align-items: flex-start; 
+            height: 140px; /* TINGGI DIKUNCI */
+            overflow: hidden; /* MENCEGAH TEMBUS KELUAR */
         }
-        #chart-total-val { 
-            font-size: 1.1rem; 
-            font-weight: 800; 
-            color: var(--danger); 
-            text-align: right;
-            white-space: nowrap;
+        .adv-icon { 
+            width: 44px; height: 44px; background: var(--primary); 
+            color: #0f172a; border-radius: 14px; display: flex; 
+            align-items: center; justify-content: center; 
+            flex-shrink: 0; /* ANTI LONJONG */
+        }
+        .adv-main { 
+            flex: 1; display: flex; flex-direction: column; 
+            height: 100%; /* MENYESUAIKAN TINGGI PARENT */
+            overflow: hidden;
+        }
+        .adv-scrollable { 
+            flex: 1; 
+            overflow-y: auto; /* MENGAKTIFKAN SCROLL DI DALAM */
+            font-size: 0.82rem; line-height: 1.6; color: var(--text-dim); 
+            padding-right: 5px;
         }
 
-        /* Transaction List */
-        .t-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
-        .t-info b { display: block; font-size: 0.9rem; margin-bottom: 2px; }
-        .t-info small { color: var(--text-dim); font-size: 0.75rem; }
-        .t-amt { text-align: right; font-weight: 700; font-size: 0.9rem; transition: filter 0.3s; }
-        .t-amt.minus { color: var(--danger); }
+        /* Chart Header */
+        .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        #chart-total-val { font-size: 1.1rem; font-weight: 800; color: var(--danger); white-space: nowrap; }
 
-        /* Nav Bar */
+        /* Navigation */
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 75px; background: var(--surface); border-radius: 28px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); z-index: 1000; border: 1px solid var(--border); max-width: 460px; margin: 0 auto; }
-        .nav-item { color: var(--text-dim); cursor: pointer; transition: all 0.3s ease; padding: 10px; }
+        .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; }
         .nav-item.active { color: var(--primary); transform: translateY(-5px); }
 
-        .page { display: none; animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        input, select { width: 100%; padding: 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; outline: none; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
+        
+        .page { display: none; animation: slideUp 0.4s ease; }
         .page.active { display: block; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } }
-
-        /* Responsivitas untuk Layar Besar (PC) */
-        @media (min-width: 600px) {
-            .chart-header { padding-left: 5px; padding-right: 5px; }
-            #chart-total-val { font-size: 1.3rem; }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } }
     </style>
 </head>
 <body>
@@ -145,13 +115,13 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 5px;">HYBRID SAFE v18.4</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 5px;">STABLE RELEASE v18.8</p>
 </div>
 
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
-            <div class="header-left">
+            <div style="display:flex; gap:10px; align-items:center">
                 <span id="statusBadge" class="status-badge status-online">Online</span>
                 <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn"><i data-lucide="eye"></i></button>
             </div>
@@ -169,34 +139,22 @@
         </div>
 
         <div class="wallet-container">
-            <div class="w-card">
-                <div class="w-icon" style="background:rgba(45,212,191,0.1)"><i data-lucide="banknote" style="color:var(--primary); width:16px"></i></div>
-                <span class="w-name">Tunai</span>
-                <span class="w-val" id="w-cash">0</span>
-            </div>
-            <div class="w-card">
-                <div class="w-icon" style="background:rgba(59,130,246,0.1)"><i data-lucide="landmark" style="color:var(--accent); width:16px"></i></div>
-                <span class="w-name">Bank</span>
-                <span class="w-val" id="w-bank">0</span>
-            </div>
-            <div class="w-card">
-                <div class="w-icon" style="background:rgba(245,158,11,0.1)"><i data-lucide="smartphone" style="color:var(--warning); width:16px"></i></div>
-                <span class="w-name">E-Wallet</span>
-                <span class="w-val" id="w-e">0</span>
-            </div>
+            <div class="w-card"><div class="w-icon" style="background:rgba(45,212,191,0.1)"><i data-lucide="banknote" style="color:var(--primary); width:16px"></i></div><span style="font-size:0.6rem; color:var(--text-dim); font-weight:700;">TUNAI</span><span class="w-val" id="w-cash">0</span></div>
+            <div class="w-card"><div class="w-icon" style="background:rgba(59,130,246,0.1)"><i data-lucide="landmark" style="color:var(--accent); width:16px"></i></div><span style="font-size:0.6rem; color:var(--text-dim); font-weight:700;">BANK</span><span class="w-val" id="w-bank">0</span></div>
+            <div class="w-card"><div class="w-icon" style="background:rgba(245,158,11,0.1)"><i data-lucide="smartphone" style="color:var(--warning); width:16px"></i></div><span style="font-size:0.6rem; color:var(--text-dim); font-weight:700;">E-WALLET</span><span class="w-val" id="w-e">0</span></div>
         </div>
 
         <div class="advisor">
             <div class="adv-icon"><i data-lucide="sparkles"></i></div>
             <div class="adv-main">
-                <span class="adv-title">Smart Insight</span>
+                <span style="font-weight:800; color:var(--primary); font-size:0.85rem; margin-bottom:5px">Smart Insight</span>
                 <div id="advisorContent" class="adv-scrollable">Menganalisa data...</div>
             </div>
         </div>
         
         <div class="card">
             <div class="chart-header">
-                <div class="card-title"><i data-lucide="pie-chart"></i> Pengeluaran</div>
+                <div style="font-weight:700; display:flex; align-items:center; gap:8px"><i data-lucide="pie-chart"></i> Pengeluaran</div>
                 <div id="chart-total-val">Rp 0</div>
             </div>
             <div style="height:220px;"><canvas id="pieChart"></canvas></div>
@@ -206,7 +164,7 @@
     <div id="history" class="page">
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-                <h2 class="card-title" style="margin:0">Riwayat</h2>
+                <h2 style="font-size:1rem; font-weight:700">Riwayat</h2>
                 <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:12px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:800; cursor:pointer">XLSX</button>
             </div>
             <input type="month" id="filterMonth" onchange="renderAll()">
@@ -216,13 +174,11 @@
 
     <div id="add" class="page">
         <div class="card">
-            <h2 class="card-title"><i data-lucide="plus-circle"></i> Catat Baru</h2>
+            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Catat Baru</h2>
             <form id="transForm">
                 <input type="date" id="t-date">
                 <select id="t-wallet">
-                    <option value="Tunai">💰 Tunai</option>
-                    <option value="Bank">🏦 Bank</option>
-                    <option value="E-Wallet">📱 E-Wallet</option>
+                    <option value="Tunai">💰 Tunai</option><option value="Bank">🏦 Bank</option><option value="E-Wallet">📱 E-Wallet</option>
                 </select>
                 <select id="t-cat">
                     <option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option><option>Lainnya</option>
@@ -235,20 +191,14 @@
 
     <div id="settings" class="page">
         <div class="card">
-            <h2 class="card-title"><i data-lucide="sliders"></i> Atur Saldo</h2>
+            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Saldo & Limit</h2>
             <input type="number" id="set-cash" placeholder="Saldo Tunai">
             <input type="number" id="set-bank" placeholder="Saldo Bank">
             <input type="number" id="set-e" placeholder="Saldo E-Wallet">
             <button class="btn-primary" onclick="updateWallets()">Simpan Saldo</button>
         </div>
         <div class="card">
-            <h2 class="card-title"><i data-lucide="shield-alert"></i> Batas Kategori</h2>
-            <select id="l-cat"><option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option></select>
-            <input type="number" id="l-amount" placeholder="Limit Bulanan">
-            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
-        </div>
-        <div class="card">
-            <h2 class="card-title"><i data-lucide="target"></i> Target Tabungan</h2>
+            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Target Tabungan</h2>
             <input type="number" id="goal-input" placeholder="Jumlah Tabungan">
             <button class="btn-primary" style="background:var(--warning)" onclick="setGoal()">Update Target</button>
         </div>
@@ -264,12 +214,12 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = { apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2" };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(() => console.log("Offline Persistence Active"));
+    enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(console.log);
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
@@ -289,11 +239,6 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         if(el) el.classList.add('active');
-        else {
-            const items = document.querySelectorAll('.nav-item');
-            if(id === 'home') items[0].classList.add('active');
-            if(id === 'settings') items[3].classList.add('active');
-        }
     };
 
     window.saveTransaction = async () => {
@@ -301,13 +246,14 @@
         const w = document.getElementById('t-wallet').value;
         const c = document.getElementById('t-cat').value;
         const a = parseInt(document.getElementById('t-amount').value);
-        if(!a || !d) return Swal.fire('Isi nominal & tanggal!', '', 'warning');
+        if(!a || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
         try {
-            await updateDoc(doc(db, "config", "wallets"), { [w]: (store.wallets[w] || 0) - a });
+            await updateDoc(doc(db, "config", "wallets"), { [w]: increment(-a) });
             await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
             document.getElementById('transForm').reset();
             document.getElementById('t-date').valueAsDate = new Date();
-            Swal.fire({ title: 'Tercatat!', icon: 'success', timer: 1000, showConfirmButton: false });
+            if (!navigator.onLine) Swal.fire('Offline', 'Data tersimpan lokal', 'info');
+            else Swal.fire({ title: 'Berhasil!', icon: 'success', timer: 1000, showConfirmButton: false });
             nav('home');
         } catch (e) { Swal.fire('Gagal!', e.message, 'error'); }
     };
@@ -315,26 +261,19 @@
     window.updateWallets = async () => {
         const data = { Tunai: parseInt(document.getElementById('set-cash').value) || 0, Bank: parseInt(document.getElementById('set-bank').value) || 0, "E-Wallet": parseInt(document.getElementById('set-e').value) || 0 };
         await setDoc(doc(db, "config", "wallets"), data);
-        Swal.fire('Berhasil!', 'Saldo diperbarui.', 'success');
-    };
-
-    window.setLimit = async () => {
-        const cat = document.getElementById('l-cat').value;
-        const val = parseInt(document.getElementById('l-amount').value) || 0;
-        await setDoc(doc(db, "config", "limits"), { [cat]: val }, { merge: true });
-        Swal.fire('Limit Aktif!', `Batas ${cat} disimpan.`, 'success');
+        Swal.fire('Sukses', 'Saldo diperbarui', 'success');
     };
 
     window.setGoal = async () => {
         const amount = parseInt(document.getElementById('goal-input').value) || 0;
         await setDoc(doc(db, "config", "goal"), { amount });
-        Swal.fire('Target Update!', '', 'success');
+        Swal.fire('Update!', 'Target tabungan disimpan', 'success');
     };
 
     window.removeTrans = async (id, wallet, nominal) => {
-        const confirm = await Swal.fire({ title: 'Hapus?', text: "Saldo akan dikembalikan", icon: 'warning', showCancelButton: true });
+        const confirm = await Swal.fire({ title: 'Hapus?', text: "Saldo dikembalikan", icon: 'warning', showCancelButton: true });
         if(confirm.isConfirmed) {
-            await updateDoc(doc(db, "config", "wallets"), { [wallet]: (store.wallets[wallet] || 0) + nominal });
+            await updateDoc(doc(db, "config", "wallets"), { [wallet]: increment(nominal) });
             await deleteDoc(doc(db, "pengeluaran", id));
         }
     };
@@ -346,7 +285,7 @@
         if (list) list.innerHTML = "";
 
         store.trans.forEach(t => {
-            if(t.tanggal && t.tanggal.startsWith(month)) {
+            if(!month || (t.tanggal && t.tanggal.startsWith(month))) {
                 cats[t.kategori] = (cats[t.kategori] || 0) + t.nominal;
                 totalSpent += t.nominal;
                 if (list) list.innerHTML += `
@@ -367,19 +306,23 @@
         document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"] || 0);
         document.getElementById('chart-total-val').innerText = fmt(totalSpent);
 
-        let warnings = [];
+        // Advisor Professional Clean Logic
+        let alerts = [];
         for (const [c, v] of Object.entries(cats)) {
             const lim = store.limits[c];
-            if(lim && v >= lim) warnings.push(`<span class="warning-text">⚠️ LIMIT ${c.toUpperCase()} JEBOL!</span>`);
-            else if(lim && v >= lim*0.8) warnings.push(`<span style="color:var(--warning); font-weight:700">📢 ${c} sisa sedikit.</span>`);
+            if(lim && v > lim) {
+                alerts.push(`<div style="margin-bottom:8px; color:var(--text); font-size:0.8rem">⚠️ <b style="color:var(--danger)">${c}:</b> Melampaui batas ${fmt(v-lim)} (Limit: ${fmt(lim)}).</div>`);
+            } else if(lim && v >= lim * 0.8) {
+                alerts.push(`<div style="margin-bottom:8px; color:var(--text); font-size:0.8rem">📢 <b>${c}:</b> Anggaran hampir habis. Sisa: ${fmt(lim-v)}.</div>`);
+            }
         }
 
         const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate() + 1;
         const daily = disposable > 0 ? disposable / days : 0;
-        let insight = `Jatah harian kamu: <span class="safe-text">${fmt(Math.floor(daily))}</span>.<br>`;
-        if(disposable < 0) insight = `<span class="warning-text">⚠️ KAMU PAKAI UANG TABUNGAN!</span>`;
+        let baseMsg = `<div style="margin-bottom:10px;">Estimasi harian: <span style="color:var(--primary); font-weight:700;">${fmt(Math.floor(daily))}</span>.</div>`;
+        if(disposable < 0) baseMsg = `<div style="margin-bottom:10px; color:var(--danger); font-weight:700;">⚠️ Dana tabungan terpakai.</div>`;
         
-        document.getElementById('advisorContent').innerHTML = insight + warnings.join('');
+        document.getElementById('advisorContent').innerHTML = baseMsg + alerts.join('');
         updateChart(cats);
         lucide.createIcons();
     };
@@ -387,11 +330,10 @@
     function updateChart(data) {
         const ctx = document.getElementById('pieChart').getContext('2d');
         if(pieChart) pieChart.destroy();
-        const isLight = document.body.classList.contains('light-mode');
         pieChart = new Chart(ctx, {
             type: 'doughnut',
             data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'], borderWidth: 0 }] },
-            options: { maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { color: isLight?'#0f172a':'#f8fafc', boxWidth: 10, font: {size: 10} } } } }
+            options: { maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { color: document.body.classList.contains('light-mode')?'#0f172a':'#f8fafc', boxWidth: 10, font: {size: 10} } } } }
         });
     }
 
@@ -399,7 +341,7 @@
         const ws = XLSX.utils.json_to_sheet(store.trans);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Records");
-        XLSX.writeFile(wb, `Agis_Finance_Report.xlsx`);
+        XLSX.writeFile(wb, `Laporan_Keuangan.xlsx`);
     };
 
     window.addEventListener('load', () => {
