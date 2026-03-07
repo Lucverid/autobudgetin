@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - v19.5</title>
+    <title>Agis Finance AI - v19.5 + Calc</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -91,6 +91,15 @@
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
+        /* Calculator CSS */
+        .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1001; box-shadow: 0 10px 20px rgba(0,0,0,0.3); border: none; }
+        #calc-container { position: fixed; bottom: 170px; right: 20px; width: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 15px; display: none; z-index: 1001; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
+        .calc-display { width: 100%; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px; text-align: right; font-size: 1.4rem; font-weight: 700; margin-bottom: 12px; color: var(--primary); min-height: 60px; word-break: break-all; }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .calc-btn { padding: 15px 5px; border-radius: 12px; border: none; background: rgba(255,255,255,0.05); color: var(--text); font-weight: 700; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        .calc-btn:active { background: var(--primary); color: #000; }
+        .calc-btn.op { color: var(--accent); background: rgba(59,130,246,0.1); }
+
         .page { display: none; }
         .page.active { display: block; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } }
@@ -128,18 +137,15 @@
         <div class="wallet-container">
             <div class="w-card">
                 <div class="w-icon" style="background:rgba(45,212,191,0.1)"><i data-lucide="banknote" style="color:var(--primary)"></i></div>
-                <span class="w-name">Tunai</span>
-                <span class="w-val" id="w-cash">0</span>
+                <span class="w-name">Tunai</span><span class="w-val" id="w-cash">0</span>
             </div>
             <div class="w-card">
                 <div class="w-icon" style="background:rgba(59,130,246,0.1)"><i data-lucide="landmark" style="color:var(--accent)"></i></div>
-                <span class="w-name">Bank</span>
-                <span class="w-val" id="w-bank">0</span>
+                <span class="w-name">Bank</span><span class="w-val" id="w-bank">0</span>
             </div>
             <div class="w-card">
                 <div class="w-icon" style="background:rgba(245,158,11,0.1)"><i data-lucide="smartphone" style="color:var(--warning)"></i></div>
-                <span class="w-name">E-Wallet</span>
-                <span class="w-val" id="w-e">0</span>
+                <span class="w-name">E-Wallet</span><span class="w-val" id="w-e">0</span>
             </div>
         </div>
 
@@ -206,6 +212,31 @@
                 <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
             </div>
         </div>
+    </div>
+</div>
+
+<button class="calc-toggle" onclick="toggleCalc()"><i data-lucide="calculator"></i></button>
+<div id="calc-container">
+    <div class="calc-display" id="calcDisplay">0</div>
+    <div class="calc-grid">
+        <button class="calc-btn op" onclick="calcClear()">C</button>
+        <button class="calc-btn op" onclick="calcPush('/')">/</button>
+        <button class="calc-btn op" onclick="calcPush('*')">×</button>
+        <button class="calc-btn op" onclick="calcPop()"><i data-lucide="delete" style="width:16px"></i></button>
+        <button class="calc-btn" onclick="calcPush('7')">7</button>
+        <button class="calc-btn" onclick="calcPush('8')">8</button>
+        <button class="calc-btn" onclick="calcPush('9')">9</button>
+        <button class="calc-btn op" onclick="calcPush('-')">-</button>
+        <button class="calc-btn" onclick="calcPush('4')">4</button>
+        <button class="calc-btn" onclick="calcPush('5')">5</button>
+        <button class="calc-btn" onclick="calcPush('6')">6</button>
+        <button class="calc-btn op" onclick="calcPush('+')">+</button>
+        <button class="calc-btn" onclick="calcPush('1')">1</button>
+        <button class="calc-btn" onclick="calcPush('2')">2</button>
+        <button class="calc-btn" onclick="calcPush('3')">3</button>
+        <button class="calc-btn" style="background:var(--primary); color:#000; grid-row: span 2;" onclick="calcEqual()">=</button>
+        <button class="calc-btn" style="grid-column: span 2;" onclick="calcPush('0')">0</button>
+        <button class="calc-btn" onclick="calcPush('.')">.</button>
     </div>
 </div>
 
@@ -324,7 +355,6 @@
         document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"] || 0);
         document.getElementById('chart-total-val').innerText = fmt(totalSpent);
 
-        // Advisor & Limit Logic
         const now = new Date();
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         const remainingDays = lastDay - now.getDate() + 1;
@@ -333,11 +363,8 @@
         let alerts = [];
         for (const [c, v] of Object.entries(cats)) {
             const lim = store.limits[c];
-            if(lim && v > lim) {
-                alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
-            } else if(lim && v >= lim * 0.8) {
-                alerts.push(`<div style="margin-bottom:8px">📢 <b>${c}: ${fmt(v)}</b> (Hampir Limit)</div>`);
-            }
+            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
+            else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${c}: ${fmt(v)}</b> (Hampir Limit)</div>`);
         }
 
         document.getElementById('advisorContent').innerHTML = `
@@ -361,6 +388,25 @@
         });
     }
 
+    // Calculator Logic
+    let calcExpr = "";
+    window.toggleCalc = () => {
+        const c = document.getElementById('calc-container');
+        c.style.display = c.style.display === 'block' ? 'none' : 'block';
+    };
+    window.calcPush = (v) => { calcExpr += v; document.getElementById('calcDisplay').innerText = calcExpr; };
+    window.calcClear = () => { calcExpr = ""; document.getElementById('calcDisplay').innerText = "0"; };
+    window.calcPop = () => { calcExpr = calcExpr.slice(0, -1); document.getElementById('calcDisplay').innerText = calcExpr || "0"; };
+    window.calcEqual = () => {
+        try {
+            const res = eval(calcExpr);
+            document.getElementById('calcDisplay').innerText = res;
+            calcExpr = res.toString();
+            const amountInput = document.getElementById('t-amount');
+            if(amountInput && document.getElementById('add').classList.contains('active')) amountInput.value = Math.round(res);
+        } catch(e) { document.getElementById('calcDisplay').innerText = "Error"; calcExpr = ""; }
+    };
+
     window.exportToExcel = () => {
         const ws = XLSX.utils.json_to_sheet(store.trans);
         const wb = XLSX.utils.book_new();
@@ -370,8 +416,10 @@
 
     const updateStatus = () => {
         const b = document.getElementById('statusBadge');
-        b.innerText = navigator.onLine ? "Online" : "Offline";
-        b.className = `status-badge ${navigator.onLine ? 'status-online' : 'status-offline'}`;
+        if(b) {
+            b.innerText = navigator.onLine ? "Online" : "Offline";
+            b.className = `status-badge ${navigator.onLine ? 'status-online' : 'status-offline'}`;
+        }
     };
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
