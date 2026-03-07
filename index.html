@@ -42,7 +42,7 @@
 
         /* Privacy Blur */
         .blur-active .master-amount, .blur-active .w-val, .blur-active .t-amt, 
-        .blur-active #goal-amount, .blur-active #chart-total-val, .blur-active .adv-scrollable {
+        .blur-active #goal-amount, .blur-active #chart-total-val, .blur-active .adv-scrollable, .blur-active .comp-val {
             filter: blur(12px); pointer-events: none; user-select: none;
         }
 
@@ -76,6 +76,14 @@
         .adv-main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
         .adv-scrollable { flex: 1; overflow-y: auto; font-size: 0.82rem; line-height: 1.6; color: var(--text-dim); }
 
+        /* --- COMPARISON CSS --- */
+        .comp-section { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .comp-box { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 20px; padding: 12px; text-align: center; }
+        .comp-input { padding: 6px !important; font-size: 0.75rem !important; height: auto !important; margin-bottom: 10px !important; border-radius: 10px !important; }
+        .comp-chart-h { height: 100px; position: relative; margin-bottom: 8px; }
+        .comp-val { font-size: 0.8rem; font-weight: 800; color: var(--danger); display: block; }
+
         /* Transaction List */
         .t-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
         .t-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
@@ -91,7 +99,7 @@
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
-        /* NEW: Calculator UI Pro */
+        /* Calculator UI Pro */
         .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: none; box-shadow: 0 8px 15px rgba(0,0,0,0.3); }
         
         #calc-container { 
@@ -178,6 +186,24 @@
                 <div id="chart-total-val" style="font-weight:800; color:var(--danger)">Rp 0</div>
             </div>
             <div style="height:220px;"><canvas id="pieChart"></canvas></div>
+
+            <div class="comp-section">
+                <div style="font-weight:800; font-size:0.85rem; color:var(--primary); margin-bottom:15px; display:flex; gap:8px; align-items:center">
+                    <i data-lucide="arrow-left-right" style="width:16px"></i> Comparison Mode
+                </div>
+                <div class="comp-grid">
+                    <div class="comp-box">
+                        <input type="month" id="comp-m1" class="comp-input" onchange="renderComparison()">
+                        <div class="comp-chart-h"><canvas id="compChart1"></canvas></div>
+                        <span id="comp-v1" class="comp-val">Rp 0</span>
+                    </div>
+                    <div class="comp-box">
+                        <input type="month" id="comp-m2" class="comp-input" onchange="renderComparison()">
+                        <div class="comp-chart-h"><canvas id="compChart2"></canvas></div>
+                        <span id="comp-v2" class="comp-val">Rp 0</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -276,7 +302,7 @@
     enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(() => console.log("Persistence Offline"));
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
-    let pieChart;
+    let pieChart, cChart1, cChart2;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
 
     // Formatter Ribuan Otomatis
@@ -356,6 +382,30 @@
         }
     };
 
+    // --- COMPARISON LOGIC ---
+    window.renderComparison = () => {
+        const m1 = document.getElementById('comp-m1').value;
+        const m2 = document.getElementById('comp-m2').value;
+
+        const getData = (m) => {
+            let res = { cats: {}, total: 0 };
+            store.trans.forEach(t => { if(t.tanggal.startsWith(m)) { res.cats[t.kategori] = (res.cats[t.kategori] || 0) + t.nominal; res.total += t.nominal; } });
+            return res;
+        };
+
+        const d1 = getData(m1); const d2 = getData(m2);
+        document.getElementById('comp-v1').innerText = fmt(d1.total);
+        document.getElementById('comp-v2').innerText = fmt(d2.total);
+
+        const draw = (id, old, data) => {
+            const ctx = document.getElementById(id).getContext('2d');
+            if(old) old.destroy();
+            return new Chart(ctx, { type: 'pie', data: { datasets: [{ data: Object.values(data.cats), backgroundColor: ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'] }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        };
+        cChart1 = draw('compChart1', cChart1, d1);
+        cChart2 = draw('compChart2', cChart2, d2);
+    };
+
     window.renderAll = () => {
         const monthFilter = document.getElementById('filterMonth').value;
         let cats = {}; let totalSpent = 0;
@@ -406,6 +456,7 @@
         `;
 
         updateChart(cats);
+        renderComparison(); // Trigger update comparison
         lucide.createIcons();
         hideSplash();
     };
@@ -500,6 +551,9 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
+        document.getElementById('comp-m1').value = today.slice(0, 7);
+        let prev = new Date(); prev.setMonth(prev.getMonth()-1);
+        document.getElementById('comp-m2').value = prev.toISOString().slice(0, 7);
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         lucide.createIcons();
     });
