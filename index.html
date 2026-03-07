@@ -42,7 +42,7 @@
 
         /* Privacy Blur */
         .blur-active .master-amount, .blur-active .w-val, .blur-active .t-amt, 
-        .blur-active #goal-amount, .blur-active #chart-total-val, .blur-active .adv-scrollable {
+        .blur-active #goal-amount, .blur-active #chart-total-val, .blur-active .adv-scrollable, .blur-active .comp-val {
             filter: blur(12px); pointer-events: none; user-select: none;
         }
 
@@ -50,7 +50,6 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 12px; font-weight: 800; text-transform: uppercase; }
         .status-online { background: rgba(45, 212, 191, 0.15); color: var(--primary); }
-        .status-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
         .btn-icon { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
         .master-balance { text-align: center; margin-bottom: 8px; }
@@ -91,26 +90,23 @@
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
-        /* NEW: Calculator UI Pro */
+        /* Calculator UI Pro */
         .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: none; box-shadow: 0 8px 15px rgba(0,0,0,0.3); }
-        
-        #calc-container { 
-            position: fixed; bottom: 170px; right: 20px; width: 280px; min-width: 200px; min-height: 350px;
-            background: var(--glass); border: 1px solid var(--border); border-radius: 24px; 
-            padding: 15px; display: none; z-index: 2001; box-shadow: 0 20px 50px rgba(0,0,0,0.6); 
-            backdrop-filter: blur(20px); overflow: hidden; touch-action: none;
-        }
-
+        #calc-container { position: fixed; bottom: 170px; right: 20px; width: 280px; min-width: 200px; min-height: 350px; background: var(--glass); border: 1px solid var(--border); border-radius: 24px; padding: 15px; display: none; z-index: 2001; box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow: hidden; touch-action: none; }
         .calc-header { cursor: move; padding: 5px; margin-bottom: 12px; display: flex; justify-content: center; background: rgba(255,255,255,0.08); border-radius: 10px; }
         .drag-handle { width: 50px; height: 5px; background: var(--text-dim); border-radius: 10px; opacity: 0.5; }
-
         .calc-display { width: 100%; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; text-align: right; font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 15px; min-height: 60px; border: 1px solid var(--border); }
         .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: calc(100% - 120px); }
         .calc-btn { border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text); font-weight: 700; cursor: pointer; transition: 0.1s; font-size: 1rem; }
         .calc-btn:active { background: var(--primary); color: #000; transform: scale(0.95); }
         .calc-btn.op { background: rgba(59,130,246,0.15); color: var(--accent); }
 
-        .resizer { position: absolute; right: 0; bottom: 0; width: 25px; height: 25px; cursor: nwse-resize; z-index: 2002; }
+        /* Comparison Mode UI */
+        .comp-section { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .comp-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 420px) { .comp-grid { grid-template-columns: 1fr 1fr; } }
+        .comp-box { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 24px; padding: 15px; text-align: center; }
+        .comp-val { font-size: 0.9rem; font-weight: 800; color: var(--danger); display: block; margin-top: 8px; }
 
         .page { display: none; }
         .page.active { display: block; animation: slideUp 0.3s ease; }
@@ -178,6 +174,27 @@
                 <div id="chart-total-val" style="font-weight:800; color:var(--danger)">Rp 0</div>
             </div>
             <div style="height:220px;"><canvas id="pieChart"></canvas></div>
+
+            <div class="comp-section">
+                <div style="font-weight:800; font-size:0.85rem; color:var(--primary); margin-bottom:15px; display:flex; gap:8px; align-items:center">
+                    <i data-lucide="arrow-left-right" style="width:16px"></i> Perbandingan Bulan
+                </div>
+                <div class="comp-grid">
+                    <div class="comp-box">
+                        <input type="month" id="comp-m1" style="padding:10px; font-size:0.75rem; border-radius:14px; background:var(--surface);" onchange="renderComparison()">
+                        <div style="height:140px; position:relative;"><canvas id="compChart1"></canvas></div>
+                        <span id="comp-v1" class="comp-val">Rp 0</span>
+                    </div>
+                    <div class="comp-box">
+                        <input type="month" id="comp-m2" style="padding:10px; font-size:0.75rem; border-radius:14px; background:var(--surface);" onchange="renderComparison()">
+                        <div style="height:140px; position:relative;"><canvas id="compChart2"></canvas></div>
+                        <span id="comp-v2" class="comp-val">Rp 0</span>
+                    </div>
+                </div>
+                <div id="comp-analysis" style="margin-top:20px; padding:15px; background:rgba(59,130,246,0.05); border-radius:18px; font-size:0.8rem; line-height:1.5; color:var(--text-dim); border:1px dashed var(--accent);">
+                    Memuat data perbandingan...
+                </div>
+            </div>
         </div>
     </div>
 
@@ -276,10 +293,9 @@
     enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(() => console.log("Persistence Offline"));
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
-    let pieChart;
+    let pieChart, comp1, comp2;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
 
-    // Formatter Ribuan Otomatis
     window.formatInput = (el) => {
         let val = el.value.replace(/\D/g, "");
         if (val === "") {
@@ -356,6 +372,68 @@
         }
     };
 
+    // --- FUNGSI PERBANDINGAN (TAMBAHAN) ---
+    window.renderComparison = () => {
+        const m1 = document.getElementById('comp-m1').value;
+        const m2 = document.getElementById('comp-m2').value;
+        if(!m1 || !m2) return;
+
+        const getMonthData = (m) => {
+            let res = { cats: {}, total: 0 };
+            store.trans.forEach(t => {
+                if(t.tanggal && t.tanggal.startsWith(m)) {
+                    res.cats[t.kategori] = (res.cats[t.kategori] || 0) + t.nominal;
+                    res.total += t.nominal;
+                }
+            });
+            return res;
+        };
+
+        const d1 = getMonthData(m1);
+        const d2 = getMonthData(m2);
+
+        document.getElementById('comp-v1').innerText = fmt(d1.total);
+        document.getElementById('comp-v2').innerText = fmt(d2.total);
+
+        const drawComp = (ctxId, oldChart, data) => {
+            const ctx = document.getElementById(ctxId).getContext('2d');
+            if(oldChart) oldChart.destroy();
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: { 
+                    labels: Object.keys(data.cats), 
+                    datasets: [{ 
+                        data: Object.values(data.cats).length ? Object.values(data.cats) : [1], 
+                        backgroundColor: ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'], 
+                        borderWidth: 0 
+                    }] 
+                },
+                options: { 
+                    maintainAspectRatio: false, 
+                    cutout: '75%', 
+                    plugins: { legend: { display: false } } 
+                }
+            });
+        };
+
+        comp1 = drawComp('compChart1', comp1, d1);
+        comp2 = drawComp('compChart2', comp2, d2);
+
+        const diff = d1.total - d2.total;
+        const statusText = diff > 0 ? "lebih tinggi" : "lebih rendah";
+        const color = diff > 0 ? "var(--danger)" : "var(--primary)";
+        
+        document.getElementById('comp-analysis').innerHTML = `
+            Pengeluaran di <b>${m1}</b> <span style="color:${color}">${statusText} ${fmt(Math.abs(diff))}</span> 
+            dibandingkan bulan <b>${m2}</b>.<br>
+            <div style="margin-top:8px; font-size:0.7rem; display:flex; gap:10px; flex-wrap:wrap">
+                <span style="display:flex; align-items:center; gap:4px"><div style="width:8px; height:8px; background:#2dd4bf; border-radius:50%"></div> Makan</span>
+                <span style="display:flex; align-items:center; gap:4px"><div style="width:8px; height:8px; background:#3b82f6; border-radius:50%"></div> Transpor</span>
+                <span style="display:flex; align-items:center; gap:4px"><div style="width:8px; height:8px; background:#f59e0b; border-radius:50%"></div> Belanja</span>
+            </div>
+        `;
+    };
+
     window.renderAll = () => {
         const monthFilter = document.getElementById('filterMonth').value;
         let cats = {}; let totalSpent = 0;
@@ -406,6 +484,7 @@
         `;
 
         updateChart(cats);
+        renderComparison(); // Jalankan perbandingan otomatis
         lucide.createIcons();
         hideSplash();
     };
@@ -420,7 +499,7 @@
         });
     }
 
-    // --- CALCULATOR PRO LOGIC ---
+    // --- CALCULATOR LOGIC ---
     let calcExpr = "";
     window.toggleCalc = () => {
         const c = document.getElementById('calc-container');
@@ -434,58 +513,33 @@
             let res = eval(calcExpr);
             document.getElementById('calcDisplay').innerText = res;
             calcExpr = res.toString();
-            const inpDisplay = document.getElementById('t-amount-display');
-            const hiddenInp = document.getElementById('t-amount');
-            if(inpDisplay && hiddenInp) {
-                inpDisplay.value = new Intl.NumberFormat('id-ID').format(Math.round(res));
-                hiddenInp.value = Math.round(res);
-            }
+            document.getElementById('t-amount-display').value = new Intl.NumberFormat('id-ID').format(Math.round(res));
+            document.getElementById('t-amount').value = Math.round(res);
         } catch { document.getElementById('calcDisplay').innerText = "Err"; }
     };
 
-    // --- DRAG & RESIZE LOGIC ---
+    // --- DRAG LOGIC ---
     const calc = document.getElementById('calc-container');
     const header = document.getElementById('calcHeader');
-    const resizer = document.getElementById('calcResizer');
-
-    let isDragging = false, isResizing = false;
-    let startX, startY, startW, startH;
-
-    const onMove = (e) => {
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        if (isDragging) {
-            calc.style.left = (clientX - startX) + 'px';
-            calc.style.top = (clientY - startY) + 'px';
-            calc.style.right = 'auto'; calc.style.bottom = 'auto';
-        }
-        if (isResizing) {
-            calc.style.width = (startW + (clientX - startX)) + 'px';
-            calc.style.height = (startH + (clientY - startY)) + 'px';
-        }
-    };
-    const onEnd = () => { isDragging = isResizing = false; };
-
+    let isDragging = false, startX, startY;
     header.onmousedown = header.ontouchstart = (e) => {
         isDragging = true;
         startX = (e.touches ? e.touches[0].clientX : e.clientX) - calc.offsetLeft;
         startY = (e.touches ? e.touches[0].clientY : e.clientY) - calc.offsetTop;
     };
-    resizer.onmousedown = resizer.ontouchstart = (e) => {
-        isResizing = true;
-        startX = e.touches ? e.touches[0].clientX : e.clientX;
-        startY = e.touches ? e.touches[0].clientY : e.clientY;
-        startW = calc.offsetWidth; startH = calc.offsetHeight;
-        e.stopPropagation(); e.preventDefault();
+    document.onmousemove = document.ontouchmove = (e) => {
+        if (!isDragging) return;
+        calc.style.left = ((e.touches ? e.touches[0].clientX : e.clientX) - startX) + 'px';
+        calc.style.top = ((e.touches ? e.touches[0].clientY : e.clientY) - startY) + 'px';
+        calc.style.right = 'auto'; calc.style.bottom = 'auto';
     };
-    document.onmousemove = document.ontouchmove = onMove;
-    document.onmouseup = document.ontouchend = onEnd;
+    document.onmouseup = document.ontouchend = () => isDragging = false;
 
     window.exportToExcel = () => {
         const ws = XLSX.utils.json_to_sheet(store.trans);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Records");
-        XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value}.xlsx`);
+        XLSX.writeFile(wb, `Agis_Report.xlsx`);
     };
 
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
@@ -500,6 +554,13 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
+
+        // Inisialisasi input bulan perbandingan
+        const d = new Date();
+        document.getElementById('comp-m1').value = d.toISOString().slice(0, 7);
+        d.setMonth(d.getMonth() - 1);
+        document.getElementById('comp-m2').value = d.toISOString().slice(0, 7);
+
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         lucide.createIcons();
     });
