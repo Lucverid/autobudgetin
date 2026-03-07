@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v19.9 PRO</title>
+    <title>Agis Finance AI - v19.8 PRO</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -42,7 +42,7 @@
 
         /* Privacy Blur */
         .blur-active .master-amount, .blur-active .w-val, .blur-active .t-amt, 
-        .blur-active #goal-amount, .blur-active #chart-total-val, .blur-active .adv-scrollable, .blur-active .comp-val {
+        .blur-active #goal-amount, .blur-active #chart-total-val, .blur-active .adv-scrollable {
             filter: blur(12px); pointer-events: none; user-select: none;
         }
 
@@ -76,19 +76,6 @@
         .adv-main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
         .adv-scrollable { flex: 1; overflow-y: auto; font-size: 0.82rem; line-height: 1.6; color: var(--text-dim); }
 
-        /* --- COMPARISON CSS RESPONSIVE --- */
-        .comp-section { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .comp-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
-        
-        @media (min-width: 420px) {
-            .comp-grid { grid-template-columns: 1fr 1fr; }
-        }
-
-        .comp-box { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 20px; padding: 15px; text-align: center; display: flex; flex-direction: column; align-items: center; }
-        .comp-input { padding: 8px !important; font-size: 0.8rem !important; height: auto !important; margin-bottom: 12px !important; border-radius: 12px !important; width: 100% !important; }
-        .comp-chart-h { height: 130px; width: 100%; position: relative; margin-bottom: 8px; }
-        .comp-val { font-size: 0.85rem; font-weight: 800; color: var(--danger); display: block; }
-
         /* Transaction List */
         .t-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
         .t-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
@@ -104,7 +91,7 @@
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
-        /* Calculator UI Pro */
+        /* NEW: Calculator UI Pro */
         .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: none; box-shadow: 0 8px 15px rgba(0,0,0,0.3); }
         
         #calc-container { 
@@ -136,7 +123,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 19.9 FULL</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 19.8 FULL</p>
 </div>
 
 <div class="container">
@@ -191,24 +178,6 @@
                 <div id="chart-total-val" style="font-weight:800; color:var(--danger)">Rp 0</div>
             </div>
             <div style="height:220px;"><canvas id="pieChart"></canvas></div>
-
-            <div class="comp-section">
-                <div style="font-weight:800; font-size:0.85rem; color:var(--primary); margin-bottom:15px; display:flex; gap:8px; align-items:center">
-                    <i data-lucide="arrow-left-right" style="width:16px"></i> Comparison Mode
-                </div>
-                <div class="comp-grid">
-                    <div class="comp-box">
-                        <input type="month" id="comp-m1" class="comp-input" onchange="renderComparison()">
-                        <div class="comp-chart-h"><canvas id="compChart1"></canvas></div>
-                        <span id="comp-v1" class="comp-val">Rp 0</span>
-                    </div>
-                    <div class="comp-box">
-                        <input type="month" id="comp-m2" class="comp-input" onchange="renderComparison()">
-                        <div class="comp-chart-h"><canvas id="compChart2"></canvas></div>
-                        <span id="comp-v2" class="comp-val">Rp 0</span>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -307,9 +276,10 @@
     enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(() => console.log("Persistence Offline"));
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
-    let pieChart, cChart1, cChart2;
+    let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
 
+    // Formatter Ribuan Otomatis
     window.formatInput = (el) => {
         let val = el.value.replace(/\D/g, "");
         if (val === "") {
@@ -386,44 +356,6 @@
         }
     };
 
-    // --- COMPARISON LOGIC (RESPONSIVE) ---
-    window.renderComparison = () => {
-        const m1 = document.getElementById('comp-m1').value;
-        const m2 = document.getElementById('comp-m2').value;
-
-        const getData = (m) => {
-            let res = { cats: {}, total: 0 };
-            store.trans.forEach(t => { if(t.tanggal.startsWith(m)) { res.cats[t.kategori] = (res.cats[t.kategori] || 0) + t.nominal; res.total += t.nominal; } });
-            return res;
-        };
-
-        const d1 = getData(m1); const d2 = getData(m2);
-        document.getElementById('comp-v1').innerText = fmt(d1.total);
-        document.getElementById('comp-v2').innerText = fmt(d2.total);
-
-        const draw = (id, old, data) => {
-            const ctx = document.getElementById(id).getContext('2d');
-            if(old) old.destroy();
-            return new Chart(ctx, { 
-                type: 'pie', 
-                data: { 
-                    datasets: [{ 
-                        data: Object.values(data.cats).length ? Object.values(data.cats) : [1], 
-                        backgroundColor: Object.values(data.cats).length ? ['#2dd4bf','#3b82f6','#f59e0b','#ef4444','#a855f7'] : ['rgba(255,255,255,0.05)'], 
-                        borderWidth: 0 
-                    }] 
-                }, 
-                options: { 
-                    responsive: true,
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } }
-                } 
-            });
-        };
-        cChart1 = draw('compChart1', cChart1, d1);
-        cChart2 = draw('compChart2', cChart2, d2);
-    };
-
     window.renderAll = () => {
         const monthFilter = document.getElementById('filterMonth').value;
         let cats = {}; let totalSpent = 0;
@@ -463,7 +395,8 @@
         let alerts = [];
         for (const [c, v] of Object.entries(cats)) {
             const lim = store.limits[c];
-            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b></div>`);
+            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
+            else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${c}: ${fmt(v)}</b> (Hampir Limit)</div>`);
         }
 
         document.getElementById('advisorContent').innerHTML = `
@@ -473,7 +406,6 @@
         `;
 
         updateChart(cats);
-        renderComparison(); 
         lucide.createIcons();
         hideSplash();
     };
@@ -502,20 +434,38 @@
             let res = eval(calcExpr);
             document.getElementById('calcDisplay').innerText = res;
             calcExpr = res.toString();
-            document.getElementById('t-amount-display').value = new Intl.NumberFormat('id-ID').format(Math.round(res));
-            document.getElementById('t-amount').value = Math.round(res);
+            const inpDisplay = document.getElementById('t-amount-display');
+            const hiddenInp = document.getElementById('t-amount');
+            if(inpDisplay && hiddenInp) {
+                inpDisplay.value = new Intl.NumberFormat('id-ID').format(Math.round(res));
+                hiddenInp.value = Math.round(res);
+            }
         } catch { document.getElementById('calcDisplay').innerText = "Err"; }
     };
 
     // --- DRAG & RESIZE LOGIC ---
-    const calc = document.getElementById('calc-container'), header = document.getElementById('calcHeader'), resizer = document.getElementById('calcResizer');
-    let isDragging = false, isResizing = false, startX, startY, startW, startH;
+    const calc = document.getElementById('calc-container');
+    const header = document.getElementById('calcHeader');
+    const resizer = document.getElementById('calcResizer');
+
+    let isDragging = false, isResizing = false;
+    let startX, startY, startW, startH;
 
     const onMove = (e) => {
-        const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
-        if (isDragging) { calc.style.left = (cx - startX) + 'px'; calc.style.top = (cy - startY) + 'px'; calc.style.right = 'auto'; calc.style.bottom = 'auto'; }
-        if (isResizing) { calc.style.width = (startW + (cx - startX)) + 'px'; calc.style.height = (startH + (cy - startY)) + 'px'; }
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        if (isDragging) {
+            calc.style.left = (clientX - startX) + 'px';
+            calc.style.top = (clientY - startY) + 'px';
+            calc.style.right = 'auto'; calc.style.bottom = 'auto';
+        }
+        if (isResizing) {
+            calc.style.width = (startW + (clientX - startX)) + 'px';
+            calc.style.height = (startH + (clientY - startY)) + 'px';
+        }
     };
+    const onEnd = () => { isDragging = isResizing = false; };
+
     header.onmousedown = header.ontouchstart = (e) => {
         isDragging = true;
         startX = (e.touches ? e.touches[0].clientX : e.clientX) - calc.offsetLeft;
@@ -529,13 +479,13 @@
         e.stopPropagation(); e.preventDefault();
     };
     document.onmousemove = document.ontouchmove = onMove;
-    document.onmouseup = document.ontouchend = () => isDragging = isResizing = false;
+    document.onmouseup = document.ontouchend = onEnd;
 
     window.exportToExcel = () => {
         const ws = XLSX.utils.json_to_sheet(store.trans);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Records");
-        XLSX.writeFile(wb, `Agis_Report.xlsx`);
+        XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value}.xlsx`);
     };
 
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
@@ -550,9 +500,6 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
-        document.getElementById('comp-m1').value = today.slice(0, 7);
-        let prev = new Date(); prev.setMonth(prev.getMonth()-1);
-        document.getElementById('comp-m2').value = prev.toISOString().slice(0, 7);
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         lucide.createIcons();
     });
