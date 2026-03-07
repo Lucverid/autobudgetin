@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agis Finance AI - v19.5 + Calc</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Agis Finance AI - v19.8 PRO</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -91,14 +91,26 @@
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
-        /* Calculator CSS */
-        .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1001; box-shadow: 0 10px 20px rgba(0,0,0,0.3); border: none; }
-        #calc-container { position: fixed; bottom: 170px; right: 20px; width: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 15px; display: none; z-index: 1001; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
-        .calc-display { width: 100%; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px; text-align: right; font-size: 1.4rem; font-weight: 700; margin-bottom: 12px; color: var(--primary); min-height: 60px; word-break: break-all; }
-        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        .calc-btn { padding: 15px 5px; border-radius: 12px; border: none; background: rgba(255,255,255,0.05); color: var(--text); font-weight: 700; cursor: pointer; font-size: 1rem; transition: 0.2s; }
-        .calc-btn:active { background: var(--primary); color: #000; }
-        .calc-btn.op { color: var(--accent); background: rgba(59,130,246,0.1); }
+        /* NEW: Calculator UI Pro */
+        .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: none; box-shadow: 0 8px 15px rgba(0,0,0,0.3); }
+        
+        #calc-container { 
+            position: fixed; bottom: 170px; right: 20px; width: 280px; min-width: 200px; min-height: 350px;
+            background: var(--glass); border: 1px solid var(--border); border-radius: 24px; 
+            padding: 15px; display: none; z-index: 2001; box-shadow: 0 20px 50px rgba(0,0,0,0.6); 
+            backdrop-filter: blur(20px); overflow: hidden; touch-action: none;
+        }
+
+        .calc-header { cursor: move; padding: 5px; margin-bottom: 12px; display: flex; justify-content: center; background: rgba(255,255,255,0.08); border-radius: 10px; }
+        .drag-handle { width: 50px; height: 5px; background: var(--text-dim); border-radius: 10px; opacity: 0.5; }
+
+        .calc-display { width: 100%; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; text-align: right; font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 15px; min-height: 60px; border: 1px solid var(--border); }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: calc(100% - 120px); }
+        .calc-btn { border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text); font-weight: 700; cursor: pointer; transition: 0.1s; font-size: 1rem; }
+        .calc-btn:active { background: var(--primary); color: #000; transform: scale(0.95); }
+        .calc-btn.op { background: rgba(59,130,246,0.15); color: var(--accent); }
+
+        .resizer { position: absolute; right: 0; bottom: 0; width: 25px; height: 25px; cursor: nwse-resize; z-index: 2002; }
 
         .page { display: none; }
         .page.active { display: block; animation: slideUp 0.3s ease; }
@@ -111,7 +123,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 19.5 FULL</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 19.8 FULL</p>
 </div>
 
 <div class="container">
@@ -137,15 +149,18 @@
         <div class="wallet-container">
             <div class="w-card">
                 <div class="w-icon" style="background:rgba(45,212,191,0.1)"><i data-lucide="banknote" style="color:var(--primary)"></i></div>
-                <span class="w-name">Tunai</span><span class="w-val" id="w-cash">0</span>
+                <span class="w-name">Tunai</span>
+                <span class="w-val" id="w-cash">0</span>
             </div>
             <div class="w-card">
                 <div class="w-icon" style="background:rgba(59,130,246,0.1)"><i data-lucide="landmark" style="color:var(--accent)"></i></div>
-                <span class="w-name">Bank</span><span class="w-val" id="w-bank">0</span>
+                <span class="w-name">Bank</span>
+                <span class="w-val" id="w-bank">0</span>
             </div>
             <div class="w-card">
                 <div class="w-icon" style="background:rgba(245,158,11,0.1)"><i data-lucide="smartphone" style="color:var(--warning)"></i></div>
-                <span class="w-name">E-Wallet</span><span class="w-val" id="w-e">0</span>
+                <span class="w-name">E-Wallet</span>
+                <span class="w-val" id="w-e">0</span>
             </div>
         </div>
 
@@ -188,7 +203,8 @@
                 <select id="t-cat">
                     <option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option><option>Lainnya</option>
                 </select>
-                <input type="number" id="t-amount" placeholder="Nominal" inputmode="numeric">
+                <input type="text" id="t-amount-display" placeholder="Nominal" inputmode="numeric" oninput="formatInput(this)">
+                <input type="hidden" id="t-amount"> 
             </form>
             <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan</button>
         </div>
@@ -217,12 +233,13 @@
 
 <button class="calc-toggle" onclick="toggleCalc()"><i data-lucide="calculator"></i></button>
 <div id="calc-container">
+    <div class="calc-header" id="calcHeader"><div class="drag-handle"></div></div>
     <div class="calc-display" id="calcDisplay">0</div>
     <div class="calc-grid">
         <button class="calc-btn op" onclick="calcClear()">C</button>
         <button class="calc-btn op" onclick="calcPush('/')">/</button>
         <button class="calc-btn op" onclick="calcPush('*')">×</button>
-        <button class="calc-btn op" onclick="calcPop()"><i data-lucide="delete" style="width:16px"></i></button>
+        <button class="calc-btn op" onclick="calcPop()"><i data-lucide="delete" style="width:18px"></i></button>
         <button class="calc-btn" onclick="calcPush('7')">7</button>
         <button class="calc-btn" onclick="calcPush('8')">8</button>
         <button class="calc-btn" onclick="calcPush('9')">9</button>
@@ -238,6 +255,7 @@
         <button class="calc-btn" style="grid-column: span 2;" onclick="calcPush('0')">0</button>
         <button class="calc-btn" onclick="calcPush('.')">.</button>
     </div>
+    <div class="resizer" id="calcResizer"></div>
 </div>
 
 <nav class="nav-bar">
@@ -260,6 +278,19 @@
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
+
+    // Formatter Ribuan Otomatis
+    window.formatInput = (el) => {
+        let val = el.value.replace(/\D/g, "");
+        if (val === "") {
+            document.getElementById('t-amount').value = 0;
+            el.value = "";
+            return;
+        }
+        let formatted = new Intl.NumberFormat('id-ID').format(val);
+        el.value = formatted;
+        document.getElementById('t-amount').value = val;
+    };
 
     const hideSplash = () => {
         const splash = document.getElementById('splash-screen');
@@ -292,6 +323,7 @@
         try {
             await updateDoc(doc(db, "config", "wallets"), { [w]: increment(-a) });
             await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
+            document.getElementById('t-amount-display').value = "";
             document.getElementById('t-amount').value = "";
             nav('home');
         } catch (e) { console.error(e); }
@@ -388,7 +420,7 @@
         });
     }
 
-    // Calculator Logic
+    // --- CALCULATOR PRO LOGIC ---
     let calcExpr = "";
     window.toggleCalc = () => {
         const c = document.getElementById('calc-container');
@@ -396,16 +428,58 @@
     };
     window.calcPush = (v) => { calcExpr += v; document.getElementById('calcDisplay').innerText = calcExpr; };
     window.calcClear = () => { calcExpr = ""; document.getElementById('calcDisplay').innerText = "0"; };
-    window.calcPop = () => { calcExpr = calcExpr.slice(0, -1); document.getElementById('calcDisplay').innerText = calcExpr || "0"; };
+    window.calcPop = () => { calcExpr = calcExpr.slice(0,-1); document.getElementById('calcDisplay').innerText = calcExpr || "0"; };
     window.calcEqual = () => {
         try {
-            const res = eval(calcExpr);
+            let res = eval(calcExpr);
             document.getElementById('calcDisplay').innerText = res;
             calcExpr = res.toString();
-            const amountInput = document.getElementById('t-amount');
-            if(amountInput && document.getElementById('add').classList.contains('active')) amountInput.value = Math.round(res);
-        } catch(e) { document.getElementById('calcDisplay').innerText = "Error"; calcExpr = ""; }
+            const inpDisplay = document.getElementById('t-amount-display');
+            const hiddenInp = document.getElementById('t-amount');
+            if(inpDisplay && hiddenInp) {
+                inpDisplay.value = new Intl.NumberFormat('id-ID').format(Math.round(res));
+                hiddenInp.value = Math.round(res);
+            }
+        } catch { document.getElementById('calcDisplay').innerText = "Err"; }
     };
+
+    // --- DRAG & RESIZE LOGIC ---
+    const calc = document.getElementById('calc-container');
+    const header = document.getElementById('calcHeader');
+    const resizer = document.getElementById('calcResizer');
+
+    let isDragging = false, isResizing = false;
+    let startX, startY, startW, startH;
+
+    const onMove = (e) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        if (isDragging) {
+            calc.style.left = (clientX - startX) + 'px';
+            calc.style.top = (clientY - startY) + 'px';
+            calc.style.right = 'auto'; calc.style.bottom = 'auto';
+        }
+        if (isResizing) {
+            calc.style.width = (startW + (clientX - startX)) + 'px';
+            calc.style.height = (startH + (clientY - startY)) + 'px';
+        }
+    };
+    const onEnd = () => { isDragging = isResizing = false; };
+
+    header.onmousedown = header.ontouchstart = (e) => {
+        isDragging = true;
+        startX = (e.touches ? e.touches[0].clientX : e.clientX) - calc.offsetLeft;
+        startY = (e.touches ? e.touches[0].clientY : e.clientY) - calc.offsetTop;
+    };
+    resizer.onmousedown = resizer.ontouchstart = (e) => {
+        isResizing = true;
+        startX = e.touches ? e.touches[0].clientX : e.clientX;
+        startY = e.touches ? e.touches[0].clientY : e.clientY;
+        startW = calc.offsetWidth; startH = calc.offsetHeight;
+        e.stopPropagation(); e.preventDefault();
+    };
+    document.onmousemove = document.ontouchmove = onMove;
+    document.onmouseup = document.ontouchend = onEnd;
 
     window.exportToExcel = () => {
         const ws = XLSX.utils.json_to_sheet(store.trans);
@@ -413,17 +487,6 @@
         XLSX.utils.book_append_sheet(wb, ws, "Records");
         XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value}.xlsx`);
     };
-
-    const updateStatus = () => {
-        const b = document.getElementById('statusBadge');
-        if(b) {
-            b.innerText = navigator.onLine ? "Online" : "Offline";
-            b.className = `status-badge ${navigator.onLine ? 'status-online' : 'status-offline'}`;
-        }
-    };
-    window.addEventListener('online', updateStatus);
-    window.addEventListener('offline', updateStatus);
-    updateStatus();
 
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
     onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
