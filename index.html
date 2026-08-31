@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -314,20 +315,51 @@
 
     window.toggleTheme = () => { document.body.classList.toggle('light-mode'); renderAll(); };
 
-    window.saveTransaction = async () => {
-        const d = document.getElementById('t-date').value;
-        const w = document.getElementById('t-wallet').value;
-        const c = document.getElementById('t-cat').value;
-        const a = parseInt(document.getElementById('t-amount').value);
-        if(!a || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
-        try {
-            await updateDoc(doc(db, "config", "wallets"), { [w]: increment(-a) });
-            await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
-            document.getElementById('t-amount-display').value = "";
-            document.getElementById('t-amount').value = "";
-            nav('home');
-        } catch (e) { console.error(e); }
-    };
+   window.saveTransaction = async (e) => {
+    if (e && e.preventDefault) e.preventDefault(); // Mencegah form submit reload halaman
+
+    const d = document.getElementById('t-date').value;
+    const w = document.getElementById('t-wallet').value;
+    const c = document.getElementById('t-cat').value;
+    const a = parseInt(document.getElementById('t-amount').value);
+
+    if (!a || !d || isNaN(a)) {
+        return Swal.fire('Error', 'Data nominal dan tanggal wajib diisi', 'warning');
+    }
+
+    try {
+        // Tampilkan indikator loading SweetAlert
+        Swal.fire({
+            title: 'Menyimpan...',
+            text: 'Mohon tunggu',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        // 1. Update/Buat data dompet (menggunakan setDoc + merge agar aman jika dokumen belum ada)
+        await setDoc(doc(db, "config", "wallets"), { 
+            [w]: increment(-a) 
+        }, { merge: true });
+
+        // 2. Tambah catatan transaksi pengeluaran
+        await addDoc(collection(db, "pengeluaran"), { 
+            tanggal: d, 
+            dompet: w, 
+            kategori: c, 
+            nominal: a 
+        });
+
+        // 3. Reset form
+        document.getElementById('t-amount-display').value = "";
+        document.getElementById('t-amount').value = "";
+
+        Swal.fire('Berhasil', 'Transaksi berhasil dicatat!', 'success');
+        nav('home');
+    } catch (err) {
+        console.error("Error saving transaction: ", err);
+        Swal.fire('Gagal Menyimpan', err.message || 'Terjadi kesalahan sistem', 'error');
+    }
+};
 
     window.updateWallets = async () => {
         const data = { Tunai: parseInt(document.getElementById('set-cash').value) || 0, Bank: parseInt(document.getElementById('set-bank').value) || 0, "E-Wallet": parseInt(document.getElementById('set-e').value) || 0 };
