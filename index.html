@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v20.2</title>
+    <title>Agis Finance AI - v21.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -72,11 +72,17 @@
             background: var(--surface); border-radius: 28px; padding: 18px; 
             margin: 25px 0; border: 1px solid var(--border); 
             display: flex; gap: 15px; align-items: flex-start; 
-            height: 155px; overflow: hidden;
+            height: 225px; overflow: hidden;
         }
         .adv-icon { width: 44px; height: 44px; background: var(--primary); color: #0f172a; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .adv-main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
         .adv-scrollable { flex: 1; overflow-y: auto; font-size: 0.82rem; line-height: 1.6; color: var(--text-dim); }
+        .insight-status { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:999px; font-size:0.68rem; font-weight:900; margin-bottom:8px; }
+        .insight-safe { background:rgba(45,212,191,.14); color:var(--primary); }
+        .insight-warn { background:rgba(245,158,11,.15); color:var(--warning); }
+        .insight-danger { background:rgba(239,68,68,.15); color:var(--danger); }
+        .insight-row { margin-bottom:7px; }
+        .insight-divider { border-top:1px solid var(--border); padding-top:8px; margin-top:4px; }
 
         /* Transaction List */
         .t-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
@@ -125,14 +131,14 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 20.2 INPUT FORMAT</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 21.0 SMART SYNC</p>
 </div>
 
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
             <div style="display:flex; gap:10px; align-items:center">
-                <span id="statusBadge" class="status-badge status-online">Online</span>
+                <span id="statusBadge" class="status-badge status-online" onclick="flushOutbox()" title="Ketuk untuk coba sinkronisasi" style="cursor:pointer">Online</span>
                 <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn"><i data-lucide="eye"></i></button>
             </div>
             <button onclick="toggleTheme()" class="btn-icon"><i data-lucide="sun-moon"></i></button>
@@ -276,7 +282,11 @@
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
-    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v20_1';
+    let syncInProgress = false;
+    let lastSyncError = '';
+    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v21';
+    const LEGACY_SNAPSHOT_KEYS = ['agis_finance_snapshot_v20_1'];
+    const OUTBOX_KEY = 'agis_finance_outbox_v21';
     const moneyFormatter = new Intl.NumberFormat('id-ID');
     const fmt = (n) => "Rp " + moneyFormatter.format(Number(n) || 0);
 
@@ -306,17 +316,137 @@
 
     function restoreLocalSnapshot() {
         try {
-            const raw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
+            let raw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
+            if (!raw) {
+                for (const key of LEGACY_SNAPSHOT_KEYS) {
+                    raw = localStorage.getItem(key);
+                    if (raw) break;
+                }
+            }
             if (!raw) return false;
             const cached = JSON.parse(raw);
             store.wallets = normalizeWallets(cached.wallets);
             store.goal = Number(cached.goal) || 0;
             store.limits = cached.limits && typeof cached.limits === 'object' ? cached.limits : {};
             store.trans = Array.isArray(cached.trans) ? cached.trans : [];
+            persistLocalSnapshot();
             return true;
         } catch (err) {
             console.warn('Local snapshot gagal dibaca:', err);
             return false;
+        }
+    }
+
+    function readOutbox() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            console.warn('Outbox gagal dibaca:', err);
+            return [];
+        }
+    }
+
+    function writeOutbox(queue) {
+        try {
+            localStorage.setItem(OUTBOX_KEY, JSON.stringify(queue));
+        } catch (err) {
+            console.error('Outbox gagal disimpan:', err);
+        }
+        updateNetworkStatus();
+    }
+
+    function enqueueSync(op) {
+        const queue = readOutbox();
+        if (!queue.some(item => item.opId === op.opId)) queue.push(op);
+        writeOutbox(queue);
+    }
+
+    function mergePendingTransactions(cloudTransactions) {
+        const queue = readOutbox();
+        const pendingDeletes = new Set(queue.filter(op => op.type === 'deleteExpense').map(op => op.expenseId));
+        const byId = new Map(cloudTransactions.filter(t => !pendingDeletes.has(t.id)).map(t => [t.id, t]));
+        queue.filter(op => op.type === 'addExpense').forEach(op => {
+            if (!pendingDeletes.has(op.expenseId) && !byId.has(op.expenseId)) {
+                byId.set(op.expenseId, { id: op.expenseId, ...op.data, pendingSync: true });
+            }
+        });
+        return [...byId.values()].sort((a, b) => String(b.tanggal || '').localeCompare(String(a.tanggal || '')));
+    }
+
+    async function refreshFromServer() {
+        if (!navigator.onLine || readOutbox().length) return;
+        try {
+            const [walletSnap, goalSnap, limitsSnap, transSnap] = await Promise.all([
+                db.collection('config').doc('wallets').get({ source: 'server' }),
+                db.collection('config').doc('goal').get({ source: 'server' }),
+                db.collection('config').doc('limits').get({ source: 'server' }),
+                db.collection('pengeluaran').orderBy('tanggal', 'desc').get({ source: 'server' })
+            ]);
+            if (walletSnap.exists) store.wallets = normalizeWallets(walletSnap.data());
+            if (goalSnap.exists) store.goal = Number(goalSnap.data().amount) || 0;
+            if (limitsSnap.exists) store.limits = limitsSnap.data() || {};
+            store.trans = transSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            persistLocalSnapshot();
+            renderAll();
+        } catch (err) {
+            console.warn('Refresh server tertunda:', err);
+        }
+    }
+
+    async function flushOutbox() {
+        if (syncInProgress || !navigator.onLine) return;
+        let queue = readOutbox();
+        if (!queue.length) { updateNetworkStatus(); return; }
+
+        syncInProgress = true;
+        lastSyncError = '';
+        updateNetworkStatus();
+
+        try {
+            while (navigator.onLine && queue.length) {
+                const op = queue[0];
+                const walletRef = db.collection('config').doc('wallets');
+
+                if (op.type === 'addExpense' || op.type === 'deleteExpense') {
+                    const expenseRef = db.collection('pengeluaran').doc(op.expenseId);
+                    await db.runTransaction(async transaction => {
+                        const expenseSnap = await transaction.get(expenseRef);
+
+                        if (op.type === 'addExpense') {
+                            // Idempotent: bila dokumen sudah ada, retry tidak memotong saldo lagi.
+                            if (expenseSnap.exists) return;
+                            transaction.set(walletRef, { [op.data.dompet]: FieldValue.increment(-Number(op.data.nominal || 0)) }, { merge: true });
+                            transaction.set(expenseRef, op.data);
+                        } else {
+                            // Bila sudah terhapus di server, retry tidak mengembalikan saldo dua kali.
+                            if (!expenseSnap.exists) return;
+                            const serverData = expenseSnap.data() || {};
+                            const wallet = serverData.dompet || op.wallet;
+                            const nominal = Number(serverData.nominal || op.nominal || 0);
+                            transaction.set(walletRef, { [wallet]: FieldValue.increment(nominal) }, { merge: true });
+                            transaction.delete(expenseRef);
+                        }
+                    });
+                } else if (op.type === 'setWallets') {
+                    await walletRef.set(normalizeWallets(op.data));
+                } else if (op.type === 'setGoal') {
+                    await db.collection('config').doc('goal').set({ amount: Number(op.amount) || 0 });
+                } else if (op.type === 'setLimit') {
+                    await db.collection('config').doc('limits').set({ [op.category]: Number(op.amount) || 0 }, { merge: true });
+                }
+
+                queue.shift();
+                writeOutbox(queue);
+            }
+        } catch (err) {
+            lastSyncError = err?.message || 'Sinkronisasi gagal';
+            console.warn('Outbox sync:', err);
+        } finally {
+            syncInProgress = false;
+            updateNetworkStatus();
+            if (!readOutbox().length) refreshFromServer();
+            else if (navigator.onLine) setTimeout(flushOutbox, 10000);
         }
     }
 
@@ -409,33 +539,29 @@
         const a = parseInt(document.getElementById('t-amount').value, 10);
         if(!a || a <= 0 || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
 
-        // Atomic batch: saldo dan transaksi selalu menjadi satu paket write.
-        const batch = db.batch();
-        const walletRef = db.collection('config').doc('wallets');
         const expenseRef = db.collection('pengeluaran').doc();
-        batch.set(walletRef, { [w]: FieldValue.increment(-a) }, { merge: true });
-        batch.set(expenseRef, { tanggal: d, dompet: w, kategori: c, nominal: a });
+        const data = { tanggal: d, dompet: w, kategori: c, nominal: a };
 
-        // Optimistic local mirror agar reload offline langsung membawa state terbaru.
-        const previousWallets = { ...store.wallets };
-        const previousTrans = [...store.trans];
+        // v21: transaksi selalu masuk durable outbox terlebih dahulu.
+        // Jika offline, pekerjaan tetap tersimpan setelah reload dan dikirim eksplisit ketika online.
+        enqueueSync({
+            opId: `add:${expenseRef.id}`,
+            type: 'addExpense',
+            expenseId: expenseRef.id,
+            data,
+            createdAt: Date.now()
+        });
+
         store.wallets = { ...normalizeWallets(store.wallets), [w]: (Number(store.wallets[w]) || 0) - a };
-        store.trans = [{ id: expenseRef.id, tanggal: d, dompet: w, kategori: c, nominal: a }, ...store.trans.filter(t => t.id !== expenseRef.id)];
+        store.trans = [{ id: expenseRef.id, ...data, pendingSync: true }, ...store.trans.filter(t => t.id !== expenseRef.id)];
         persistLocalSnapshot();
         renderAll();
-
-        batch.commit().catch(err => {
-            store.wallets = previousWallets;
-            store.trans = previousTrans;
-            persistLocalSnapshot();
-            renderAll();
-            showWriteError(err);
-        });
 
         document.getElementById('t-amount-display').value = "";
         document.getElementById('t-amount').value = "";
         nav('home');
-        queuedNotice('Transaksi berhasil dicatat.', 'Transaksi masuk antrean dan akan sinkron otomatis saat online.');
+        queuedNotice('Transaksi berhasil dicatat.', 'Transaksi tersimpan di perangkat dan akan dikirim saat internet kembali.');
+        flushOutbox();
     };
 
     window.updateWallets = () => {
@@ -445,84 +571,122 @@
             "E-Wallet": parseMoneyField('set-e')
         };
 
-        const previousWallets = { ...store.wallets };
         store.wallets = normalizeWallets(data);
         persistLocalSnapshot();
         renderAll();
+        enqueueSync({ opId: `wallets:${Date.now()}`, type: 'setWallets', data, createdAt: Date.now() });
 
-        db.collection('config').doc('wallets').set(data).catch(err => {
-            store.wallets = previousWallets;
-            persistLocalSnapshot();
-            renderAll();
-            showWriteError(err);
-        });
-
-        // Kosongkan kolom setelah saldo disimpan, lalu kembali ke dashboard utama.
         ['set-cash', 'set-bank', 'set-e'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
         nav('home');
-        queuedNotice('Saldo diperbarui.', 'Saldo disimpan lokal dan akan sinkron saat online.');
+        queuedNotice('Saldo diperbarui.', 'Saldo tersimpan di perangkat dan akan sinkron saat online.');
+        flushOutbox();
     };
 
     window.setLimit = () => {
         const cat = document.getElementById('l-cat').value;
         const val = parseMoneyField('l-amount');
-        const previousLimits = { ...store.limits };
         store.limits = { ...store.limits, [cat]: val };
         persistLocalSnapshot();
         renderAll();
-        db.collection('config').doc('limits').set({ [cat]: val }, { merge: true }).catch(err => {
-            store.limits = previousLimits;
-            persistLocalSnapshot();
-            renderAll();
-            showWriteError(err);
-        });
-        queuedNotice(`Batas ${cat} disimpan.`, `Batas ${cat} akan sinkron saat online.`);
+        enqueueSync({ opId: `limit:${cat}:${Date.now()}`, type: 'setLimit', category: cat, amount: val, createdAt: Date.now() });
+        document.getElementById('l-amount').value = '';
+        queuedNotice(`Batas ${cat} disimpan.`, `Batas ${cat} tersimpan di perangkat dan akan sinkron saat online.`);
+        flushOutbox();
     };
 
     window.setGoal = () => {
         const amount = parseMoneyField('goal-input');
-        const previousGoal = store.goal;
         store.goal = amount;
         persistLocalSnapshot();
         renderAll();
-        db.collection('config').doc('goal').set({ amount }).catch(err => {
-            store.goal = previousGoal;
-            persistLocalSnapshot();
-            renderAll();
-            showWriteError(err);
-        });
-        queuedNotice('Target tabungan disimpan.', 'Target tabungan akan sinkron saat online.');
+        enqueueSync({ opId: `goal:${Date.now()}`, type: 'setGoal', amount, createdAt: Date.now() });
+        document.getElementById('goal-input').value = '';
+        queuedNotice('Target tabungan disimpan.', 'Target tabungan tersimpan di perangkat dan akan sinkron saat online.');
+        flushOutbox();
     };
 
     window.removeTrans = async (id, wallet, nominal) => {
         const confirm = await Swal.fire({ title: 'Hapus?', text: "Saldo akan dikembalikan", icon: 'warning', showCancelButton: true });
         if(!confirm.isConfirmed) return;
 
-        const batch = db.batch();
-        const walletRef = db.collection('config').doc('wallets');
-        const expenseRef = db.collection('pengeluaran').doc(id);
-        batch.set(walletRef, { [wallet]: FieldValue.increment(nominal) }, { merge: true });
-        batch.delete(expenseRef);
+        enqueueSync({
+            opId: `delete:${id}:${Date.now()}`,
+            type: 'deleteExpense',
+            expenseId: id,
+            wallet,
+            nominal: Number(nominal || 0),
+            createdAt: Date.now()
+        });
 
-        const previousWallets = { ...store.wallets };
-        const previousTrans = [...store.trans];
         store.wallets = { ...normalizeWallets(store.wallets), [wallet]: (Number(store.wallets[wallet]) || 0) + Number(nominal || 0) };
         store.trans = store.trans.filter(t => t.id !== id);
         persistLocalSnapshot();
         renderAll();
-
-        batch.commit().catch(err => {
-            store.wallets = previousWallets;
-            store.trans = previousTrans;
-            persistLocalSnapshot();
-            renderAll();
-            showWriteError(err);
-        });
-        queuedNotice('Transaksi dihapus dan saldo dikembalikan.', 'Penghapusan masuk antrean dan akan sinkron saat online.');
+        queuedNotice('Transaksi dihapus dan saldo dikembalikan.', 'Penghapusan tersimpan di perangkat dan akan dikirim saat online.');
+        flushOutbox();
     };
+
+    function localDateKey(date = new Date()) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function dateFromKey(key) {
+        const [y, m, d] = String(key || '').split('-').map(Number);
+        return new Date(y || 1970, (m || 1) - 1, d || 1);
+    }
+
+    function sumRange(transactions, start, end) {
+        return transactions.reduce((sum, t) => {
+            if (!t.tanggal) return sum;
+            const dt = dateFromKey(t.tanggal);
+            return dt >= start && dt <= end ? sum + Number(t.nominal || 0) : sum;
+        }, 0);
+    }
+
+    function buildSmartInsight(disposable, cats, remainingDays) {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        const start7 = new Date(today); start7.setDate(start7.getDate() - 6); start7.setHours(0,0,0,0);
+        const prevEnd = new Date(start7); prevEnd.setMilliseconds(-1);
+        const prevStart = new Date(start7); prevStart.setDate(prevStart.getDate() - 7); prevStart.setHours(0,0,0,0);
+        const relevant = store.trans.filter(t => t.tanggal && dateFromKey(t.tanggal) <= today);
+        const last7 = sumRange(relevant, start7, today);
+        const prev7 = sumRange(relevant, prevStart, prevEnd);
+        const avg7 = last7 / 7;
+        const safeDaily = disposable > 0 && remainingDays > 0 ? disposable / remainingDays : 0;
+        const daysAfterToday = Math.max(remainingDays - 1, 0);
+        const predictedEnd = disposable - (avg7 * daysAfterToday);
+
+        let status = 'AMAN', statusClass = 'insight-safe', statusIcon = '🟢';
+        if (disposable <= 0 || predictedEnd < 0) {
+            status = 'KRITIS'; statusClass = 'insight-danger'; statusIcon = '🔴';
+        } else if (avg7 > safeDaily * 1.15 && avg7 > 0) {
+            status = 'WASPADA'; statusClass = 'insight-warn'; statusIcon = '🟡';
+        }
+
+        let comparison = 'Belum cukup data pembanding.';
+        if (prev7 > 0) {
+            const pct = ((last7 - prev7) / prev7) * 100;
+            comparison = pct > 0
+                ? `7 hari terakhir naik <b>${Math.abs(pct).toFixed(0)}%</b> dari 7 hari sebelumnya.`
+                : pct < 0
+                    ? `7 hari terakhir turun <b>${Math.abs(pct).toFixed(0)}%</b> dari 7 hari sebelumnya.`
+                    : 'Pengeluaran 7 hari terakhir sama dengan periode sebelumnya.';
+        } else if (last7 > 0) {
+            comparison = `7 hari terakhir keluar <b>${fmt(last7)}</b>; periode sebelumnya belum punya data.`;
+        }
+
+        const topCategory = Object.entries(cats).sort((a,b) => b[1] - a[1])[0];
+        const topText = topCategory ? `${escapeHtml(topCategory[0])} — <b>${fmt(topCategory[1])}</b>` : 'Belum ada pengeluaran bulan ini.';
+
+        return { safeDaily, avg7, predictedEnd, status, statusClass, statusIcon, comparison, topText };
+    }
 
     window.renderAll = () => {
         const monthFilter = document.getElementById('filterMonth').value;
@@ -538,7 +702,7 @@
                 <div class="t-item">
                     <div class="t-info">
                         <span class="t-cat-name">${escapeHtml(t.kategori)}</span>
-                        <div class="t-sub-info"><span>${escapeHtml(t.tanggal)}</span><span>•</span><span>${escapeHtml(t.dompet)}</span></div>
+                        <div class="t-sub-info"><span>${escapeHtml(t.tanggal)}</span><span>•</span><span>${escapeHtml(t.dompet)}</span>${t.pendingSync ? '<span style="color:var(--warning);font-weight:800">• Menunggu sync</span>' : ''}</div>
                     </div>
                     <div class="t-amt">- ${fmt(t.nominal)} <i data-lucide="trash-2" onclick="removeTrans('${t.id}', '${escapeJs(t.dompet)}', ${Number(t.nominal) || 0})" style="width:14px; opacity:0.3; cursor:pointer"></i></div>
                 </div>`;
@@ -556,21 +720,39 @@
         document.getElementById('chart-total-val').innerText = fmt(totalSpent);
 
         const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const insightCats = {};
+        store.trans.forEach(t => {
+            if (t.tanggal && t.tanggal.startsWith(currentMonthKey)) {
+                insightCats[t.kategori] = (insightCats[t.kategori] || 0) + Number(t.nominal || 0);
+            }
+        });
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         const remainingDays = lastDay - now.getDate() + 1;
         const dailyQuota = disposable > 0 ? Math.floor(disposable / remainingDays) : 0;
 
         let alerts = [];
-        for (const [c, v] of Object.entries(cats)) {
+        for (const [c, v] of Object.entries(insightCats)) {
             const lim = store.limits[c];
             if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${escapeHtml(c)}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
             else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${escapeHtml(c)}: ${fmt(v)}</b> (Hampir Limit)</div>`);
         }
 
+        const insight = buildSmartInsight(disposable, insightCats, remainingDays);
+        const predictionText = insight.avg7 > 0
+            ? (insight.predictedEnd >= 0
+                ? `${fmt(insight.predictedEnd)} tersisa setelah target tabungan.`
+                : `defisit ${fmt(Math.abs(insight.predictedEnd))}; target tabungan berisiko.`)
+            : 'Belum cukup transaksi untuk membuat prediksi.';
+
         document.getElementById('advisorContent').innerHTML = `
-            <div style="margin-bottom:10px; color:var(--text)">Sisa bulan: <b>${remainingDays} hari</b></div>
-            <div style="margin-bottom:10px;">Jatah harian: <b style="color:var(--primary)">${fmt(dailyQuota)}</b></div>
-            <div style="border-top:1px solid var(--border); padding-top:10px">${alerts.join('')}</div>
+            <div class="insight-status ${insight.statusClass}">${insight.statusIcon} ${insight.status}</div>
+            <div class="insight-row">💸 Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
+            <div class="insight-row">📈 Rata-rata 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
+            <div class="insight-row">🔮 Prediksi akhir bulan: <b>${predictionText}</b></div>
+            <div class="insight-row">📊 ${insight.comparison}</div>
+            <div class="insight-row">🏷️ Terbesar bulan ini: ${insight.topText}</div>
+            ${alerts.length ? `<div class="insight-divider">${alerts.join('')}</div>` : ''}
         `;
 
         updateChart(cats);
@@ -703,7 +885,8 @@
     function startRealtimeListeners() {
         // Metadata changes membuat UI ikut merefleksikan cache Firestore dan pending writes.
         db.collection('config').doc('wallets').onSnapshot({ includeMetadataChanges: true }, (s) => {
-            if(s.exists) {
+            // Jangan timpa saldo optimistik selama masih ada transaksi di durable outbox.
+            if(s.exists && readOutbox().length === 0) {
                 store.wallets = normalizeWallets(s.data());
                 persistLocalSnapshot();
             }
@@ -711,7 +894,7 @@
         }, err => console.warn('Wallet listener:', err));
 
         db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
-            if(s.exists) {
+            if(s.exists && readOutbox().length === 0) {
                 store.goal = Number(s.data().amount) || 0;
                 persistLocalSnapshot();
             }
@@ -719,7 +902,7 @@
         }, err => console.warn('Goal listener:', err));
 
         db.collection('config').doc('limits').onSnapshot({ includeMetadataChanges: true }, (s) => {
-            if(s.exists) {
+            if(s.exists && readOutbox().length === 0) {
                 store.limits = s.data() || {};
                 persistLocalSnapshot();
             }
@@ -728,11 +911,9 @@
 
         db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
-            // Cache query Firestore yang belum pernah terisi bisa mengirim snapshot kosong saat offline.
-            // Jangan biarkan snapshot kosong dari-cache menghapus mirror transaksi lokal yang masih valid.
             const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.trans.length > 0;
             if (!emptyUnprimedOfflineCache) {
-                store.trans = incoming;
+                store.trans = readOutbox().length ? mergePendingTransactions(incoming) : incoming;
                 persistLocalSnapshot();
             }
             renderAll();
@@ -751,16 +932,21 @@
             else if (err && err.code === 'unimplemented') console.warn('Persistence tidak didukung browser ini.');
             else console.warn('Persistence warning:', err);
         })
-        .then(startRealtimeListeners);
+        .then(() => { startRealtimeListeners(); flushOutbox(); });
 
     function updateNetworkStatus() {
         const badge = document.getElementById('statusBadge');
+        if (!badge) return;
         const online = navigator.onLine;
-        badge.textContent = online ? 'Online' : 'Offline';
-        badge.classList.toggle('status-online', online);
-        badge.classList.toggle('status-offline', !online);
+        const pending = readOutbox().length;
+        if (!online) badge.textContent = pending ? `Offline · ${pending} antre` : 'Offline';
+        else if (syncInProgress || pending) badge.textContent = `Sync · ${pending}`;
+        else if (lastSyncError) badge.textContent = 'Sync gagal';
+        else badge.textContent = 'Online';
+        badge.classList.toggle('status-online', online && !lastSyncError);
+        badge.classList.toggle('status-offline', !online || !!lastSyncError);
     }
-    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('online', () => { updateNetworkStatus(); flushOutbox(); });
     window.addEventListener('offline', updateNetworkStatus);
 
     window.addEventListener('load', () => {
