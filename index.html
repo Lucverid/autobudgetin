@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v21.0</title>
+    <title>Agis Finance AI - v22.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -18,7 +18,7 @@
     <style>
         :root {
             --bg: #0f172a; --surface: #1e293b; --primary: #2dd4bf;
-            --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b;
+            --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b; --success: #22c55e;
             --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255, 255, 255, 0.08);
             --glass: rgba(30, 41, 59, 0.7);
         }
@@ -90,6 +90,24 @@
         .t-cat-name { font-weight: 700; font-size: 0.95rem; }
         .t-sub-info { font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 6px; }
         .t-amt { font-weight: 800; font-size: 0.9rem; color: var(--danger); display: flex; align-items: center; gap: 8px; }
+        .t-amt.income { color: var(--success); }
+        .t-amt.transfer { color: var(--accent); }
+        .t-actions { display:flex; gap:8px; align-items:center; margin-left:8px; }
+        .t-action { width:28px; height:28px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .t-action i { width:13px !important; height:13px !important; }
+        .cashflow-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:14px; }
+        .cashflow-stat { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:12px 8px; min-width:0; }
+        .cashflow-label { display:block; color:var(--text-dim); font-size:.58rem; font-weight:900; text-transform:uppercase; margin-bottom:5px; }
+        .cashflow-value { display:block; font-size:clamp(.68rem,2.8vw,.82rem); font-weight:900; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cashflow-note { margin-top:12px; color:var(--text-dim); font-size:.72rem; line-height:1.5; }
+        .type-switch { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:15px; padding:5px; background:var(--surface); border:1px solid var(--border); border-radius:18px; }
+        .type-btn { border:0; border-radius:14px; padding:11px 5px; background:transparent; color:var(--text-dim); font-size:.7rem; font-weight:900; cursor:pointer; }
+        .type-btn.active { background:var(--primary); color:#0f172a; }
+        .form-hidden { display:none !important; }
+        .history-filters { display:grid; grid-template-columns:1.2fr .8fr; gap:8px; }
+        .edit-modal-grid { text-align:left; }
+        .edit-modal-grid label { display:block; margin:8px 0 5px; font-size:.72rem; font-weight:800; color:#64748b; }
+        .edit-modal-grid input, .edit-modal-grid select { margin-bottom:5px; }
 
         /* Navigation */
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 75px; background: var(--surface); border-radius: 28px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); z-index: 1000; border: 1px solid var(--border); max-width: 460px; margin: 0 auto; }
@@ -131,7 +149,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 21.0 SMART SYNC</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 22.0 CASHFLOW</p>
 </div>
 
 <div class="container">
@@ -172,6 +190,19 @@
             </div>
         </div>
 
+        <div class="card" style="padding:18px">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+                <div style="font-weight:800; display:flex; gap:8px; align-items:center"><i data-lucide="chart-no-axes-combined" style="width:18px"></i> Cashflow Bulan Ini</div>
+                <span id="cashflow-month" style="font-size:.65rem; color:var(--text-dim); font-weight:800"></span>
+            </div>
+            <div class="cashflow-grid">
+                <div class="cashflow-stat"><span class="cashflow-label">Masuk</span><span class="cashflow-value" id="month-income" style="color:var(--success)">Rp 0</span></div>
+                <div class="cashflow-stat"><span class="cashflow-label">Keluar</span><span class="cashflow-value" id="month-expense" style="color:var(--danger)">Rp 0</span></div>
+                <div class="cashflow-stat"><span class="cashflow-label">Net</span><span class="cashflow-value" id="month-net">Rp 0</span></div>
+            </div>
+            <div class="cashflow-note" id="cashflow-note">Belum ada data cashflow bulan ini.</div>
+        </div>
+
         <div class="advisor">
             <div class="adv-icon"><i data-lucide="sparkles"></i></div>
             <div class="adv-main">
@@ -195,26 +226,48 @@
                 <h2 style="font-size:1rem; font-weight:700">Riwayat</h2>
                 <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:12px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:800; cursor:pointer">XLSX</button>
             </div>
-            <input type="month" id="filterMonth" onchange="renderAll()">
-            <div id="transList" style="max-height: 450px; overflow-y: auto;"></div>
+            <div class="history-filters">
+                <input type="month" id="filterMonth" onchange="renderAll()">
+                <select id="filterType" onchange="renderAll()">
+                    <option value="all">Semua</option>
+                    <option value="expense">Pengeluaran</option>
+                    <option value="income">Pemasukan</option>
+                    <option value="transfer">Transfer</option>
+                </select>
+            </div>
+            <div id="transList" style="max-height: 480px; overflow-y: auto;"></div>
         </div>
     </div>
 
     <div id="add" class="page">
         <div class="card">
-            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Catat Baru</h2>
-            <form id="transForm">
+            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Catat Transaksi</h2>
+            <div class="type-switch">
+                <button class="type-btn active" data-type="expense" onclick="setTransactionType('expense')">Pengeluaran</button>
+                <button class="type-btn" data-type="income" onclick="setTransactionType('income')">Pemasukan</button>
+                <button class="type-btn" data-type="transfer" onclick="setTransactionType('transfer')">Transfer</button>
+            </div>
+            <form id="transForm" onsubmit="return false">
+                <input type="hidden" id="t-type" value="expense">
                 <input type="date" id="t-date">
-                <select id="t-wallet">
-                    <option value="Tunai">💰 Tunai</option><option value="Bank">🏦 Bank</option><option value="E-Wallet">📱 E-Wallet</option>
-                </select>
-                <select id="t-cat">
-                    <option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option><option>Lainnya</option>
-                </select>
+                <div id="t-standard-fields">
+                    <select id="t-wallet">
+                        <option value="Tunai">💰 Tunai</option><option value="Bank">🏦 Bank</option><option value="E-Wallet">📱 E-Wallet</option>
+                    </select>
+                    <select id="t-cat"></select>
+                </div>
+                <div id="t-transfer-fields" class="form-hidden">
+                    <select id="t-from">
+                        <option value="Tunai">Dari: 💰 Tunai</option><option value="Bank">Dari: 🏦 Bank</option><option value="E-Wallet">Dari: 📱 E-Wallet</option>
+                    </select>
+                    <select id="t-to">
+                        <option value="Bank">Ke: 🏦 Bank</option><option value="E-Wallet">Ke: 📱 E-Wallet</option><option value="Tunai">Ke: 💰 Tunai</option>
+                    </select>
+                </div>
                 <input type="text" id="t-amount-display" placeholder="Nominal" inputmode="numeric" oninput="formatInput(this)">
-                <input type="hidden" id="t-amount"> 
+                <input type="hidden" id="t-amount">
             </form>
-            <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan</button>
+            <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>
         </div>
     </div>
 
@@ -280,12 +333,12 @@
     const db = firebase.firestore();
     const FieldValue = firebase.firestore.FieldValue;
 
-    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
+    let store = { trans: [], incomes: [], transfers: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
     let syncInProgress = false;
     let lastSyncError = '';
-    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v21';
-    const LEGACY_SNAPSHOT_KEYS = ['agis_finance_snapshot_v20_1'];
+    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v22';
+    const LEGACY_SNAPSHOT_KEYS = ['agis_finance_snapshot_v21', 'agis_finance_snapshot_v20_1'];
     const OUTBOX_KEY = 'agis_finance_outbox_v21';
     const moneyFormatter = new Intl.NumberFormat('id-ID');
     const fmt = (n) => "Rp " + moneyFormatter.format(Number(n) || 0);
@@ -307,6 +360,8 @@
                 goal: Number(store.goal) || 0,
                 limits: store.limits || {},
                 trans: Array.isArray(store.trans) ? store.trans.slice(0, 1500) : [],
+                incomes: Array.isArray(store.incomes) ? store.incomes.slice(0, 1500) : [],
+                transfers: Array.isArray(store.transfers) ? store.transfers.slice(0, 1500) : [],
                 savedAt: Date.now()
             }));
         } catch (err) {
@@ -329,6 +384,8 @@
             store.goal = Number(cached.goal) || 0;
             store.limits = cached.limits && typeof cached.limits === 'object' ? cached.limits : {};
             store.trans = Array.isArray(cached.trans) ? cached.trans : [];
+            store.incomes = Array.isArray(cached.incomes) ? cached.incomes : [];
+            store.transfers = Array.isArray(cached.transfers) ? cached.transfers : [];
             persistLocalSnapshot();
             return true;
         } catch (err) {
@@ -362,31 +419,81 @@
         writeOutbox(queue);
     }
 
-    function mergePendingTransactions(cloudTransactions) {
+    function mergePendingCollection(cloudItems, kind) {
         const queue = readOutbox();
-        const pendingDeletes = new Set(queue.filter(op => op.type === 'deleteExpense').map(op => op.expenseId));
-        const byId = new Map(cloudTransactions.filter(t => !pendingDeletes.has(t.id)).map(t => [t.id, t]));
-        queue.filter(op => op.type === 'addExpense').forEach(op => {
-            if (!pendingDeletes.has(op.expenseId) && !byId.has(op.expenseId)) {
-                byId.set(op.expenseId, { id: op.expenseId, ...op.data, pendingSync: true });
-            }
+        const config = {
+            expense: { add:'addExpense', edit:'editExpense', del:'deleteExpense', id:'expenseId' },
+            income: { add:'addIncome', edit:'editIncome', del:'deleteIncome', id:'incomeId' },
+            transfer: { add:'addTransfer', edit:'editTransfer', del:'deleteTransfer', id:'transferId' }
+        }[kind];
+        const byId = new Map((cloudItems || []).map(item => [item.id, item]));
+        queue.forEach(op => {
+            if (!config) return;
+            const id = op[config.id];
+            if (!id) return;
+            if (op.type === config.del) byId.delete(id);
+            else if (op.type === config.add || op.type === config.edit) byId.set(id, { id, ...op.data, pendingSync: true });
         });
-        return [...byId.values()].sort((a, b) => String(b.tanggal || '').localeCompare(String(a.tanggal || '')));
+        return [...byId.values()].sort((a, b) => {
+            const dateCmp = String(b.tanggal || '').localeCompare(String(a.tanggal || ''));
+            return dateCmp || (Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        });
+    }
+
+    function addWalletDelta(target, wallet, delta) {
+        if (!wallet || !delta) return;
+        target[wallet] = (target[wallet] || 0) + Number(delta || 0);
+    }
+
+    function walletDeltaForData(type, data, direction = 1) {
+        const delta = {};
+        const nominal = Number(data?.nominal || 0) * direction;
+        if (type === 'expense') addWalletDelta(delta, data?.dompet, -nominal);
+        else if (type === 'income') addWalletDelta(delta, data?.dompet, nominal);
+        else if (type === 'transfer') {
+            addWalletDelta(delta, data?.dari, -nominal);
+            addWalletDelta(delta, data?.ke, nominal);
+        }
+        return delta;
+    }
+
+    function combineWalletDeltas(...deltas) {
+        const result = {};
+        deltas.forEach(delta => Object.entries(delta || {}).forEach(([wallet, value]) => addWalletDelta(result, wallet, value)));
+        return Object.fromEntries(Object.entries(result).filter(([, value]) => Number(value) !== 0));
+    }
+
+    function applyWalletDeltaLocal(delta) {
+        const next = normalizeWallets(store.wallets);
+        Object.entries(delta || {}).forEach(([wallet, value]) => { next[wallet] = (Number(next[wallet]) || 0) + Number(value || 0); });
+        store.wallets = normalizeWallets(next);
+    }
+
+    function applyWalletDeltaServer(transaction, walletRef, delta) {
+        const payload = {};
+        Object.entries(delta || {}).forEach(([wallet, value]) => {
+            if (Number(value)) payload[wallet] = FieldValue.increment(Number(value));
+        });
+        if (Object.keys(payload).length) transaction.set(walletRef, payload, { merge: true });
     }
 
     async function refreshFromServer() {
         if (!navigator.onLine || readOutbox().length) return;
         try {
-            const [walletSnap, goalSnap, limitsSnap, transSnap] = await Promise.all([
+            const [walletSnap, goalSnap, limitsSnap, expenseSnap, incomeSnap, transferSnap] = await Promise.all([
                 db.collection('config').doc('wallets').get({ source: 'server' }),
                 db.collection('config').doc('goal').get({ source: 'server' }),
                 db.collection('config').doc('limits').get({ source: 'server' }),
-                db.collection('pengeluaran').orderBy('tanggal', 'desc').get({ source: 'server' })
+                db.collection('pengeluaran').orderBy('tanggal', 'desc').get({ source: 'server' }),
+                db.collection('pemasukan').orderBy('tanggal', 'desc').get({ source: 'server' }),
+                db.collection('transfer').orderBy('tanggal', 'desc').get({ source: 'server' })
             ]);
             if (walletSnap.exists) store.wallets = normalizeWallets(walletSnap.data());
             if (goalSnap.exists) store.goal = Number(goalSnap.data().amount) || 0;
             if (limitsSnap.exists) store.limits = limitsSnap.data() || {};
-            store.trans = transSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.trans = expenseSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.incomes = incomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.transfers = transferSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             persistLocalSnapshot();
             renderAll();
         } catch (err) {
@@ -408,24 +515,46 @@
                 const op = queue[0];
                 const walletRef = db.collection('config').doc('wallets');
 
-                if (op.type === 'addExpense' || op.type === 'deleteExpense') {
-                    const expenseRef = db.collection('pengeluaran').doc(op.expenseId);
-                    await db.runTransaction(async transaction => {
-                        const expenseSnap = await transaction.get(expenseRef);
+                const collectionOps = {
+                    addExpense: ['pengeluaran', 'expenseId', 'expense', 'add'],
+                    editExpense: ['pengeluaran', 'expenseId', 'expense', 'edit'],
+                    deleteExpense: ['pengeluaran', 'expenseId', 'expense', 'delete'],
+                    addIncome: ['pemasukan', 'incomeId', 'income', 'add'],
+                    editIncome: ['pemasukan', 'incomeId', 'income', 'edit'],
+                    deleteIncome: ['pemasukan', 'incomeId', 'income', 'delete'],
+                    addTransfer: ['transfer', 'transferId', 'transfer', 'add'],
+                    editTransfer: ['transfer', 'transferId', 'transfer', 'edit'],
+                    deleteTransfer: ['transfer', 'transferId', 'transfer', 'delete']
+                };
 
-                        if (op.type === 'addExpense') {
-                            // Idempotent: bila dokumen sudah ada, retry tidak memotong saldo lagi.
-                            if (expenseSnap.exists) return;
-                            transaction.set(walletRef, { [op.data.dompet]: FieldValue.increment(-Number(op.data.nominal || 0)) }, { merge: true });
-                            transaction.set(expenseRef, op.data);
+                if (collectionOps[op.type]) {
+                    const [collectionName, idField, transactionType, action] = collectionOps[op.type];
+                    const itemRef = db.collection(collectionName).doc(op[idField]);
+                    await db.runTransaction(async transaction => {
+                        const itemSnap = await transaction.get(itemRef);
+                        if (action === 'add') {
+                            if (itemSnap.exists) return;
+                            applyWalletDeltaServer(transaction, walletRef, walletDeltaForData(transactionType, op.data, 1));
+                            transaction.set(itemRef, op.data);
+                        } else if (action === 'delete') {
+                            if (!itemSnap.exists) return;
+                            const serverData = itemSnap.data() || op.data || {};
+                            applyWalletDeltaServer(transaction, walletRef, walletDeltaForData(transactionType, serverData, -1));
+                            transaction.delete(itemRef);
                         } else {
-                            // Bila sudah terhapus di server, retry tidak mengembalikan saldo dua kali.
-                            if (!expenseSnap.exists) return;
-                            const serverData = expenseSnap.data() || {};
-                            const wallet = serverData.dompet || op.wallet;
-                            const nominal = Number(serverData.nominal || op.nominal || 0);
-                            transaction.set(walletRef, { [wallet]: FieldValue.increment(nominal) }, { merge: true });
-                            transaction.delete(expenseRef);
+                            if (!itemSnap.exists) {
+                                // Jika dokumen belum ada karena edge-case antrean, treat sebagai add agar data tidak hilang.
+                                applyWalletDeltaServer(transaction, walletRef, walletDeltaForData(transactionType, op.data, 1));
+                                transaction.set(itemRef, op.data);
+                                return;
+                            }
+                            const oldData = itemSnap.data() || {};
+                            const delta = combineWalletDeltas(
+                                walletDeltaForData(transactionType, oldData, -1),
+                                walletDeltaForData(transactionType, op.data, 1)
+                            );
+                            applyWalletDeltaServer(transaction, walletRef, delta);
+                            transaction.set(itemRef, op.data);
                         }
                     });
                 } else if (op.type === 'setWallets') {
@@ -475,6 +604,27 @@
         }
         el.value = moneyFormatter.format(Number(val));
         if (hidden) hidden.value = val;
+    };
+
+    const EXPENSE_CATEGORIES = ['Makan & Minum','Transportasi','Belanja','Tagihan','Hiburan','Lainnya'];
+    const INCOME_CATEGORIES = ['Gaji','Bonus','Penjualan','Refund','Hadiah','Lainnya'];
+
+    function fillCategoryOptions(values, selected = '') {
+        const select = document.getElementById('t-cat');
+        if (!select) return;
+        select.innerHTML = values.map(v => `<option${v === selected ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+    }
+
+    window.setTransactionType = (type) => {
+        const valid = ['expense','income','transfer'].includes(type) ? type : 'expense';
+        document.getElementById('t-type').value = valid;
+        document.querySelectorAll('.type-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === valid));
+        const transferFields = document.getElementById('t-transfer-fields');
+        const standardFields = document.getElementById('t-standard-fields');
+        transferFields.classList.toggle('form-hidden', valid !== 'transfer');
+        standardFields.classList.toggle('form-hidden', valid === 'transfer');
+        if (valid === 'expense') fillCategoryOptions(EXPENSE_CATEGORIES);
+        if (valid === 'income') fillCategoryOptions(INCOME_CATEGORIES);
     };
 
     function syncWalletInputsFromStore(force = false) {
@@ -532,35 +682,49 @@
         return Swal.fire({ title: 'Disimpan offline', text: offlineText, icon: 'info', timer: 1700, showConfirmButton: false });
     }
 
+    function addLocalRecord(type, id, data) {
+        const record = { id, ...data, pendingSync: true };
+        if (type === 'expense') store.trans = [record, ...store.trans.filter(t => t.id !== id)];
+        else if (type === 'income') store.incomes = [record, ...store.incomes.filter(t => t.id !== id)];
+        else store.transfers = [record, ...store.transfers.filter(t => t.id !== id)];
+    }
+
     window.saveTransaction = () => {
         const d = document.getElementById('t-date').value;
-        const w = document.getElementById('t-wallet').value;
-        const c = document.getElementById('t-cat').value;
-        const a = parseInt(document.getElementById('t-amount').value, 10);
-        if(!a || a <= 0 || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
+        const type = document.getElementById('t-type').value || 'expense';
+        const amount = parseInt(document.getElementById('t-amount').value, 10);
+        if (!amount || amount <= 0 || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
 
-        const expenseRef = db.collection('pengeluaran').doc();
-        const data = { tanggal: d, dompet: w, kategori: c, nominal: a };
+        let id, data, op;
+        const createdAt = Date.now();
+        if (type === 'expense') {
+            const ref = db.collection('pengeluaran').doc(); id = ref.id;
+            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, createdAt };
+            op = { opId:`add:${id}`, type:'addExpense', expenseId:id, data, createdAt };
+        } else if (type === 'income') {
+            const ref = db.collection('pemasukan').doc(); id = ref.id;
+            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, createdAt };
+            op = { opId:`income:${id}`, type:'addIncome', incomeId:id, data, createdAt };
+        } else {
+            const from = document.getElementById('t-from').value;
+            const to = document.getElementById('t-to').value;
+            if (from === to) return Swal.fire('Transfer tidak valid', 'Wallet asal dan tujuan harus berbeda.', 'warning');
+            const ref = db.collection('transfer').doc(); id = ref.id;
+            data = { tanggal:d, dari:from, ke:to, nominal:amount, createdAt };
+            op = { opId:`transfer:${id}`, type:'addTransfer', transferId:id, data, createdAt };
+        }
 
-        // v21: transaksi selalu masuk durable outbox terlebih dahulu.
-        // Jika offline, pekerjaan tetap tersimpan setelah reload dan dikirim eksplisit ketika online.
-        enqueueSync({
-            opId: `add:${expenseRef.id}`,
-            type: 'addExpense',
-            expenseId: expenseRef.id,
-            data,
-            createdAt: Date.now()
-        });
-
-        store.wallets = { ...normalizeWallets(store.wallets), [w]: (Number(store.wallets[w]) || 0) - a };
-        store.trans = [{ id: expenseRef.id, ...data, pendingSync: true }, ...store.trans.filter(t => t.id !== expenseRef.id)];
+        enqueueSync(op);
+        applyWalletDeltaLocal(walletDeltaForData(type, data, 1));
+        addLocalRecord(type, id, data);
         persistLocalSnapshot();
         renderAll();
 
-        document.getElementById('t-amount-display').value = "";
-        document.getElementById('t-amount').value = "";
+        document.getElementById('t-amount-display').value = '';
+        document.getElementById('t-amount').value = '';
         nav('home');
-        queuedNotice('Transaksi berhasil dicatat.', 'Transaksi tersimpan di perangkat dan akan dikirim saat internet kembali.');
+        const label = type === 'expense' ? 'Pengeluaran' : type === 'income' ? 'Pemasukan' : 'Transfer';
+        queuedNotice(`${label} berhasil dicatat.`, `${label} tersimpan di perangkat dan akan dikirim saat internet kembali.`);
         flushOutbox();
     };
 
@@ -608,26 +772,108 @@
         flushOutbox();
     };
 
-    window.removeTrans = async (id, wallet, nominal) => {
-        const confirm = await Swal.fire({ title: 'Hapus?', text: "Saldo akan dikembalikan", icon: 'warning', showCancelButton: true });
-        if(!confirm.isConfirmed) return;
+    function getRecord(type, id) {
+        const list = type === 'expense' ? store.trans : type === 'income' ? store.incomes : store.transfers;
+        return list.find(t => t.id === id);
+    }
 
-        enqueueSync({
-            opId: `delete:${id}:${Date.now()}`,
-            type: 'deleteExpense',
-            expenseId: id,
-            wallet,
-            nominal: Number(nominal || 0),
-            createdAt: Date.now()
+    function replaceRecord(type, id, data) {
+        const key = type === 'expense' ? 'trans' : type === 'income' ? 'incomes' : 'transfers';
+        store[key] = store[key].map(t => t.id === id ? { id, ...data, pendingSync:true } : t);
+    }
+
+    function deleteLocalRecord(type, id) {
+        const key = type === 'expense' ? 'trans' : type === 'income' ? 'incomes' : 'transfers';
+        store[key] = store[key].filter(t => t.id !== id);
+    }
+
+    function categoryOptionHtml(values, selected) {
+        return values.map(v => `<option value="${escapeHtml(v)}"${v === selected ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+    }
+
+    function walletOptionHtml(selected) {
+        return ['Tunai','Bank','E-Wallet'].map(v => `<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`).join('');
+    }
+
+    window.editTransaction = async (id, type) => {
+        const current = getRecord(type, id);
+        if (!current) return;
+        const isTransfer = type === 'transfer';
+        const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+        const html = isTransfer ? `
+            <div class="edit-modal-grid">
+                <label>Tanggal</label><input id="edit-date" type="date" value="${escapeHtml(current.tanggal)}">
+                <label>Dari wallet</label><select id="edit-from">${walletOptionHtml(current.dari)}</select>
+                <label>Ke wallet</label><select id="edit-to">${walletOptionHtml(current.ke)}</select>
+                <label>Nominal</label><input id="edit-amount" inputmode="numeric" value="${moneyFormatter.format(Number(current.nominal)||0)}">
+            </div>` : `
+            <div class="edit-modal-grid">
+                <label>Tanggal</label><input id="edit-date" type="date" value="${escapeHtml(current.tanggal)}">
+                <label>Wallet</label><select id="edit-wallet">${walletOptionHtml(current.dompet)}</select>
+                <label>Kategori</label><select id="edit-cat">${categoryOptionHtml(categories, current.kategori)}</select>
+                <label>Nominal</label><input id="edit-amount" inputmode="numeric" value="${moneyFormatter.format(Number(current.nominal)||0)}">
+            </div>`;
+
+        const result = await Swal.fire({
+            title: type === 'expense' ? 'Edit Pengeluaran' : type === 'income' ? 'Edit Pemasukan' : 'Edit Transfer',
+            html, showCancelButton:true, confirmButtonText:'Simpan', cancelButtonText:'Batal',
+            didOpen: () => {
+                const amountEl = document.getElementById('edit-amount');
+                amountEl?.addEventListener('input', () => formatMoneyField(amountEl));
+            },
+            preConfirm: () => {
+                const tanggal = document.getElementById('edit-date')?.value;
+                const nominal = Number(digitsOnly(document.getElementById('edit-amount')?.value));
+                if (!tanggal || !nominal) return Swal.showValidationMessage('Tanggal dan nominal wajib diisi.');
+                if (isTransfer) {
+                    const dari = document.getElementById('edit-from').value;
+                    const ke = document.getElementById('edit-to').value;
+                    if (dari === ke) return Swal.showValidationMessage('Wallet asal dan tujuan harus berbeda.');
+                    return { tanggal, dari, ke, nominal, createdAt:Number(current.createdAt)||Date.now() };
+                }
+                return { tanggal, dompet:document.getElementById('edit-wallet').value, kategori:document.getElementById('edit-cat').value, nominal, createdAt:Number(current.createdAt)||Date.now() };
+            }
         });
+        if (!result.isConfirmed || !result.value) return;
 
-        store.wallets = { ...normalizeWallets(store.wallets), [wallet]: (Number(store.wallets[wallet]) || 0) + Number(nominal || 0) };
-        store.trans = store.trans.filter(t => t.id !== id);
+        const data = result.value;
+        applyWalletDeltaLocal(combineWalletDeltas(walletDeltaForData(type, current, -1), walletDeltaForData(type, data, 1)));
+        replaceRecord(type, id, data);
+        const op = type === 'expense'
+            ? { opId:`edit-expense:${id}:${Date.now()}`, type:'editExpense', expenseId:id, data, createdAt:Date.now() }
+            : type === 'income'
+                ? { opId:`edit-income:${id}:${Date.now()}`, type:'editIncome', incomeId:id, data, createdAt:Date.now() }
+                : { opId:`edit-transfer:${id}:${Date.now()}`, type:'editTransfer', transferId:id, data, createdAt:Date.now() };
+        enqueueSync(op);
         persistLocalSnapshot();
         renderAll();
-        queuedNotice('Transaksi dihapus dan saldo dikembalikan.', 'Penghapusan tersimpan di perangkat dan akan dikirim saat online.');
+        queuedNotice('Perubahan transaksi disimpan.', 'Edit tersimpan offline dan akan disinkronkan saat online.');
         flushOutbox();
     };
+
+    window.removeTransaction = async (id, type) => {
+        const current = getRecord(type, id);
+        if (!current) return;
+        const confirm = await Swal.fire({ title:'Hapus transaksi?', text:'Dampak transaksi pada saldo akan dibatalkan.', icon:'warning', showCancelButton:true, confirmButtonText:'Hapus' });
+        if (!confirm.isConfirmed) return;
+
+        const now = Date.now();
+        const op = type === 'expense'
+            ? { opId:`delete-expense:${id}:${now}`, type:'deleteExpense', expenseId:id, data:current, createdAt:now }
+            : type === 'income'
+                ? { opId:`delete-income:${id}:${now}`, type:'deleteIncome', incomeId:id, data:current, createdAt:now }
+                : { opId:`delete-transfer:${id}:${now}`, type:'deleteTransfer', transferId:id, data:current, createdAt:now };
+        enqueueSync(op);
+        applyWalletDeltaLocal(walletDeltaForData(type, current, -1));
+        deleteLocalRecord(type, id);
+        persistLocalSnapshot();
+        renderAll();
+        queuedNotice('Transaksi dihapus.', 'Penghapusan tersimpan offline dan akan disinkronkan saat online.');
+        flushOutbox();
+    };
+
+    // Kompatibilitas tombol lama jika masih ada cache HTML v21.
+    window.removeTrans = (id) => removeTransaction(id, 'expense');
 
     function localDateKey(date = new Date()) {
         const y = date.getFullYear();
@@ -688,74 +934,110 @@
         return { safeDaily, avg7, predictedEnd, status, statusClass, statusIcon, comparison, topText };
     }
 
-    window.renderAll = () => {
-        const monthFilter = document.getElementById('filterMonth').value;
-        let cats = {}; let totalSpent = 0;
-        const list = document.getElementById('transList');
-        if (list) list.innerHTML = "";
-
-        store.trans.forEach(t => {
-            if(!monthFilter || (t.tanggal && t.tanggal.startsWith(monthFilter))) {
-                cats[t.kategori] = (cats[t.kategori] || 0) + t.nominal;
-                totalSpent += t.nominal;
-                if (list) list.innerHTML += `
-                <div class="t-item">
-                    <div class="t-info">
-                        <span class="t-cat-name">${escapeHtml(t.kategori)}</span>
-                        <div class="t-sub-info"><span>${escapeHtml(t.tanggal)}</span><span>•</span><span>${escapeHtml(t.dompet)}</span>${t.pendingSync ? '<span style="color:var(--warning);font-weight:800">• Menunggu sync</span>' : ''}</div>
-                    </div>
-                    <div class="t-amt">- ${fmt(t.nominal)} <i data-lucide="trash-2" onclick="removeTrans('${t.id}', '${escapeJs(t.dompet)}', ${Number(t.nominal) || 0})" style="width:14px; opacity:0.3; cursor:pointer"></i></div>
-                </div>`;
-            }
+    function allTransactions() {
+        return [
+            ...store.trans.map(t => ({ ...t, type:'expense' })),
+            ...store.incomes.map(t => ({ ...t, type:'income' })),
+            ...store.transfers.map(t => ({ ...t, type:'transfer' }))
+        ].sort((a,b) => {
+            const dateCmp = String(b.tanggal || '').localeCompare(String(a.tanggal || ''));
+            return dateCmp || (Number(b.createdAt || 0) - Number(a.createdAt || 0));
         });
+    }
 
-        const totalWallets = (store.wallets.Tunai || 0) + (store.wallets.Bank || 0) + (store.wallets["E-Wallet"] || 0);
+    window.renderAll = () => {
+        const monthFilter = document.getElementById('filterMonth')?.value || '';
+        const typeFilter = document.getElementById('filterType')?.value || 'all';
+        const list = document.getElementById('transList');
+        if (list) list.innerHTML = '';
+
+        const filteredHistory = allTransactions().filter(t =>
+            (!monthFilter || (t.tanggal && t.tanggal.startsWith(monthFilter))) &&
+            (typeFilter === 'all' || t.type === typeFilter)
+        );
+
+        filteredHistory.forEach(t => {
+            if (!list) return;
+            const pending = t.pendingSync ? '<span style="color:var(--warning);font-weight:800">• Menunggu sync</span>' : '';
+            let title, sub, amount, amountClass;
+            if (t.type === 'expense') {
+                title = escapeHtml(t.kategori); sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dompet)} ${pending}`; amount = `- ${fmt(t.nominal)}`; amountClass = '';
+            } else if (t.type === 'income') {
+                title = escapeHtml(t.kategori); sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dompet)} ${pending}`; amount = `+ ${fmt(t.nominal)}`; amountClass = 'income';
+            } else {
+                title = 'Transfer'; sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dari)} → ${escapeHtml(t.ke)} ${pending}`; amount = fmt(t.nominal); amountClass = 'transfer';
+            }
+            list.innerHTML += `
+                <div class="t-item">
+                    <div class="t-info"><span class="t-cat-name">${title}</span><div class="t-sub-info">${sub}</div></div>
+                    <div class="t-amt ${amountClass}">${amount}</div>
+                    <div class="t-actions">
+                        <button class="t-action" onclick="editTransaction('${t.id}','${t.type}')" title="Edit"><i data-lucide="pencil"></i></button>
+                        <button class="t-action" onclick="removeTransaction('${t.id}','${t.type}')" title="Hapus"><i data-lucide="trash-2"></i></button>
+                    </div>
+                </div>`;
+        });
+        if (list && !filteredHistory.length) list.innerHTML = '<div style="padding:28px 5px; text-align:center; color:var(--text-dim); font-size:.8rem">Belum ada transaksi untuk filter ini.</div>';
+
+        const totalWallets = (store.wallets.Tunai || 0) + (store.wallets.Bank || 0) + (store.wallets['E-Wallet'] || 0);
         const disposable = totalWallets - (store.goal || 0);
-
         document.getElementById('total-balance').innerText = fmt(disposable);
         document.getElementById('goal-amount').innerText = fmt(store.goal || 0);
         document.getElementById('w-cash').innerText = fmt(store.wallets.Tunai || 0);
         document.getElementById('w-bank').innerText = fmt(store.wallets.Bank || 0);
-        document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"] || 0);
-        document.getElementById('chart-total-val').innerText = fmt(totalSpent);
+        document.getElementById('w-e').innerText = fmt(store.wallets['E-Wallet'] || 0);
 
         const now = new Date();
-        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const insightCats = {};
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        const insightCats = {}; let monthExpense = 0; let monthIncome = 0;
         store.trans.forEach(t => {
-            if (t.tanggal && t.tanggal.startsWith(currentMonthKey)) {
+            if (t.tanggal?.startsWith(currentMonthKey)) {
                 insightCats[t.kategori] = (insightCats[t.kategori] || 0) + Number(t.nominal || 0);
+                monthExpense += Number(t.nominal || 0);
             }
         });
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const remainingDays = lastDay - now.getDate() + 1;
-        const dailyQuota = disposable > 0 ? Math.floor(disposable / remainingDays) : 0;
+        store.incomes.forEach(t => { if (t.tanggal?.startsWith(currentMonthKey)) monthIncome += Number(t.nominal || 0); });
+        const netCashflow = monthIncome - monthExpense;
+        const savingsRate = monthIncome > 0 ? (netCashflow / monthIncome) * 100 : null;
 
-        let alerts = [];
-        for (const [c, v] of Object.entries(insightCats)) {
+        document.getElementById('month-income').innerText = fmt(monthIncome);
+        document.getElementById('month-expense').innerText = fmt(monthExpense);
+        const netEl = document.getElementById('month-net');
+        netEl.innerText = `${netCashflow >= 0 ? '+' : '-'} ${fmt(Math.abs(netCashflow))}`;
+        netEl.style.color = netCashflow >= 0 ? 'var(--success)' : 'var(--danger)';
+        document.getElementById('cashflow-month').innerText = now.toLocaleDateString('id-ID', { month:'short', year:'numeric' });
+        document.getElementById('cashflow-note').innerHTML = monthIncome > 0
+            ? `Savings rate bulan ini <b style="color:${savingsRate >= 0 ? 'var(--success)' : 'var(--danger)'}">${savingsRate.toFixed(0)}%</b>. Transfer antar-wallet tidak dihitung sebagai pemasukan/pengeluaran.`
+            : (monthExpense > 0 ? 'Belum ada pemasukan tercatat bulan ini. Transfer antar-wallet tidak memengaruhi cashflow.' : 'Belum ada data cashflow bulan ini.');
+
+        document.getElementById('chart-total-val').innerText = fmt(monthExpense);
+        const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+        const remainingDays = lastDay - now.getDate() + 1;
+        const alerts = [];
+        for (const [c,v] of Object.entries(insightCats)) {
             const lim = store.limits[c];
-            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${escapeHtml(c)}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
-            else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${escapeHtml(c)}: ${fmt(v)}</b> (Hampir Limit)</div>`);
+            if (lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${escapeHtml(c)}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
+            else if (lim && v >= lim*.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${escapeHtml(c)}: ${fmt(v)}</b> (Hampir Limit)</div>`);
         }
 
         const insight = buildSmartInsight(disposable, insightCats, remainingDays);
         const predictionText = insight.avg7 > 0
-            ? (insight.predictedEnd >= 0
-                ? `${fmt(insight.predictedEnd)} tersisa setelah target tabungan.`
-                : `defisit ${fmt(Math.abs(insight.predictedEnd))}; target tabungan berisiko.`)
+            ? (insight.predictedEnd >= 0 ? `${fmt(insight.predictedEnd)} tersisa setelah target tabungan.` : `defisit ${fmt(Math.abs(insight.predictedEnd))}; target tabungan berisiko.`)
             : 'Belum cukup transaksi untuk membuat prediksi.';
+        const cashflowText = `${netCashflow >= 0 ? '+' : '-'}${fmt(Math.abs(netCashflow))}`;
 
         document.getElementById('advisorContent').innerHTML = `
             <div class="insight-status ${insight.statusClass}">${insight.statusIcon} ${insight.status}</div>
             <div class="insight-row">💸 Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
-            <div class="insight-row">📈 Rata-rata 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
+            <div class="insight-row">💰 Cashflow bulan ini: <b style="color:${netCashflow >= 0 ? 'var(--success)' : 'var(--danger)'}">${cashflowText}</b></div>
+            <div class="insight-row">📈 Rata-rata pengeluaran 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
             <div class="insight-row">🔮 Prediksi akhir bulan: <b>${predictionText}</b></div>
             <div class="insight-row">📊 ${insight.comparison}</div>
             <div class="insight-row">🏷️ Terbesar bulan ini: ${insight.topText}</div>
             ${alerts.length ? `<div class="insight-divider">${alerts.join('')}</div>` : ''}
         `;
 
-        updateChart(cats);
+        updateChart(insightCats);
         lucide.createIcons();
         hideSplash();
     };
@@ -876,10 +1158,18 @@
     document.onmouseup = document.ontouchend = onEnd;
 
     window.exportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(store.trans);
+        const rows = allTransactions().map(t => ({
+            Jenis: t.type === 'expense' ? 'Pengeluaran' : t.type === 'income' ? 'Pemasukan' : 'Transfer',
+            Tanggal: t.tanggal || '',
+            Kategori: t.type === 'transfer' ? 'Transfer' : (t.kategori || ''),
+            Wallet: t.type === 'transfer' ? `${t.dari} -> ${t.ke}` : (t.dompet || ''),
+            Nominal: Number(t.nominal || 0),
+            Status_Sync: t.pendingSync ? 'Menunggu sync' : 'Tersinkron'
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Records");
-        XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value}.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, 'Cashflow');
+        XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value || 'all'}.xlsx`);
     };
 
     function startRealtimeListeners() {
@@ -912,12 +1202,23 @@
         db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
             const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.trans.length > 0;
-            if (!emptyUnprimedOfflineCache) {
-                store.trans = readOutbox().length ? mergePendingTransactions(incoming) : incoming;
-                persistLocalSnapshot();
-            }
+            if (!emptyUnprimedOfflineCache) { store.trans = readOutbox().length ? mergePendingCollection(incoming, 'expense') : incoming; persistLocalSnapshot(); }
             renderAll();
-        }, err => console.warn('Transactions listener:', err));
+        }, err => console.warn('Expense listener:', err));
+
+        db.collection('pemasukan').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
+            const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.incomes.length > 0;
+            if (!emptyUnprimedOfflineCache) { store.incomes = readOutbox().length ? mergePendingCollection(incoming, 'income') : incoming; persistLocalSnapshot(); }
+            renderAll();
+        }, err => console.warn('Income listener:', err));
+
+        db.collection('transfer').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
+            const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.transfers.length > 0;
+            if (!emptyUnprimedOfflineCache) { store.transfers = readOutbox().length ? mergePendingCollection(incoming, 'transfer') : incoming; persistLocalSnapshot(); }
+            renderAll();
+        }, err => console.warn('Transfer listener:', err));
     }
 
     // Pulihkan mirror lokal SEBELUM Firestore mencoba konek. Jadi offline reload tidak mulai dari nol.
@@ -953,6 +1254,7 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
+        setTransactionType('expense');
         renderAll();
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         if(localStorage.getItem('agis_theme') === 'light') document.body.classList.add('light-mode');
