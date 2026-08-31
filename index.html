@@ -535,13 +535,20 @@
         renderAll(); 
     });
 
-    window.addEventListener('load', () => {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('t-date').value = today;
-        document.getElementById('filterMonth').value = today.slice(0, 7);
-        if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
-        lucide.createIcons();
-    });
+   window.addEventListener('load', () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('t-date').value = today;
+    document.getElementById('filterMonth').value = today.slice(0, 7);
+    if (localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
+    lucide.createIcons();
+    
+    // Registrasi Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker Registered!', reg))
+            .catch(err => console.error('Service Worker Registration Failed!', err));
+    }
+});
 </script>
 </body>
 </html>
