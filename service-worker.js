@@ -1,13 +1,19 @@
-const CACHE_NAME = 'agis-finance-v19-2';
+const CACHE_NAME = 'agis-finance-v19.8';
 
-// Hanya pre-cache aset internal yang pasti ada di repo kamu
+// Pre-cache semua file lokal yang ada di repository Anda
 const PRE_CACHE = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './chart.min.js',
+  './firebase-app.js',
+  './firebase-firestore.js',
+  './lucide.min.js',
+  './sweetalert2.all.min.js',
+  './xlsx.full.min.js'
 ];
 
-// 1. Install Stage: Pre-cache aset lokal saja
+// 1. Install Stage
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(PRE_CACHE))
@@ -15,7 +21,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// 2. Activate Stage: Bersihkan cache lama
+// 2. Activate Stage: Hapus cache versi lama
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(
@@ -24,26 +30,23 @@ self.addEventListener('activate', e => {
       })
     ))
   );
+  self.clients.claim();
 });
 
-// 3. Fetch Stage: Runtime Caching Strategy (Cache First, then Network & Store)
+// 3. Fetch Stage: Cache First, lalu Network
 self.addEventListener('fetch', e => {
-  // Hanya intercept request GET
   if (e.request.method !== 'GET') return;
 
   e.respondWith(
     caches.match(e.request).then(cachedRes => {
-      // Jika ada di cache, langsung berikan
       if (cachedRes) return cachedRes;
 
-      // Jika tidak ada, ambil dari network
       return fetch(e.request).then(networkRes => {
-        // Validasi respon: jangan cache kalau error atau respon aneh
-        if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic' && !e.request.url.includes('cdn')) {
+        // Izinkan simpan respon opaque/CORS dari CDN (type 'cors' atau 'opaque')
+        if (!networkRes || networkRes.status !== 200 && networkRes.type !== 'opaque') {
           return networkRes;
         }
 
-        // Simpan hasil fetch ke cache secara otomatis (Runtime Caching)
         const responseToCache = networkRes.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(e.request, responseToCache);
@@ -51,7 +54,6 @@ self.addEventListener('fetch', e => {
 
         return networkRes;
       }).catch(() => {
-        // Fallback jika offline total dan aset tidak ada di cache
         if (e.request.mode === 'navigate') {
           return caches.match('./index.html');
         }
