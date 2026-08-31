@@ -213,18 +213,28 @@
     <div id="settings" class="page">
         <div class="card">
             <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Update Saldo</h2>
-            <input type="number" id="set-cash" placeholder="Saldo Tunai">
-            <input type="number" id="set-bank" placeholder="Saldo Bank">
-            <input type="number" id="set-e" placeholder="Saldo E-Wallet">
+            <input type="text" id="set-cash-display" placeholder="Saldo Tunai" inputmode="numeric" oninput="formatInput(this)">
+            <input type="hidden" id="set-cash">
+            
+            <input type="text" id="set-bank-display" placeholder="Saldo Bank" inputmode="numeric" oninput="formatInput(this)">
+            <input type="hidden" id="set-bank">
+            
+            <input type="text" id="set-e-display" placeholder="Saldo E-Wallet" inputmode="numeric" oninput="formatInput(this)">
+            <input type="hidden" id="set-e">
+            
             <button class="btn-primary" onclick="updateWallets()">Simpan Saldo</button>
         </div>
         <div class="card">
             <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Tabungan & Limit</h2>
-            <input type="number" id="goal-input" placeholder="Target Tabungan">
+            <input type="text" id="goal-input-display" placeholder="Target Tabungan" inputmode="numeric" oninput="formatInput(this)">
+            <input type="hidden" id="goal-input">
+            
             <button class="btn-primary" style="background:var(--warning); color:#000" onclick="setGoal()">Update Target</button>
             <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:20px">
                 <select id="l-cat"><option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option></select>
-                <input type="number" id="l-amount" placeholder="Limit Bulanan">
+                <input type="text" id="l-amount-display" placeholder="Limit Bulanan" inputmode="numeric" oninput="formatInput(this)">
+                <input type="hidden" id="l-amount">
+                
                 <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
             </div>
         </div>
@@ -275,7 +285,7 @@
 
     enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(() => console.log("Persistence Offline"));
 
-    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
+    let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, goalStartDate: null, limits: {} };
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
 
@@ -299,14 +309,17 @@
     // Formatter Ribuan Otomatis
     window.formatInput = (el) => {
         let val = el.value.replace(/\D/g, "");
+        let hiddenId = el.id.replace('-display', '');
+        let hiddenEl = document.getElementById(hiddenId);
+
         if (val === "") {
-            document.getElementById('t-amount').value = 0;
+            if (hiddenEl) hiddenEl.value = 0;
             el.value = "";
             return;
         }
         let formatted = new Intl.NumberFormat('id-ID').format(val);
         el.value = formatted;
-        document.getElementById('t-amount').value = val;
+        if (hiddenEl) hiddenEl.value = val;
     };
 
     const hideSplash = () => {
@@ -362,22 +375,49 @@
     };
 
     window.updateWallets = async () => {
-        const data = { Tunai: parseInt(document.getElementById('set-cash').value) || 0, Bank: parseInt(document.getElementById('set-bank').value) || 0, "E-Wallet": parseInt(document.getElementById('set-e').value) || 0 };
+        const cash = parseInt(document.getElementById('set-cash').value) || 0;
+        const bank = parseInt(document.getElementById('set-bank').value) || 0;
+        const eWallet = parseInt(document.getElementById('set-e').value) || 0;
+        
+        const data = { Tunai: cash, Bank: bank, "E-Wallet": eWallet };
         await setDoc(doc(db, "config", "wallets"), data);
+
+        // Reset input fields
+        document.getElementById('set-cash-display').value = "";
+        document.getElementById('set-cash').value = "0";
+        document.getElementById('set-bank-display').value = "";
+        document.getElementById('set-bank').value = "0";
+        document.getElementById('set-e-display').value = "";
+        document.getElementById('set-e').value = "0";
+
         Swal.fire('Sukses', 'Saldo diperbarui', 'success');
+        nav('home');
     };
 
     window.setLimit = async () => {
         const cat = document.getElementById('l-cat').value;
         const val = parseInt(document.getElementById('l-amount').value) || 0;
         await setDoc(doc(db, "config", "limits"), { [cat]: val }, { merge: true });
+
+        // Reset input fields
+        document.getElementById('l-amount-display').value = "";
+        document.getElementById('l-amount').value = "0";
+
         Swal.fire('Limit Set', `Batas ${cat} disimpan.`, 'success');
+        nav('home');
     };
 
     window.setGoal = async () => {
         const amount = parseInt(document.getElementById('goal-input').value) || 0;
-        await setDoc(doc(db, "config", "goal"), { amount });
+        const startDate = new Date().toISOString();
+        await setDoc(doc(db, "config", "goal"), { amount, startDate });
+
+        // Reset input fields
+        document.getElementById('goal-input-display').value = "";
+        document.getElementById('goal-input').value = "0";
+
         Swal.fire('Target!', 'Target tabungan disimpan', 'success');
+        nav('home');
     };
 
     window.removeTrans = async (id, wallet, nominal) => {
@@ -419,22 +459,37 @@
         document.getElementById('w-e').innerText = fmt(store.wallets["E-Wallet"] || 0);
         document.getElementById('chart-total-val').innerText = fmt(totalSpent);
 
-        const now = new Date();
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const remainingDays = lastDay - now.getDate() + 1;
-        const dailyQuota = disposable > 0 ? Math.floor(disposable / remainingDays) : 0;
+        // Kalkulasi Hitung Mundur 31 Hari berdasarkan input tabungan
+        let remainingDays = 31;
+        if (store.goalStartDate) {
+            const start = new Date(store.goalStartDate);
+            const now = new Date();
+            const diffTime = Math.abs(now - start);
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            remainingDays = Math.max(0, 31 - diffDays);
+        } else {
+            const now = new Date();
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            remainingDays = lastDay - now.getDate() + 1;
+        }
+
+        const dailyQuota = disposable > 0 && remainingDays > 0 ? Math.floor(disposable / remainingDays) : 0;
 
         let alerts = [];
         for (const [c, v] of Object.entries(cats)) {
             const lim = store.limits[c];
-            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
+            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b> (Over ${fmt(v-lim)})</div>`);
             else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${c}: ${fmt(v)}</b> (Hampir Limit)</div>`);
         }
 
+        if (disposable < 0) {
+            alerts.unshift(`<div style="margin-bottom:8px">🚨 <b style="color:var(--danger)">Saldo Terpakai Dari Tabungan!</b> (${fmt(Math.abs(disposable))})</div>`);
+        }
+
         document.getElementById('advisorContent').innerHTML = `
-            <div style="margin-bottom:10px; color:var(--text)">Sisa bulan: <b>${remainingDays} hari</b></div>
-            <div style="margin-bottom:10px;">Jatah harian: <b style="color:var(--primary)">${fmt(dailyQuota)}</b></div>
-            <div style="border-top:1px solid var(--border); padding-top:10px">${alerts.join('')}</div>
+            <div style="margin-bottom:6px; color:var(--text)">Sisa periode: <b>${remainingDays} hari lagi</b></div>
+            <div style="margin-bottom:8px;">Jatah harian aman: <b style="color:var(--primary)">${fmt(dailyQuota)}</b></div>
+            <div style="border-top:1px solid var(--border); padding-top:8px">${alerts.length > 0 ? alerts.join('') : '<span style="color:var(--primary)">Pengeluaran Anda masih terkendali aman.</span>'}</div>
         `;
 
         updateChart(cats);
@@ -520,7 +575,13 @@
     };
 
     onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
-    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
+    onSnapshot(doc(db, "config", "goal"), (s) => { 
+        if(s.exists()) {
+            store.goal = s.data().amount;
+            store.goalStartDate = s.data().startDate || null;
+        } 
+        renderAll(); 
+    });
     onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
     onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { 
         store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); 
