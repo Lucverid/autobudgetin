@@ -266,14 +266,6 @@
 </nav>
 
 <script type="module">
-    // Daftarkan Service Worker saat aplikasi pertama kali dimuat
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(reg => console.log('Service Worker aktif:', reg.scope))
-      .catch(err => console.error('Gagal daftar Service Worker:', err));
-  });
-}
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
