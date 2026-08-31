@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v19.8 PRO</title>
+    <title>Agis Finance AI - v20.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- v20: seluruh dependency UI/Firebase dilayani lokal agar app shell bisa dibuka tanpa internet -->
+    <script src="./chart.min.js"></script>
+    <script src="./sweetalert2.all.min.js"></script>
+    <script src="./lucide.min.js"></script>
+    <script src="./xlsx.full.min.js"></script>
+    <script src="./firebase-app.js"></script>
+    <script src="./firebase-firestore.js"></script>
     
     <style>
         :root {
@@ -25,7 +27,7 @@
             --text-dim: #64748b; --border: rgba(0,0,0,0.06);
             --glass: rgba(255, 255, 255, 0.8);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         
         body { background-color: var(--bg); color: var(--text); padding-bottom: 110px; min-height: 100vh; transition: background 0.3s; overflow-x: hidden; }
         .container { max-width: 500px; margin: auto; padding: 20px; }
@@ -123,7 +125,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 19.8 FULL</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 20.0 OFFLINE</p>
 </div>
 
 <div class="container">
@@ -265,15 +267,19 @@
     <div class="nav-item" onclick="nav('settings', this)"><i data-lucide="sliders"></i></div>
 </nav>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, enableIndexedDbPersistence, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
+<script>
+    // --- FIREBASE v8 LOCAL (v20) ---
     const firebaseConfig = { apiKey: "AIzaSyDBrKNaJsfGEVHSsPj9xWCPzZCsO_8UUJ8", authDomain: "trackingmoney-bb785.firebaseapp.com", projectId: "trackingmoney-bb785", storageBucket: "trackingmoney-bb785.firebasestorage.app", messagingSenderId: "725272276839", appId: "1:725272276839:web:d95f1643629c97edae09c2" };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const FieldValue = firebase.firestore.FieldValue;
 
-    enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch(() => console.log("Persistence Offline"));
+    // Cache data Firestore di IndexedDB. Perubahan lokal tetap tampil dan akan sync saat koneksi kembali.
+    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+        if (err && err.code === 'failed-precondition') console.warn('Persistence: lebih dari satu tab aktif.');
+        else if (err && err.code === 'unimplemented') console.warn('Persistence tidak didukung browser ini.');
+        else console.warn('Persistence warning:', err);
+    });
 
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
@@ -287,8 +293,7 @@
             el.value = "";
             return;
         }
-        let formatted = new Intl.NumberFormat('id-ID').format(val);
-        el.value = formatted;
+        el.value = new Intl.NumberFormat('id-ID').format(val);
         document.getElementById('t-amount').value = val;
     };
 
@@ -312,48 +317,79 @@
         lucide.createIcons();
     };
 
-    window.toggleTheme = () => { document.body.classList.toggle('light-mode'); renderAll(); };
+    window.toggleTheme = () => {
+        const isLight = document.body.classList.toggle('light-mode');
+        localStorage.setItem('agis_theme', isLight ? 'light' : 'dark');
+        renderAll();
+    };
 
-    window.saveTransaction = async () => {
+    function showWriteError(err) {
+        console.error(err);
+        Swal.fire('Gagal menyimpan', err?.message || 'Perubahan gagal disinkronkan.', 'error');
+    }
+
+    function queuedNotice(onlineText, offlineText) {
+        if (navigator.onLine) return Swal.fire({ title: 'Tersimpan', text: onlineText, icon: 'success', timer: 1100, showConfirmButton: false });
+        return Swal.fire({ title: 'Disimpan offline', text: offlineText, icon: 'info', timer: 1700, showConfirmButton: false });
+    }
+
+    window.saveTransaction = () => {
         const d = document.getElementById('t-date').value;
         const w = document.getElementById('t-wallet').value;
         const c = document.getElementById('t-cat').value;
-        const a = parseInt(document.getElementById('t-amount').value);
-        if(!a || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
-        try {
-            await updateDoc(doc(db, "config", "wallets"), { [w]: increment(-a) });
-            await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
-            document.getElementById('t-amount-display').value = "";
-            document.getElementById('t-amount').value = "";
-            nav('home');
-        } catch (e) { console.error(e); }
+        const a = parseInt(document.getElementById('t-amount').value, 10);
+        if(!a || a <= 0 || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
+
+        // Atomic batch: saldo dan transaksi selalu menjadi satu paket write.
+        const batch = db.batch();
+        const walletRef = db.collection('config').doc('wallets');
+        const expenseRef = db.collection('pengeluaran').doc();
+        batch.set(walletRef, { [w]: FieldValue.increment(-a) }, { merge: true });
+        batch.set(expenseRef, { tanggal: d, dompet: w, kategori: c, nominal: a });
+
+        const write = batch.commit();
+        write.catch(showWriteError);
+
+        document.getElementById('t-amount-display').value = "";
+        document.getElementById('t-amount').value = "";
+        nav('home');
+        queuedNotice('Transaksi berhasil dicatat.', 'Transaksi masuk antrean dan akan sinkron otomatis saat online.');
     };
 
-    window.updateWallets = async () => {
-        const data = { Tunai: parseInt(document.getElementById('set-cash').value) || 0, Bank: parseInt(document.getElementById('set-bank').value) || 0, "E-Wallet": parseInt(document.getElementById('set-e').value) || 0 };
-        await setDoc(doc(db, "config", "wallets"), data);
-        Swal.fire('Sukses', 'Saldo diperbarui', 'success');
+    window.updateWallets = () => {
+        const data = {
+            Tunai: parseInt(document.getElementById('set-cash').value, 10) || 0,
+            Bank: parseInt(document.getElementById('set-bank').value, 10) || 0,
+            "E-Wallet": parseInt(document.getElementById('set-e').value, 10) || 0
+        };
+        db.collection('config').doc('wallets').set(data).catch(showWriteError);
+        queuedNotice('Saldo diperbarui.', 'Saldo disimpan lokal dan akan sinkron saat online.');
     };
 
-    window.setLimit = async () => {
+    window.setLimit = () => {
         const cat = document.getElementById('l-cat').value;
-        const val = parseInt(document.getElementById('l-amount').value) || 0;
-        await setDoc(doc(db, "config", "limits"), { [cat]: val }, { merge: true });
-        Swal.fire('Limit Set', `Batas ${cat} disimpan.`, 'success');
+        const val = parseInt(document.getElementById('l-amount').value, 10) || 0;
+        db.collection('config').doc('limits').set({ [cat]: val }, { merge: true }).catch(showWriteError);
+        queuedNotice(`Batas ${cat} disimpan.`, `Batas ${cat} akan sinkron saat online.`);
     };
 
-    window.setGoal = async () => {
-        const amount = parseInt(document.getElementById('goal-input').value) || 0;
-        await setDoc(doc(db, "config", "goal"), { amount });
-        Swal.fire('Target!', 'Target tabungan disimpan', 'success');
+    window.setGoal = () => {
+        const amount = parseInt(document.getElementById('goal-input').value, 10) || 0;
+        db.collection('config').doc('goal').set({ amount }).catch(showWriteError);
+        queuedNotice('Target tabungan disimpan.', 'Target tabungan akan sinkron saat online.');
     };
 
     window.removeTrans = async (id, wallet, nominal) => {
         const confirm = await Swal.fire({ title: 'Hapus?', text: "Saldo akan dikembalikan", icon: 'warning', showCancelButton: true });
-        if(confirm.isConfirmed) {
-            await updateDoc(doc(db, "config", "wallets"), { [wallet]: increment(nominal) });
-            await deleteDoc(doc(db, "pengeluaran", id));
-        }
+        if(!confirm.isConfirmed) return;
+
+        const batch = db.batch();
+        const walletRef = db.collection('config').doc('wallets');
+        const expenseRef = db.collection('pengeluaran').doc(id);
+        batch.set(walletRef, { [wallet]: FieldValue.increment(nominal) }, { merge: true });
+        batch.delete(expenseRef);
+        batch.commit().catch(showWriteError);
+        queuedNotice('Transaksi dihapus dan saldo dikembalikan.', 'Penghapusan masuk antrean dan akan sinkron saat online.');
     };
 
     window.renderAll = () => {
@@ -369,10 +405,10 @@
                 if (list) list.innerHTML += `
                 <div class="t-item">
                     <div class="t-info">
-                        <span class="t-cat-name">${t.kategori}</span>
-                        <div class="t-sub-info"><span>${t.tanggal}</span><span>•</span><span>${t.dompet}</span></div>
+                        <span class="t-cat-name">${escapeHtml(t.kategori)}</span>
+                        <div class="t-sub-info"><span>${escapeHtml(t.tanggal)}</span><span>•</span><span>${escapeHtml(t.dompet)}</span></div>
                     </div>
-                    <div class="t-amt">- ${fmt(t.nominal)} <i data-lucide="trash-2" onclick="removeTrans('${t.id}', '${t.dompet}', ${t.nominal})" style="width:14px; opacity:0.3; cursor:pointer"></i></div>
+                    <div class="t-amt">- ${fmt(t.nominal)} <i data-lucide="trash-2" onclick="removeTrans('${t.id}', '${escapeJs(t.dompet)}', ${Number(t.nominal) || 0})" style="width:14px; opacity:0.3; cursor:pointer"></i></div>
                 </div>`;
             }
         });
@@ -395,8 +431,8 @@
         let alerts = [];
         for (const [c, v] of Object.entries(cats)) {
             const lim = store.limits[c];
-            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${c}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
-            else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${c}: ${fmt(v)}</b> (Hampir Limit)</div>`);
+            if(lim && v > lim) alerts.push(`<div style="margin-bottom:8px">⚠️ <b style="color:var(--danger)">${escapeHtml(c)}: ${fmt(v)}</b> (Lebih ${fmt(v-lim)})</div>`);
+            else if(lim && v >= lim * 0.8) alerts.push(`<div style="margin-bottom:8px">📢 <b>${escapeHtml(c)}: ${fmt(v)}</b> (Hampir Limit)</div>`);
         }
 
         document.getElementById('advisorContent').innerHTML = `
@@ -410,6 +446,13 @@
         hideSplash();
     };
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]));
+    }
+    function escapeJs(value) {
+        return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+    }
+
     function updateChart(data) {
         const ctx = document.getElementById('pieChart').getContext('2d');
         if(pieChart) pieChart.destroy();
@@ -420,7 +463,7 @@
         });
     }
 
-    // --- CALCULATOR PRO LOGIC ---
+    // --- CALCULATOR PRO LOGIC (tanpa eval) ---
     let calcExpr = "";
     window.toggleCalc = () => {
         const c = document.getElementById('calc-container');
@@ -429,9 +472,46 @@
     window.calcPush = (v) => { calcExpr += v; document.getElementById('calcDisplay').innerText = calcExpr; };
     window.calcClear = () => { calcExpr = ""; document.getElementById('calcDisplay').innerText = "0"; };
     window.calcPop = () => { calcExpr = calcExpr.slice(0,-1); document.getElementById('calcDisplay').innerText = calcExpr || "0"; };
+
+    function calculateExpression(expression) {
+        const tokens = expression.match(/\d*\.?\d+|[+\-*/]/g);
+        if (!tokens || tokens.join('') !== expression) throw new Error('Invalid expression');
+        const values = [];
+        const ops = [];
+        const prec = { '+':1, '-':1, '*':2, '/':2 };
+        const apply = () => {
+            const b = values.pop(), a = values.pop(), op = ops.pop();
+            if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error('Invalid operands');
+            if (op === '+') values.push(a + b);
+            else if (op === '-') values.push(a - b);
+            else if (op === '*') values.push(a * b);
+            else if (op === '/') {
+                if (b === 0) throw new Error('Division by zero');
+                values.push(a / b);
+            }
+        };
+        let expectNumber = true;
+        for (const token of tokens) {
+            if (/^\d/.test(token) || token.startsWith('.')) {
+                if (!expectNumber) throw new Error('Missing operator');
+                values.push(Number(token));
+                expectNumber = false;
+            } else {
+                if (expectNumber) throw new Error('Missing number');
+                while (ops.length && prec[ops[ops.length - 1]] >= prec[token]) apply();
+                ops.push(token);
+                expectNumber = true;
+            }
+        }
+        if (expectNumber) throw new Error('Trailing operator');
+        while (ops.length) apply();
+        if (values.length !== 1 || !Number.isFinite(values[0])) throw new Error('Invalid result');
+        return values[0];
+    }
+
     window.calcEqual = () => {
         try {
-            let res = eval(calcExpr);
+            const res = calculateExpression(calcExpr);
             document.getElementById('calcDisplay').innerText = res;
             calcExpr = res.toString();
             const inpDisplay = document.getElementById('t-amount-display');
@@ -460,8 +540,8 @@
             calc.style.right = 'auto'; calc.style.bottom = 'auto';
         }
         if (isResizing) {
-            calc.style.width = (startW + (clientX - startX)) + 'px';
-            calc.style.height = (startH + (clientY - startY)) + 'px';
+            calc.style.width = Math.max(200, startW + (clientX - startX)) + 'px';
+            calc.style.height = Math.max(350, startH + (clientY - startY)) + 'px';
         }
     };
     const onEnd = () => { isDragging = isResizing = false; };
@@ -488,20 +568,47 @@
         XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value}.xlsx`);
     };
 
-    onSnapshot(doc(db, "config", "wallets"), (s) => { if(s.exists()) store.wallets = s.data(); renderAll(); });
-    onSnapshot(doc(db, "config", "goal"), (s) => { if(s.exists()) store.goal = s.data().amount; renderAll(); });
-    onSnapshot(doc(db, "config", "limits"), (s) => { if(s.exists()) store.limits = s.data(); renderAll(); });
-    onSnapshot(query(collection(db, "pengeluaran"), orderBy("tanggal", "desc")), (s) => { 
-        store.trans = s.docs.map(d => ({id:d.id, ...d.data()})); 
-        renderAll(); 
-    });
+    // Realtime listeners; metadata changes membuat UI ikut merefleksikan cache lokal/pending writes.
+    db.collection('config').doc('wallets').onSnapshot({ includeMetadataChanges: true }, (s) => {
+        if(s.exists) store.wallets = s.data();
+        renderAll();
+    }, console.error);
+    db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
+        if(s.exists) store.goal = s.data().amount;
+        renderAll();
+    }, console.error);
+    db.collection('config').doc('limits').onSnapshot({ includeMetadataChanges: true }, (s) => {
+        if(s.exists) store.limits = s.data();
+        renderAll();
+    }, console.error);
+    db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+        store.trans = s.docs.map(d => ({id:d.id, ...d.data()}));
+        renderAll();
+    }, console.error);
+
+    function updateNetworkStatus() {
+        const badge = document.getElementById('statusBadge');
+        const online = navigator.onLine;
+        badge.textContent = online ? 'Online' : 'Offline';
+        badge.classList.toggle('status-online', online);
+        badge.classList.toggle('status-offline', !online);
+    }
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
 
     window.addEventListener('load', () => {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
+        if(localStorage.getItem('agis_theme') === 'light') document.body.classList.add('light-mode');
+        updateNetworkStatus();
         lucide.createIcons();
+
+        // PWA registration sebelumnya belum ada di v19.8.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js').catch(err => console.error('Service Worker:', err));
+        }
     });
 </script>
 </body>

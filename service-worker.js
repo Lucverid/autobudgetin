@@ -1,60 +1,63 @@
-const CACHE_NAME = 'agis-finance-v19-2';
+const CACHE_NAME = 'agis-finance-v20-0';
 
-// Hanya pre-cache aset internal yang pasti ada di repo kamu
-const PRE_CACHE = [
+const APP_SHELL = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './chart.min.js',
+  './sweetalert2.all.min.js',
+  './lucide.min.js',
+  './xlsx.full.min.js',
+  './firebase-app.js',
+  './firebase-firestore.js',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-// 1. Install Stage: Pre-cache aset lokal saja
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRE_CACHE))
-  );
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
-// 2. Activate Stage: Bersihkan cache lama
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.map(key => {
-        if (key !== CACHE_NAME) return caches.delete(key);
-      })
-    ))
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
 });
 
-// 3. Fetch Stage: Runtime Caching Strategy (Cache First, then Network & Store)
-self.addEventListener('fetch', e => {
-  // Hanya intercept request GET
-  if (e.request.method !== 'GET') return;
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
 
-  e.respondWith(
-    caches.match(e.request).then(cachedRes => {
-      // Jika ada di cache, langsung berikan
-      if (cachedRes) return cachedRes;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
-      // Jika tidak ada, ambil dari network
-      return fetch(e.request).then(networkRes => {
-        // Validasi respon: jangan cache kalau error atau respon aneh
-        if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic' && !e.request.url.includes('cdn')) {
-          return networkRes;
+  // Navigasi: coba versi terbaru dari network, fallback ke app shell saat offline.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // Asset lokal: cache-first, lalu isi cache jika ada asset baru.
+  event.respondWith(
+    caches.match(request).then(cached => {
+      if (cached) return cached;
+      return fetch(request).then(response => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
         }
-
-        // Simpan hasil fetch ke cache secara otomatis (Runtime Caching)
-        const responseToCache = networkRes.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(e.request, responseToCache);
-        });
-
-        return networkRes;
-      }).catch(() => {
-        // Fallback jika offline total dan aset tidak ada di cache
-        if (e.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
+        return response;
       });
     })
   );

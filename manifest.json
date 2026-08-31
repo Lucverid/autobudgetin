@@ -1,13 +1,22 @@
 {
+  "id": "./",
   "name": "Agis Finance AI",
   "short_name": "AgisFinance",
+  "description": "Personal finance tracker dengan dukungan offline dan sinkronisasi Firestore.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#2dd4bf",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2382/2382461.png",
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
