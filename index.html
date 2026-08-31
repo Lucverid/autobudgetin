@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Agis Finance AI - v19.8 PRO</title>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#0f172a">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -91,7 +91,7 @@
         .card { background: var(--glass); backdrop-filter: blur(15px); border-radius: 30px; padding: 22px; margin-bottom: 20px; border: 1px solid var(--border); }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0f172a; padding: 18px; border-radius: 18px; border: none; font-weight: 800; width: 100%; cursor: pointer; }
         
-        /* NEW: Calculator UI Pro */
+        /* Calculator UI Pro */
         .calc-toggle { position: fixed; bottom: 110px; right: 20px; width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: none; box-shadow: 0 8px 15px rgba(0,0,0,0.3); }
         
         #calc-container { 
@@ -296,7 +296,7 @@
         const splash = document.getElementById('splash-screen');
         if (splash) { splash.style.opacity = '0'; setTimeout(() => splash.style.display = 'none', 500); }
     };
-    setTimeout(hideSplash, 4000);
+    setTimeout(hideSplash, 3000);
 
     window.nav = (id, el) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -435,10 +435,9 @@
             document.getElementById('calcDisplay').innerText = res;
             calcExpr = res.toString();
             const inpDisplay = document.getElementById('t-amount-display');
-            const hiddenInp = document.getElementById('t-amount');
-            if(inpDisplay && hiddenInp) {
-                inpDisplay.value = new Intl.NumberFormat('id-ID').format(Math.round(res));
-                hiddenInp.value = Math.round(res);
+            if(inpDisplay) {
+                inpDisplay.value = Math.round(res);
+                window.formatInput(inpDisplay);
             }
         } catch { document.getElementById('calcDisplay').innerText = "Err"; }
     };
@@ -502,6 +501,13 @@
         document.getElementById('filterMonth').value = today.slice(0, 7);
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         lucide.createIcons();
+
+        // Registrasi Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker Active!', reg))
+                .catch(err => console.error('Service Worker Error!', err));
+        }
     });
 </script>
 </body>
