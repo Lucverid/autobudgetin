@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v22.0</title>
+    <title>Agis Finance AI - v23.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -109,6 +109,34 @@
         .edit-modal-grid label { display:block; margin:8px 0 5px; font-size:.72rem; font-weight:800; color:#64748b; }
         .edit-modal-grid input, .edit-modal-grid select { margin-bottom:5px; }
 
+        /* v23: goals, recurring, security & backup */
+        .section-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; }
+        .section-title { font-size:1rem; font-weight:800; display:flex; align-items:center; gap:8px; }
+        .btn-small { border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:12px; padding:9px 12px; font-size:.7rem; font-weight:900; cursor:pointer; }
+        .goal-list, .recurring-list { display:flex; flex-direction:column; gap:10px; }
+        .goal-card, .recurring-card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:14px; }
+        .goal-top, .recurring-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .goal-name, .recurring-name { font-weight:900; font-size:.86rem; }
+        .mini-muted { color:var(--text-dim); font-size:.68rem; line-height:1.45; }
+        .progress-track { height:8px; border-radius:999px; background:rgba(148,163,184,.18); overflow:hidden; margin:10px 0 7px; }
+        .progress-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--primary),var(--accent)); }
+        .mini-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+        .mini-action { border:1px solid var(--border); background:transparent; color:var(--text-dim); border-radius:10px; padding:7px 9px; font-size:.65rem; font-weight:850; cursor:pointer; }
+        .mini-action.danger { color:var(--danger); }
+        .mini-action.primary { color:var(--primary); }
+        .empty-box { padding:18px 8px; text-align:center; color:var(--text-dim); font-size:.75rem; border:1px dashed var(--border); border-radius:16px; }
+        .backup-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+        .security-state { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0 16px; color:var(--text-dim); font-size:.76rem; }
+        .security-dot { width:9px; height:9px; border-radius:50%; background:var(--danger); display:inline-block; margin-right:6px; }
+        .security-dot.on { background:var(--success); }
+        #pin-lock-screen { position:fixed; inset:0; z-index:20000; background:rgba(15,23,42,.97); display:none; align-items:center; justify-content:center; padding:24px; }
+        #pin-lock-screen.active { display:flex; }
+        .pin-panel { width:min(360px,100%); text-align:center; background:#1e293b; border:1px solid rgba(255,255,255,.1); border-radius:30px; padding:28px 22px; color:#f8fafc; box-shadow:0 30px 80px rgba(0,0,0,.45); }
+        .pin-logo { width:58px; height:58px; margin:0 auto 16px; border-radius:20px; display:flex; align-items:center; justify-content:center; background:#2dd4bf; color:#0f172a; }
+        .pin-input { text-align:center; letter-spacing:10px; font-size:1.25rem; background:#0f172a !important; color:#f8fafc !important; margin:18px 0 10px !important; }
+        .pin-error { min-height:18px; font-size:.7rem; color:#ef4444; margin-bottom:8px; }
+        .swal2-html-container .modal-field { width:100%; padding:12px; border-radius:12px; border:1px solid #cbd5e1; margin:5px 0 9px; }
+
         /* Navigation */
         .nav-bar { position: fixed; bottom: 20px; left: 20px; right: 20px; height: 75px; background: var(--surface); border-radius: 28px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); z-index: 1000; border: 1px solid var(--border); max-width: 460px; margin: 0 auto; }
         .nav-item { color: var(--text-dim); cursor: pointer; transition: 0.3s; padding: 10px; }
@@ -146,10 +174,21 @@
 </head>
 <body>
 
+<div id="pin-lock-screen" aria-hidden="true">
+    <div class="pin-panel">
+        <div class="pin-logo"><i data-lucide="lock-keyhole"></i></div>
+        <h2 style="font-size:1.15rem; margin-bottom:6px">Agis Finance Terkunci</h2>
+        <div style="font-size:.75rem; color:#94a3b8">Masukkan PIN untuk membuka data keuangan.</div>
+        <input id="pin-unlock-input" class="pin-input" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••">
+        <div id="pin-error" class="pin-error"></div>
+        <button class="btn-primary" onclick="unlockApp()">Buka Aplikasi</button>
+    </div>
+</div>
+
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 22.0 CASHFLOW</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 23.0 VAULT</p>
 </div>
 
 <div class="container">
@@ -159,7 +198,10 @@
                 <span id="statusBadge" class="status-badge status-online" onclick="flushOutbox()" title="Ketuk untuk coba sinkronisasi" style="cursor:pointer">Online</span>
                 <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn"><i data-lucide="eye"></i></button>
             </div>
-            <button onclick="toggleTheme()" class="btn-icon"><i data-lucide="sun-moon"></i></button>
+            <div style="display:flex;gap:8px">
+                <button onclick="lockApp()" class="btn-icon" id="pinLockBtn" style="display:none" title="Kunci aplikasi"><i data-lucide="lock-keyhole"></i></button>
+                <button onclick="toggleTheme()" class="btn-icon"><i data-lucide="sun-moon"></i></button>
+            </div>
         </div>
 
         <div class="master-balance">
@@ -279,15 +321,51 @@
             <input type="text" id="set-e" placeholder="Saldo E-Wallet" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
             <button class="btn-primary" onclick="updateWallets()">Simpan Saldo</button>
         </div>
+
         <div class="card">
-            <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Tabungan & Limit</h2>
-            <input type="text" id="goal-input" placeholder="Target Tabungan" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
-            <button class="btn-primary" style="background:var(--warning); color:#000" onclick="setGoal()">Update Target</button>
-            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:20px">
-                <select id="l-cat"><option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option></select>
-                <input type="text" id="l-amount" placeholder="Limit Bulanan" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
-                <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
+            <div class="section-head">
+                <div class="section-title"><i data-lucide="target"></i> Target Tabungan</div>
+                <button class="btn-small" onclick="openGoalModal()">+ Target</button>
             </div>
+            <div id="goalsList" class="goal-list"></div>
+            <div class="mini-muted" style="margin-top:12px">Nominal “disisihkan” dianggap dana yang tidak boleh dibelanjakan dan dikurangi dari Saldo Tersedia.</div>
+        </div>
+
+        <div class="card">
+            <div class="section-title" style="margin-bottom:14px"><i data-lucide="gauge"></i> Limit Bulanan</div>
+            <select id="l-cat"><option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option></select>
+            <input type="text" id="l-amount" placeholder="Limit Bulanan" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
+            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
+        </div>
+
+        <div class="card">
+            <div class="section-head">
+                <div class="section-title"><i data-lucide="repeat-2"></i> Transaksi Rutin</div>
+                <button class="btn-small" onclick="openRecurringModal()">+ Rutin</button>
+            </div>
+            <div id="recurringList" class="recurring-list"></div>
+            <div class="mini-muted" style="margin-top:12px">Saat tanggal jatuh tempo tercapai, transaksi dibuat otomatis. Tetap bekerja offline dan masuk antrean sync.</div>
+        </div>
+
+        <div class="card">
+            <div class="section-title"><i data-lucide="shield-check"></i> Keamanan PIN</div>
+            <div class="security-state">
+                <span><span id="securityDot" class="security-dot"></span><span id="pinStatusText">PIN belum aktif</span></span>
+                <span class="mini-muted">4–6 digit</span>
+            </div>
+            <button class="btn-primary" id="pinPrimaryBtn" onclick="configurePin()">Aktifkan PIN</button>
+            <button class="btn-small" id="pinDisableBtn" onclick="disablePin()" style="display:none; width:100%; margin-top:9px; color:var(--danger)">Nonaktifkan PIN</button>
+            <div class="mini-muted" style="margin-top:12px">PIN hanya mengunci tampilan aplikasi di perangkat ini. PIN tidak dikirim ke Firestore dan bukan enkripsi database.</div>
+        </div>
+
+        <div class="card">
+            <div class="section-title" style="margin-bottom:14px"><i data-lucide="archive"></i> Backup & Restore</div>
+            <div class="backup-grid">
+                <button class="btn-primary" onclick="exportBackup()">Backup JSON</button>
+                <button class="btn-primary" style="background:var(--accent);color:white" onclick="document.getElementById('restoreFile').click()">Restore</button>
+            </div>
+            <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restoreBackupFile(event)">
+            <div class="mini-muted" style="margin-top:12px">Backup memuat wallet, transaksi, limit, target tabungan, dan transaksi rutin. PIN sengaja tidak ikut diekspor.</div>
         </div>
     </div>
 </div>
@@ -333,13 +411,15 @@
     const db = firebase.firestore();
     const FieldValue = firebase.firestore.FieldValue;
 
-    let store = { trans: [], incomes: [], transfers: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
+    let store = { trans: [], incomes: [], transfers: [], goals: [], recurring: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
     let syncInProgress = false;
     let lastSyncError = '';
-    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v22';
-    const LEGACY_SNAPSHOT_KEYS = ['agis_finance_snapshot_v21', 'agis_finance_snapshot_v20_1'];
+    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v23';
+    const LEGACY_SNAPSHOT_KEYS = ['agis_finance_snapshot_v22', 'agis_finance_snapshot_v21', 'agis_finance_snapshot_v20_1'];
     const OUTBOX_KEY = 'agis_finance_outbox_v21';
+    const PIN_KEY = 'agis_finance_pin_v23';
+    const LEGACY_GOAL_MIGRATION_KEY = 'agis_finance_goal_migrated_v23';
     const moneyFormatter = new Intl.NumberFormat('id-ID');
     const fmt = (n) => "Rp " + moneyFormatter.format(Number(n) || 0);
 
@@ -362,6 +442,8 @@
                 trans: Array.isArray(store.trans) ? store.trans.slice(0, 1500) : [],
                 incomes: Array.isArray(store.incomes) ? store.incomes.slice(0, 1500) : [],
                 transfers: Array.isArray(store.transfers) ? store.transfers.slice(0, 1500) : [],
+                goals: Array.isArray(store.goals) ? store.goals.slice(0, 300) : [],
+                recurring: Array.isArray(store.recurring) ? store.recurring.slice(0, 300) : [],
                 savedAt: Date.now()
             }));
         } catch (err) {
@@ -386,6 +468,9 @@
             store.trans = Array.isArray(cached.trans) ? cached.trans : [];
             store.incomes = Array.isArray(cached.incomes) ? cached.incomes : [];
             store.transfers = Array.isArray(cached.transfers) ? cached.transfers : [];
+            store.goals = Array.isArray(cached.goals) ? cached.goals : [];
+            store.recurring = Array.isArray(cached.recurring) ? cached.recurring : [];
+            if (store.goals.length) recomputeReservedGoal(false);
             persistLocalSnapshot();
             return true;
         } catch (err) {
@@ -424,7 +509,9 @@
         const config = {
             expense: { add:'addExpense', edit:'editExpense', del:'deleteExpense', id:'expenseId' },
             income: { add:'addIncome', edit:'editIncome', del:'deleteIncome', id:'incomeId' },
-            transfer: { add:'addTransfer', edit:'editTransfer', del:'deleteTransfer', id:'transferId' }
+            transfer: { add:'addTransfer', edit:'editTransfer', del:'deleteTransfer', id:'transferId' },
+            goalItem: { add:'addSavingsGoal', edit:'editSavingsGoal', del:'deleteSavingsGoal', id:'goalItemId' },
+            recurring: { add:'addRecurring', edit:'editRecurring', del:'deleteRecurring', id:'recurringId' }
         }[kind];
         const byId = new Map((cloudItems || []).map(item => [item.id, item]));
         queue.forEach(op => {
@@ -435,8 +522,11 @@
             else if (op.type === config.add || op.type === config.edit) byId.set(id, { id, ...op.data, pendingSync: true });
         });
         return [...byId.values()].sort((a, b) => {
-            const dateCmp = String(b.tanggal || '').localeCompare(String(a.tanggal || ''));
-            return dateCmp || (Number(b.createdAt || 0) - Number(a.createdAt || 0));
+            if (['expense','income','transfer'].includes(kind)) {
+                const dateCmp = String(b.tanggal || '').localeCompare(String(a.tanggal || ''));
+                return dateCmp || (Number(b.createdAt || 0) - Number(a.createdAt || 0));
+            }
+            return Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0);
         });
     }
 
@@ -480,13 +570,15 @@
     async function refreshFromServer() {
         if (!navigator.onLine || readOutbox().length) return;
         try {
-            const [walletSnap, goalSnap, limitsSnap, expenseSnap, incomeSnap, transferSnap] = await Promise.all([
+            const [walletSnap, goalSnap, limitsSnap, expenseSnap, incomeSnap, transferSnap, goalsSnap, recurringSnap] = await Promise.all([
                 db.collection('config').doc('wallets').get({ source: 'server' }),
                 db.collection('config').doc('goal').get({ source: 'server' }),
                 db.collection('config').doc('limits').get({ source: 'server' }),
                 db.collection('pengeluaran').orderBy('tanggal', 'desc').get({ source: 'server' }),
                 db.collection('pemasukan').orderBy('tanggal', 'desc').get({ source: 'server' }),
-                db.collection('transfer').orderBy('tanggal', 'desc').get({ source: 'server' })
+                db.collection('transfer').orderBy('tanggal', 'desc').get({ source: 'server' }),
+                db.collection('goals').get({ source: 'server' }),
+                db.collection('recurring').get({ source: 'server' })
             ]);
             if (walletSnap.exists) store.wallets = normalizeWallets(walletSnap.data());
             if (goalSnap.exists) store.goal = Number(goalSnap.data().amount) || 0;
@@ -494,6 +586,9 @@
             store.trans = expenseSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             store.incomes = incomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             store.transfers = transferSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.goals = goalsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.recurring = recurringSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            if (store.goals.length) recomputeReservedGoal(false);
             persistLocalSnapshot();
             renderAll();
         } catch (err) {
@@ -527,6 +622,18 @@
                     deleteTransfer: ['transfer', 'transferId', 'transfer', 'delete']
                 };
 
+                const simpleCollectionOps = {
+                    addSavingsGoal: ['goals', 'goalItemId', 'set'],
+                    editSavingsGoal: ['goals', 'goalItemId', 'set'],
+                    deleteSavingsGoal: ['goals', 'goalItemId', 'delete'],
+                    addRecurring: ['recurring', 'recurringId', 'set'],
+                    editRecurring: ['recurring', 'recurringId', 'set'],
+                    deleteRecurring: ['recurring', 'recurringId', 'delete'],
+                    restoreExpense: ['pengeluaran', 'expenseId', 'set'],
+                    restoreIncome: ['pemasukan', 'incomeId', 'set'],
+                    restoreTransfer: ['transfer', 'transferId', 'set']
+                };
+
                 if (collectionOps[op.type]) {
                     const [collectionName, idField, transactionType, action] = collectionOps[op.type];
                     const itemRef = db.collection(collectionName).doc(op[idField]);
@@ -557,6 +664,11 @@
                             transaction.set(itemRef, op.data);
                         }
                     });
+                } else if (simpleCollectionOps[op.type]) {
+                    const [collectionName, idField, action] = simpleCollectionOps[op.type];
+                    const ref = db.collection(collectionName).doc(op[idField]);
+                    if (action === 'delete') await ref.delete();
+                    else await ref.set(op.data || {});
                 } else if (op.type === 'setWallets') {
                     await walletRef.set(normalizeWallets(op.data));
                 } else if (op.type === 'setGoal') {
@@ -771,6 +883,236 @@
         queuedNotice('Target tabungan disimpan.', 'Target tabungan tersimpan di perangkat dan akan sinkron saat online.');
         flushOutbox();
     };
+
+
+    function recomputeReservedGoal(syncCloud = true) {
+        store.goal = (store.goals || []).reduce((sum, g) => sum + Math.max(0, Number(g.saved) || 0), 0);
+        persistLocalSnapshot();
+        if (syncCloud) enqueueSync({ opId:`goal-total:${Date.now()}`, type:'setGoal', amount:store.goal, createdAt:Date.now() });
+        return store.goal;
+    }
+
+    function migrateLegacyGoal() {
+        if ((store.goals || []).length || !(Number(store.goal) > 0)) return;
+        const data = {
+            name: 'Tabungan Utama', target: Number(store.goal), saved: Number(store.goal), deadline: '',
+            createdAt: Date.now(), updatedAt: Date.now(), migrated: true
+        };
+        const id = 'legacy-main-goal';
+        store.goals = [{ id, ...data, pendingSync:true }];
+        localStorage.setItem(LEGACY_GOAL_MIGRATION_KEY, 'true');
+        persistLocalSnapshot();
+        enqueueSync({ opId:`goal-item-migrate:${id}`, type:'addSavingsGoal', goalItemId:id, data, createdAt:Date.now() });
+    }
+
+    function goalById(id) { return (store.goals || []).find(g => g.id === id); }
+
+    window.openGoalModal = async (id = '') => {
+        const current = id ? goalById(id) : null;
+        const result = await Swal.fire({
+            title: current ? 'Edit Target Tabungan' : 'Target Tabungan Baru',
+            html: `<div style="text-align:left">
+                <label class="mini-muted">Nama target</label><input id="sg-name" class="modal-field" maxlength="40" value="${escapeHtml(current?.name || '')}" placeholder="Contoh: Laptop">
+                <label class="mini-muted">Target</label><input id="sg-target" class="modal-field" inputmode="numeric" value="${current ? moneyFormatter.format(Number(current.target)||0) : ''}" oninput="formatMoneyField(this)" placeholder="5.000.000">
+                <label class="mini-muted">Sudah disisihkan</label><input id="sg-saved" class="modal-field" inputmode="numeric" value="${current ? moneyFormatter.format(Number(current.saved)||0) : '0'}" oninput="formatMoneyField(this)" placeholder="0">
+                <label class="mini-muted">Deadline (opsional)</label><input id="sg-deadline" class="modal-field" type="date" value="${escapeHtml(current?.deadline || '')}">
+            </div>`,
+            showCancelButton:true, confirmButtonText:'Simpan', cancelButtonText:'Batal', focusConfirm:false,
+            preConfirm: () => {
+                const name = document.getElementById('sg-name').value.trim();
+                const target = Number(digitsOnly(document.getElementById('sg-target').value));
+                const saved = Number(digitsOnly(document.getElementById('sg-saved').value));
+                const deadline = document.getElementById('sg-deadline').value;
+                if (!name || !target || target <= 0) return Swal.showValidationMessage('Nama dan target wajib diisi.');
+                if (saved < 0) return Swal.showValidationMessage('Nominal disisihkan tidak valid.');
+                return { name, target, saved, deadline };
+            }
+        });
+        if (!result.isConfirmed) return;
+        const now = Date.now();
+        const goalId = id || db.collection('goals').doc().id;
+        const data = { ...result.value, createdAt: current?.createdAt || now, updatedAt: now };
+        store.goals = [{ id:goalId, ...data, pendingSync:true }, ...(store.goals || []).filter(g => g.id !== goalId)];
+        enqueueSync({ opId:`${id ? 'edit' : 'add'}-goal-item:${goalId}:${now}`, type:id?'editSavingsGoal':'addSavingsGoal', goalItemId:goalId, data, createdAt:now });
+        recomputeReservedGoal(true);
+        renderAll(); flushOutbox();
+        queuedNotice('Target tabungan disimpan.', 'Target tersimpan offline dan akan sinkron saat online.');
+    };
+
+    window.addGoalFunds = async (id) => {
+        const current = goalById(id); if (!current) return;
+        const r = await Swal.fire({ title:`Sisihkan ke ${escapeHtml(current.name)}`, input:'text', inputLabel:'Nominal', inputPlaceholder:'100.000', showCancelButton:true, confirmButtonText:'Sisihkan',
+            didOpen:() => { const input = Swal.getInput(); if(input){ input.setAttribute('inputmode','numeric'); input.oninput=()=>formatMoneyField(input); } },
+            inputValidator:v => Number(digitsOnly(v)) > 0 ? undefined : 'Masukkan nominal yang valid.' });
+        if (!r.isConfirmed) return;
+        const add = Number(digitsOnly(r.value));
+        const now = Date.now();
+        const data = { ...current, saved: Math.min(Number(current.target)||0, (Number(current.saved)||0) + add), updatedAt:now };
+        delete data.id; delete data.pendingSync;
+        store.goals = store.goals.map(g => g.id === id ? {id, ...data, pendingSync:true} : g);
+        enqueueSync({ opId:`fund-goal:${id}:${now}`, type:'editSavingsGoal', goalItemId:id, data, createdAt:now });
+        recomputeReservedGoal(true); renderAll(); flushOutbox();
+    };
+
+    window.deleteGoal = async (id) => {
+        const current = goalById(id); if (!current) return;
+        const r = await Swal.fire({title:'Hapus target?', text:`${current.name} akan dihapus dan dana yang disisihkan kembali dianggap tersedia.`, icon:'warning', showCancelButton:true, confirmButtonText:'Hapus', cancelButtonText:'Batal'});
+        if (!r.isConfirmed) return;
+        store.goals = store.goals.filter(g => g.id !== id);
+        const now=Date.now();
+        enqueueSync({opId:`delete-goal-item:${id}:${now}`, type:'deleteSavingsGoal', goalItemId:id, data:current, createdAt:now});
+        recomputeReservedGoal(true); renderAll(); flushOutbox();
+    };
+
+    function renderGoals() {
+        const el = document.getElementById('goalsList'); if (!el) return;
+        const goals = [...(store.goals || [])].sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
+        if (!goals.length) { el.innerHTML='<div class="empty-box">Belum ada target tabungan. Buat target pertama lu.</div>'; return; }
+        el.innerHTML = goals.map(g => {
+            const target=Math.max(1,Number(g.target)||0), saved=Math.max(0,Number(g.saved)||0), pct=Math.min(100,(saved/target)*100);
+            const deadline=g.deadline ? new Date(`${g.deadline}T00:00:00`).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : 'Tanpa deadline';
+            const pending=g.pendingSync?'<span style="color:var(--warning)"> • Menunggu sync</span>':'';
+            return `<div class="goal-card"><div class="goal-top"><div><div class="goal-name">${escapeHtml(g.name)}</div><div class="mini-muted">${fmt(saved)} / ${fmt(target)}${pending}</div></div><div style="font-weight:900;color:var(--primary);font-size:.8rem">${pct.toFixed(0)}%</div></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><div class="mini-muted">🎯 ${deadline} · Kurang ${fmt(Math.max(0,target-saved))}</div><div class="mini-actions"><button class="mini-action primary" onclick="addGoalFunds('${escapeJs(g.id)}')">+ Sisihkan</button><button class="mini-action" onclick="openGoalModal('${escapeJs(g.id)}')">Edit</button><button class="mini-action danger" onclick="deleteGoal('${escapeJs(g.id)}')">Hapus</button></div></div>`;
+        }).join('');
+    }
+
+    function recurringById(id){ return (store.recurring||[]).find(r=>r.id===id); }
+    function recurringCategoryOptions(type, selected='') {
+        const arr = type==='income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+        return arr.map(v=>`<option value="${escapeHtml(v)}"${v===selected?' selected':''}>${escapeHtml(v)}</option>`).join('');
+    }
+    window.updateRecurringModalCategories = () => {
+        const type=document.getElementById('rr-type')?.value || 'expense'; const cat=document.getElementById('rr-cat');
+        if(cat) cat.innerHTML=recurringCategoryOptions(type);
+    };
+
+    window.openRecurringModal = async (id='') => {
+        const current=id?recurringById(id):null;
+        const today=localDateKey();
+        const type=current?.type || 'expense';
+        const result=await Swal.fire({
+            title: current?'Edit Transaksi Rutin':'Transaksi Rutin Baru',
+            html:`<div style="text-align:left">
+                <label class="mini-muted">Nama</label><input id="rr-name" class="modal-field" maxlength="40" value="${escapeHtml(current?.name||'')}" placeholder="Contoh: Kuota bulanan">
+                <label class="mini-muted">Jenis</label><select id="rr-type" class="modal-field" onchange="updateRecurringModalCategories()"><option value="expense"${type==='expense'?' selected':''}>Pengeluaran</option><option value="income"${type==='income'?' selected':''}>Pemasukan</option></select>
+                <label class="mini-muted">Wallet</label><select id="rr-wallet" class="modal-field">${walletOptionHtml(current?.dompet||'Tunai')}</select>
+                <label class="mini-muted">Kategori</label><select id="rr-cat" class="modal-field">${recurringCategoryOptions(type,current?.kategori||'')}</select>
+                <label class="mini-muted">Nominal</label><input id="rr-amount" class="modal-field" inputmode="numeric" value="${current?moneyFormatter.format(Number(current.nominal)||0):''}" oninput="formatMoneyField(this)" placeholder="100.000">
+                <label class="mini-muted">Frekuensi</label><select id="rr-frequency" class="modal-field"><option value="monthly"${current?.frequency==='monthly'?' selected':''}>Bulanan</option><option value="weekly"${current?.frequency==='weekly'?' selected':''}>Mingguan</option></select>
+                <label class="mini-muted">Jatuh tempo berikutnya</label><input id="rr-next" class="modal-field" type="date" value="${escapeHtml(current?.nextDate||today)}">
+                <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:.75rem"><input id="rr-active" type="checkbox" style="width:auto;margin:0" ${current?.active===false?'':'checked'}> Aktif</label>
+            </div>`,
+            showCancelButton:true, confirmButtonText:'Simpan', cancelButtonText:'Batal', focusConfirm:false,
+            preConfirm:()=>{
+                const data={name:document.getElementById('rr-name').value.trim(),type:document.getElementById('rr-type').value,dompet:document.getElementById('rr-wallet').value,kategori:document.getElementById('rr-cat').value,nominal:Number(digitsOnly(document.getElementById('rr-amount').value)),frequency:document.getElementById('rr-frequency').value,nextDate:document.getElementById('rr-next').value,active:document.getElementById('rr-active').checked};
+                if(!data.name||!data.nominal||!data.nextDate) return Swal.showValidationMessage('Nama, nominal, dan tanggal wajib diisi.');
+                return data;
+            }
+        });
+        if(!result.isConfirmed)return;
+        const now=Date.now(), rid=id||db.collection('recurring').doc().id;
+        const data={...result.value,anchorDay:result.value.frequency==='monthly'?Number(result.value.nextDate.slice(8,10)):null,createdAt:current?.createdAt||now,updatedAt:now};
+        store.recurring=[{id:rid,...data,pendingSync:true},...(store.recurring||[]).filter(r=>r.id!==rid)];
+        enqueueSync({opId:`${id?'edit':'add'}-recurring:${rid}:${now}`,type:id?'editRecurring':'addRecurring',recurringId:rid,data,createdAt:now});
+        persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox();
+        queuedNotice('Transaksi rutin disimpan.', 'Jadwal rutin tersimpan offline dan akan sync saat online.');
+    };
+
+    window.toggleRecurring = (id) => {
+        const current=recurringById(id); if(!current)return; const now=Date.now();
+        const data={...current,active:current.active===false?true:false,updatedAt:now}; delete data.id; delete data.pendingSync;
+        store.recurring=store.recurring.map(r=>r.id===id?{id,...data,pendingSync:true}:r);
+        enqueueSync({opId:`toggle-recurring:${id}:${now}`,type:'editRecurring',recurringId:id,data,createdAt:now});
+        persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox();
+    };
+
+    window.deleteRecurring = async (id) => {
+        const current=recurringById(id); if(!current)return;
+        const r=await Swal.fire({title:'Hapus transaksi rutin?',text:current.name,icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'}); if(!r.isConfirmed)return;
+        store.recurring=store.recurring.filter(x=>x.id!==id); const now=Date.now();
+        enqueueSync({opId:`delete-recurring:${id}:${now}`,type:'deleteRecurring',recurringId:id,data:current,createdAt:now});
+        persistLocalSnapshot(); renderAll(); flushOutbox();
+    };
+
+    function renderRecurring(){
+        const el=document.getElementById('recurringList'); if(!el)return;
+        const rows=[...(store.recurring||[])].sort((a,b)=>String(a.nextDate||'').localeCompare(String(b.nextDate||'')));
+        if(!rows.length){el.innerHTML='<div class="empty-box">Belum ada transaksi rutin.</div>';return;}
+        el.innerHTML=rows.map(r=>{const next=r.nextDate?new Date(`${r.nextDate}T00:00:00`).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'; const type=r.type==='income'?'Pemasukan':'Pengeluaran'; const pending=r.pendingSync?'<span style="color:var(--warning)"> • Menunggu sync</span>':''; return `<div class="recurring-card" style="opacity:${r.active===false?.6:1}"><div class="recurring-top"><div><div class="recurring-name">${escapeHtml(r.name)}</div><div class="mini-muted">${type} · ${escapeHtml(r.dompet)} · ${escapeHtml(r.kategori)}${pending}</div></div><div style="font-weight:900;color:${r.type==='income'?'var(--success)':'var(--danger)'}">${fmt(r.nominal)}</div></div><div class="mini-muted" style="margin-top:8px">🔁 ${r.frequency==='weekly'?'Mingguan':'Bulanan'} · Berikutnya ${next}</div><div class="mini-actions"><button class="mini-action primary" onclick="toggleRecurring('${escapeJs(r.id)}')">${r.active===false?'Aktifkan':'Jeda'}</button><button class="mini-action" onclick="openRecurringModal('${escapeJs(r.id)}')">Edit</button><button class="mini-action danger" onclick="deleteRecurring('${escapeJs(r.id)}')">Hapus</button></div></div>`}).join('');
+    }
+
+    function advanceRecurringDate(dateKey, frequency, anchorDay=null){
+        const d=dateFromKey(dateKey);
+        if(frequency==='weekly') d.setDate(d.getDate()+7);
+        else { const day=Number(anchorDay)||d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+1); const max=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); d.setDate(Math.min(day,max)); }
+        return localDateKey(d);
+    }
+    let recurringProcessing=false;
+    function processRecurringTransactions(){
+        if(recurringProcessing)return; recurringProcessing=true;
+        try{
+            const today=localDateKey(); let changed=false;
+            (store.recurring||[]).forEach(rule=>{
+                if(rule.active===false||!rule.nextDate)return;
+                let due=rule.nextDate, loops=0;
+                while(due<=today && loops<24){
+                    const type=rule.type==='income'?'income':'expense';
+                    const collection=type==='income'?'pemasukan':'pengeluaran';
+                    const id=`${rule.id}_${due}`;
+                    const list=type==='income'?store.incomes:store.trans;
+                    if(!list.some(t=>t.id===id)){
+                        const data={tanggal:due,dompet:rule.dompet,kategori:rule.kategori,nominal:Number(rule.nominal)||0,createdAt:Date.now(),recurringId:rule.id,recurringName:rule.name};
+                        const op=type==='income'?{opId:`income:${id}`,type:'addIncome',incomeId:id,data,createdAt:Date.now()}:{opId:`add:${id}`,type:'addExpense',expenseId:id,data,createdAt:Date.now()};
+                        enqueueSync(op); applyWalletDeltaLocal(walletDeltaForData(type,data,1)); addLocalRecord(type,id,data); changed=true;
+                    }
+                    due=advanceRecurringDate(due,rule.frequency,rule.anchorDay); loops++;
+                }
+                if(due!==rule.nextDate){
+                    const now=Date.now(); const data={...rule,nextDate:due,updatedAt:now}; delete data.id; delete data.pendingSync;
+                    store.recurring=store.recurring.map(r=>r.id===rule.id?{id:rule.id,...data,pendingSync:true}:r);
+                    enqueueSync({opId:`advance-recurring:${rule.id}:${now}`,type:'editRecurring',recurringId:rule.id,data,createdAt:now}); changed=true;
+                }
+            });
+            if(changed){persistLocalSnapshot();renderAll();flushOutbox();}
+        } finally {recurringProcessing=false;}
+    }
+
+    function cleanBackupRecord(item){ const x={...(item||{})}; delete x.pendingSync; return x; }
+    window.exportBackup = () => {
+        const payload={app:'Agis Finance',version:23,exportedAt:new Date().toISOString(),data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord)}};
+        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+    };
+
+    window.restoreBackupFile = async (event) => {
+        const file=event.target.files?.[0]; event.target.value=''; if(!file)return;
+        try{
+            const raw=await file.text(); const parsed=JSON.parse(raw); const d=parsed?.data;
+            if(!d||!d.wallets||!Array.isArray(d.trans)) throw new Error('Format backup tidak dikenali.');
+            const confirm=await Swal.fire({title:'Restore backup?',text:'Data lokal akan diganti dari backup lalu digabungkan/sinkron ke cloud. PIN tidak berubah.',icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            store.wallets=normalizeWallets(d.wallets); store.limits=d.limits&&typeof d.limits==='object'?d.limits:{}; store.trans=Array.isArray(d.trans)?d.trans.map(cleanBackupRecord):[]; store.incomes=Array.isArray(d.incomes)?d.incomes.map(cleanBackupRecord):[]; store.transfers=Array.isArray(d.transfers)?d.transfers.map(cleanBackupRecord):[]; store.goals=Array.isArray(d.goals)?d.goals.map(cleanBackupRecord):[]; store.recurring=Array.isArray(d.recurring)?d.recurring.map(cleanBackupRecord):[]; store.goal=store.goals.length?store.goals.reduce((s,g)=>s+(Number(g.saved)||0),0):(Number(d.goal)||0);
+            const now=Date.now(); enqueueSync({opId:`restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now}); enqueueSync({opId:`restore-goal-total:${now}`,type:'setGoal',amount:store.goal,createdAt:now}); Object.entries(store.limits).forEach(([category,amount])=>enqueueSync({opId:`restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now}));
+            store.trans.forEach(t=>{if(t.id)enqueueSync({opId:`restore-expense:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:cleanBackupRecord(t),createdAt:now})}); store.incomes.forEach(t=>{if(t.id)enqueueSync({opId:`restore-income:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:cleanBackupRecord(t),createdAt:now})}); store.transfers.forEach(t=>{if(t.id)enqueueSync({opId:`restore-transfer:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:cleanBackupRecord(t),createdAt:now})}); store.goals.forEach(g=>enqueueSync({opId:`restore-goal-item:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:cleanBackupRecord(g),createdAt:now})); store.recurring.forEach(r=>enqueueSync({opId:`restore-recurring:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:cleanBackupRecord(r),createdAt:now}));
+            persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal sudah dipulihkan dan antrean sinkronisasi dibuat.','success');
+        }catch(err){Swal.fire('Restore gagal',err.message||'File backup rusak.','error');}
+    };
+
+    function bytesToBase64(bytes){let binary='';bytes.forEach(b=>binary+=String.fromCharCode(b));return btoa(binary)}
+    function base64ToBytes(value){const binary=atob(value);return Uint8Array.from(binary,c=>c.charCodeAt(0))}
+    function getPinConfig(){try{return JSON.parse(localStorage.getItem(PIN_KEY)||'null')}catch{return null}}
+    async function derivePinHash(pin,salt){const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},key,256);return bytesToBase64(new Uint8Array(bits))}
+    async function verifyPin(pin){const cfg=getPinConfig();if(!cfg)return true;return (await derivePinHash(pin,base64ToBytes(cfg.salt)))===cfg.hash}
+    function pinEnabled(){return !!getPinConfig()}
+    function updateSecurityUI(){const enabled=pinEnabled(); const txt=document.getElementById('pinStatusText'),dot=document.getElementById('securityDot'),main=document.getElementById('pinPrimaryBtn'),disable=document.getElementById('pinDisableBtn'),lock=document.getElementById('pinLockBtn'); if(txt)txt.textContent=enabled?'PIN aktif':'PIN belum aktif';if(dot)dot.classList.toggle('on',enabled);if(main)main.textContent=enabled?'Ganti PIN':'Aktifkan PIN';if(disable)disable.style.display=enabled?'block':'none';if(lock)lock.style.display=enabled?'flex':'none';}
+    async function askCurrentPin(){const r=await Swal.fire({title:'Masukkan PIN saat ini',input:'password',inputAttributes:{inputmode:'numeric',maxlength:'6',autocomplete:'off'},showCancelButton:true,confirmButtonText:'Lanjut',inputValidator:v=>/^\d{4,6}$/.test(v)?undefined:'PIN harus 4–6 digit.'});if(!r.isConfirmed)return false;if(!(await verifyPin(r.value))){Swal.fire('PIN salah','','error');return false}return true}
+    async function askNewPin(){const r=await Swal.fire({title:'Buat PIN',html:'<input id="new-pin-1" class="swal2-input" type="password" inputmode="numeric" maxlength="6" placeholder="PIN 4–6 digit"><input id="new-pin-2" class="swal2-input" type="password" inputmode="numeric" maxlength="6" placeholder="Ulangi PIN">',showCancelButton:true,confirmButtonText:'Simpan PIN',focusConfirm:false,preConfirm:()=>{const a=document.getElementById('new-pin-1').value,b=document.getElementById('new-pin-2').value;if(!/^\d{4,6}$/.test(a))return Swal.showValidationMessage('PIN harus 4–6 digit.');if(a!==b)return Swal.showValidationMessage('Konfirmasi PIN tidak sama.');return a}});return r.isConfirmed?r.value:null}
+    window.configurePin=async()=>{if(pinEnabled()&&!(await askCurrentPin()))return;const pin=await askNewPin();if(!pin)return;const salt=crypto.getRandomValues(new Uint8Array(16));const hash=await derivePinHash(pin,salt);localStorage.setItem(PIN_KEY,JSON.stringify({salt:bytesToBase64(salt),hash,createdAt:Date.now()}));updateSecurityUI();Swal.fire('PIN aktif','Aplikasi sekarang bisa dikunci dengan PIN.','success')};
+    window.disablePin=async()=>{if(!pinEnabled())return;if(!(await askCurrentPin()))return;localStorage.removeItem(PIN_KEY);document.getElementById('pin-lock-screen')?.classList.remove('active');updateSecurityUI();Swal.fire('PIN dinonaktifkan','','success')};
+    window.lockApp=()=>{if(!pinEnabled())return;const screen=document.getElementById('pin-lock-screen');if(screen){screen.classList.add('active');screen.setAttribute('aria-hidden','false');const input=document.getElementById('pin-unlock-input');if(input){input.value='';setTimeout(()=>input.focus(),50)}const err=document.getElementById('pin-error');if(err)err.textContent='';}};
+    let pinFailures=0,pinBlockedUntil=0;
+    window.unlockApp=async()=>{const input=document.getElementById('pin-unlock-input');const err=document.getElementById('pin-error');if(Date.now()<pinBlockedUntil){if(err)err.textContent='Terlalu banyak percobaan. Coba lagi sebentar.';return}const pin=input?.value||'';if(!/^\d{4,6}$/.test(pin)){if(err)err.textContent='PIN harus 4–6 digit.';return}if(await verifyPin(pin)){pinFailures=0;document.getElementById('pin-lock-screen')?.classList.remove('active');if(err)err.textContent='';}else{pinFailures++;if(input)input.value='';if(pinFailures>=5){pinBlockedUntil=Date.now()+30000;pinFailures=0;if(err)err.textContent='5x salah. Dikunci 30 detik.';}else if(err)err.textContent=`PIN salah. Sisa ${5-pinFailures} percobaan.`;}};
+    let appHiddenAt=0;
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)appHiddenAt=Date.now();else if(pinEnabled()&&appHiddenAt&&Date.now()-appHiddenAt>30000)lockApp()});
+    document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('pin-lock-screen')?.classList.contains('active'))unlockApp()});
 
     function getRecord(type, id) {
         const list = type === 'expense' ? store.trans : type === 'income' ? store.incomes : store.transfers;
@@ -1025,6 +1367,8 @@
             ? (insight.predictedEnd >= 0 ? `${fmt(insight.predictedEnd)} tersisa setelah target tabungan.` : `defisit ${fmt(Math.abs(insight.predictedEnd))}; target tabungan berisiko.`)
             : 'Belum cukup transaksi untuk membuat prediksi.';
         const cashflowText = `${netCashflow >= 0 ? '+' : '-'}${fmt(Math.abs(netCashflow))}`;
+        const nearestGoal = [...(store.goals || [])].filter(g => Number(g.target) > 0).sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'))[0];
+        const goalInsight = nearestGoal ? `<div class="insight-row">🎯 ${escapeHtml(nearestGoal.name)}: <b>${Math.min(100,((Number(nearestGoal.saved)||0)/(Number(nearestGoal.target)||1))*100).toFixed(0)}%</b> · kurang ${fmt(Math.max(0,(Number(nearestGoal.target)||0)-(Number(nearestGoal.saved)||0)))}</div>` : '';
 
         document.getElementById('advisorContent').innerHTML = `
             <div class="insight-status ${insight.statusClass}">${insight.statusIcon} ${insight.status}</div>
@@ -1034,10 +1378,14 @@
             <div class="insight-row">🔮 Prediksi akhir bulan: <b>${predictionText}</b></div>
             <div class="insight-row">📊 ${insight.comparison}</div>
             <div class="insight-row">🏷️ Terbesar bulan ini: ${insight.topText}</div>
+            ${goalInsight}
             ${alerts.length ? `<div class="insight-divider">${alerts.join('')}</div>` : ''}
         `;
 
         updateChart(insightCats);
+        renderGoals();
+        renderRecurring();
+        updateSecurityUI();
         lucide.createIcons();
         hideSplash();
     };
@@ -1185,8 +1533,10 @@
 
         db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
             if(s.exists && readOutbox().length === 0) {
-                store.goal = Number(s.data().amount) || 0;
+                if ((store.goals || []).length) recomputeReservedGoal(false);
+                else store.goal = Number(s.data().amount) || 0;
                 persistLocalSnapshot();
+                migrateLegacyGoal();
             }
             renderAll();
         }, err => console.warn('Goal listener:', err));
@@ -1219,11 +1569,27 @@
             if (!emptyUnprimedOfflineCache) { store.transfers = readOutbox().length ? mergePendingCollection(incoming, 'transfer') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Transfer listener:', err));
+
+        db.collection('goals').onSnapshot({ includeMetadataChanges: true }, (snap) => {
+            const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
+            const emptyUnprimedOfflineCache=!navigator.onLine&&snap.metadata.fromCache&&incoming.length===0&&(store.goals||[]).length>0;
+            if(!emptyUnprimedOfflineCache){store.goals=readOutbox().length?mergePendingCollection(incoming,'goalItem'):incoming;if(store.goals.length)recomputeReservedGoal(false);else migrateLegacyGoal();persistLocalSnapshot();}
+            renderAll();
+        },err=>console.warn('Goals listener:',err));
+
+        db.collection('recurring').onSnapshot({ includeMetadataChanges: true }, (snap) => {
+            const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
+            const emptyUnprimedOfflineCache=!navigator.onLine&&snap.metadata.fromCache&&incoming.length===0&&(store.recurring||[]).length>0;
+            if(!emptyUnprimedOfflineCache){store.recurring=readOutbox().length?mergePendingCollection(incoming,'recurring'):incoming;persistLocalSnapshot();}
+            renderAll(); processRecurringTransactions();
+        },err=>console.warn('Recurring listener:',err));
     }
 
     // Pulihkan mirror lokal SEBELUM Firestore mencoba konek. Jadi offline reload tidak mulai dari nol.
     restoreLocalSnapshot();
+    migrateLegacyGoal();
     renderAll();
+    processRecurringTransactions();
 
     // Persistence diaktifkan sebelum listener Firestore dibuat. Jika gagal (mis. multi-tab),
     // mirror localStorage tetap menjadi fallback dan listener cloud tetap dijalankan.
@@ -1247,7 +1613,7 @@
         badge.classList.toggle('status-online', online && !lastSyncError);
         badge.classList.toggle('status-offline', !online || !!lastSyncError);
     }
-    window.addEventListener('online', () => { updateNetworkStatus(); flushOutbox(); });
+    window.addEventListener('online', () => { updateNetworkStatus(); processRecurringTransactions(); flushOutbox(); });
     window.addEventListener('offline', updateNetworkStatus);
 
     window.addEventListener('load', () => {
@@ -1259,6 +1625,9 @@
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         if(localStorage.getItem('agis_theme') === 'light') document.body.classList.add('light-mode');
         updateNetworkStatus();
+        updateSecurityUI();
+        if (pinEnabled()) lockApp();
+        processRecurringTransactions();
         lucide.createIcons();
 
         // PWA registration sebelumnya belum ada di v19.8.

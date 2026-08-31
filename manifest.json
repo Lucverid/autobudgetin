@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Agis Finance AI",
   "short_name": "AgisFinance",
-  "description": "Personal finance manager offline-first dengan cashflow, pemasukan, pengeluaran, transfer wallet, dan sinkronisasi Firestore.",
+  "description": "Personal finance manager offline-first dengan cashflow, multi-goal tabungan, transaksi rutin, PIN lokal, backup/restore, dan sinkronisasi Firestore.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
