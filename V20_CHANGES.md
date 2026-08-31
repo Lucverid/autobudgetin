@@ -16,3 +16,13 @@ Perubahan utama:
 - Output transaksi yang dimasukkan ke HTML di-escape untuk mengurangi risiko HTML injection.
 
 Catatan: Firestore tetap membutuhkan koneksi internet untuk sinkronisasi ke cloud. Mode offline berarti UI/app shell dan data cache lokal dapat tetap dipakai; perubahan akan dikirim ke Firestore setelah koneksi kembali.
+
+## v20.1 patch
+
+- Menambahkan local snapshot fallback (`localStorage`) untuk wallet, target tabungan, limit, dan transaksi terakhir agar reload saat offline tidak kembali menampilkan saldo Rp 0.
+- Firestore persistence sekarang diselesaikan lebih dulu sebelum realtime listeners dipasang.
+- Update saldo memakai formatter ribuan Indonesia (contoh `1.250.000`).
+- Kolom update saldo otomatis diisi dari saldo wallet terbaru saat halaman Settings dibuka.
+- Setelah `Simpan Saldo`, aplikasi langsung kembali ke halaman Home dan ikon Home kembali aktif.
+- Operasi transaksi/saldo memakai optimistic local mirror agar UI dan reload offline langsung mencerminkan perubahan terbaru.
+- Service worker cache dinaikkan ke `agis-finance-v20-1` agar browser mengambil patch terbaru.

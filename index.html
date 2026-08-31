@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v20.0</title>
+    <title>Agis Finance AI - v20.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -125,7 +125,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 20.0 OFFLINE</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 20.1 OFFLINE CACHE</p>
 </div>
 
 <div class="container">
@@ -215,9 +215,9 @@
     <div id="settings" class="page">
         <div class="card">
             <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Update Saldo</h2>
-            <input type="number" id="set-cash" placeholder="Saldo Tunai">
-            <input type="number" id="set-bank" placeholder="Saldo Bank">
-            <input type="number" id="set-e" placeholder="Saldo E-Wallet">
+            <input type="text" id="set-cash" placeholder="Saldo Tunai" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
+            <input type="text" id="set-bank" placeholder="Saldo Bank" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
+            <input type="text" id="set-e" placeholder="Saldo E-Wallet" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
             <button class="btn-primary" onclick="updateWallets()">Simpan Saldo</button>
         </div>
         <div class="card">
@@ -274,28 +274,87 @@
     const db = firebase.firestore();
     const FieldValue = firebase.firestore.FieldValue;
 
-    // Cache data Firestore di IndexedDB. Perubahan lokal tetap tampil dan akan sync saat koneksi kembali.
-    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-        if (err && err.code === 'failed-precondition') console.warn('Persistence: lebih dari satu tab aktif.');
-        else if (err && err.code === 'unimplemented') console.warn('Persistence tidak didukung browser ini.');
-        else console.warn('Persistence warning:', err);
-    });
-
     let store = { trans: [], wallets: { Tunai: 0, Bank: 0, "E-Wallet": 0 }, goal: 0, limits: {} };
     let pieChart;
-    const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
+    const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v20_1';
+    const moneyFormatter = new Intl.NumberFormat('id-ID');
+    const fmt = (n) => "Rp " + moneyFormatter.format(Number(n) || 0);
 
-    // Formatter Ribuan Otomatis
+    function normalizeWallets(wallets = {}) {
+        return {
+            Tunai: Number(wallets.Tunai) || 0,
+            Bank: Number(wallets.Bank) || 0,
+            "E-Wallet": Number(wallets["E-Wallet"]) || 0
+        };
+    }
+
+    // Mirror lokal sebagai fallback tambahan di atas cache IndexedDB Firestore.
+    // Tujuannya: setelah reload tanpa internet, saldo terakhir langsung tersedia dan tidak kembali ke Rp 0.
+    function persistLocalSnapshot() {
+        try {
+            localStorage.setItem(LOCAL_SNAPSHOT_KEY, JSON.stringify({
+                wallets: normalizeWallets(store.wallets),
+                goal: Number(store.goal) || 0,
+                limits: store.limits || {},
+                trans: Array.isArray(store.trans) ? store.trans.slice(0, 1500) : [],
+                savedAt: Date.now()
+            }));
+        } catch (err) {
+            console.warn('Local snapshot gagal disimpan:', err);
+        }
+    }
+
+    function restoreLocalSnapshot() {
+        try {
+            const raw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
+            if (!raw) return false;
+            const cached = JSON.parse(raw);
+            store.wallets = normalizeWallets(cached.wallets);
+            store.goal = Number(cached.goal) || 0;
+            store.limits = cached.limits && typeof cached.limits === 'object' ? cached.limits : {};
+            store.trans = Array.isArray(cached.trans) ? cached.trans : [];
+            return true;
+        } catch (err) {
+            console.warn('Local snapshot gagal dibaca:', err);
+            return false;
+        }
+    }
+
+    function digitsOnly(value) {
+        return String(value ?? '').replace(/\D/g, '');
+    }
+
+    window.formatMoneyField = (el) => {
+        const digits = digitsOnly(el.value);
+        el.value = digits ? moneyFormatter.format(Number(digits)) : '';
+    };
+
+    function parseMoneyField(id) {
+        const digits = digitsOnly(document.getElementById(id)?.value);
+        return digits ? Number(digits) : 0;
+    }
+
+    // Formatter nominal transaksi + hidden raw value.
     window.formatInput = (el) => {
-        let val = el.value.replace(/\D/g, "");
-        if (val === "") {
-            document.getElementById('t-amount').value = 0;
-            el.value = "";
+        const val = digitsOnly(el.value);
+        const hidden = document.getElementById('t-amount');
+        if (!val) {
+            if (hidden) hidden.value = '';
+            el.value = '';
             return;
         }
-        el.value = new Intl.NumberFormat('id-ID').format(val);
-        document.getElementById('t-amount').value = val;
+        el.value = moneyFormatter.format(Number(val));
+        if (hidden) hidden.value = val;
     };
+
+    function syncWalletInputsFromStore(force = false) {
+        const map = { 'set-cash': 'Tunai', 'set-bank': 'Bank', 'set-e': 'E-Wallet' };
+        Object.entries(map).forEach(([id, wallet]) => {
+            const el = document.getElementById(id);
+            if (!el || (!force && document.activeElement === el)) return;
+            el.value = moneyFormatter.format(Number(store.wallets[wallet]) || 0);
+        });
+    }
 
     const hideSplash = () => {
         const splash = document.getElementById('splash-screen');
@@ -305,9 +364,19 @@
 
     window.nav = (id, el) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        const navItems = [...document.querySelectorAll('.nav-item')];
+        navItems.forEach(n => n.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        if(el) el.classList.add('active');
+
+        if (el) {
+            el.classList.add('active');
+        } else {
+            const pageOrder = ['home', 'history', 'add', 'settings'];
+            const index = pageOrder.indexOf(id);
+            if (index >= 0 && navItems[index]) navItems[index].classList.add('active');
+        }
+
+        if (id === 'settings') syncWalletInputsFromStore(true);
     };
 
     window.togglePrivacy = () => {
@@ -347,8 +416,21 @@
         batch.set(walletRef, { [w]: FieldValue.increment(-a) }, { merge: true });
         batch.set(expenseRef, { tanggal: d, dompet: w, kategori: c, nominal: a });
 
-        const write = batch.commit();
-        write.catch(showWriteError);
+        // Optimistic local mirror agar reload offline langsung membawa state terbaru.
+        const previousWallets = { ...store.wallets };
+        const previousTrans = [...store.trans];
+        store.wallets = { ...normalizeWallets(store.wallets), [w]: (Number(store.wallets[w]) || 0) - a };
+        store.trans = [{ id: expenseRef.id, tanggal: d, dompet: w, kategori: c, nominal: a }, ...store.trans.filter(t => t.id !== expenseRef.id)];
+        persistLocalSnapshot();
+        renderAll();
+
+        batch.commit().catch(err => {
+            store.wallets = previousWallets;
+            store.trans = previousTrans;
+            persistLocalSnapshot();
+            renderAll();
+            showWriteError(err);
+        });
 
         document.getElementById('t-amount-display').value = "";
         document.getElementById('t-amount').value = "";
@@ -358,24 +440,56 @@
 
     window.updateWallets = () => {
         const data = {
-            Tunai: parseInt(document.getElementById('set-cash').value, 10) || 0,
-            Bank: parseInt(document.getElementById('set-bank').value, 10) || 0,
-            "E-Wallet": parseInt(document.getElementById('set-e').value, 10) || 0
+            Tunai: parseMoneyField('set-cash'),
+            Bank: parseMoneyField('set-bank'),
+            "E-Wallet": parseMoneyField('set-e')
         };
-        db.collection('config').doc('wallets').set(data).catch(showWriteError);
+
+        const previousWallets = { ...store.wallets };
+        store.wallets = normalizeWallets(data);
+        persistLocalSnapshot();
+        renderAll();
+
+        db.collection('config').doc('wallets').set(data).catch(err => {
+            store.wallets = previousWallets;
+            persistLocalSnapshot();
+            renderAll();
+            showWriteError(err);
+        });
+
+        // Setelah user menyimpan saldo, langsung kembali ke dashboard utama.
+        nav('home');
         queuedNotice('Saldo diperbarui.', 'Saldo disimpan lokal dan akan sinkron saat online.');
     };
 
     window.setLimit = () => {
         const cat = document.getElementById('l-cat').value;
         const val = parseInt(document.getElementById('l-amount').value, 10) || 0;
-        db.collection('config').doc('limits').set({ [cat]: val }, { merge: true }).catch(showWriteError);
+        const previousLimits = { ...store.limits };
+        store.limits = { ...store.limits, [cat]: val };
+        persistLocalSnapshot();
+        renderAll();
+        db.collection('config').doc('limits').set({ [cat]: val }, { merge: true }).catch(err => {
+            store.limits = previousLimits;
+            persistLocalSnapshot();
+            renderAll();
+            showWriteError(err);
+        });
         queuedNotice(`Batas ${cat} disimpan.`, `Batas ${cat} akan sinkron saat online.`);
     };
 
     window.setGoal = () => {
         const amount = parseInt(document.getElementById('goal-input').value, 10) || 0;
-        db.collection('config').doc('goal').set({ amount }).catch(showWriteError);
+        const previousGoal = store.goal;
+        store.goal = amount;
+        persistLocalSnapshot();
+        renderAll();
+        db.collection('config').doc('goal').set({ amount }).catch(err => {
+            store.goal = previousGoal;
+            persistLocalSnapshot();
+            renderAll();
+            showWriteError(err);
+        });
         queuedNotice('Target tabungan disimpan.', 'Target tabungan akan sinkron saat online.');
     };
 
@@ -388,7 +502,21 @@
         const expenseRef = db.collection('pengeluaran').doc(id);
         batch.set(walletRef, { [wallet]: FieldValue.increment(nominal) }, { merge: true });
         batch.delete(expenseRef);
-        batch.commit().catch(showWriteError);
+
+        const previousWallets = { ...store.wallets };
+        const previousTrans = [...store.trans];
+        store.wallets = { ...normalizeWallets(store.wallets), [wallet]: (Number(store.wallets[wallet]) || 0) + Number(nominal || 0) };
+        store.trans = store.trans.filter(t => t.id !== id);
+        persistLocalSnapshot();
+        renderAll();
+
+        batch.commit().catch(err => {
+            store.wallets = previousWallets;
+            store.trans = previousTrans;
+            persistLocalSnapshot();
+            renderAll();
+            showWriteError(err);
+        });
         queuedNotice('Transaksi dihapus dan saldo dikembalikan.', 'Penghapusan masuk antrean dan akan sinkron saat online.');
     };
 
@@ -568,23 +696,58 @@
         XLSX.writeFile(wb, `Agis_Report_${document.getElementById('filterMonth').value}.xlsx`);
     };
 
-    // Realtime listeners; metadata changes membuat UI ikut merefleksikan cache lokal/pending writes.
-    db.collection('config').doc('wallets').onSnapshot({ includeMetadataChanges: true }, (s) => {
-        if(s.exists) store.wallets = s.data();
-        renderAll();
-    }, console.error);
-    db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
-        if(s.exists) store.goal = s.data().amount;
-        renderAll();
-    }, console.error);
-    db.collection('config').doc('limits').onSnapshot({ includeMetadataChanges: true }, (s) => {
-        if(s.exists) store.limits = s.data();
-        renderAll();
-    }, console.error);
-    db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
-        store.trans = s.docs.map(d => ({id:d.id, ...d.data()}));
-        renderAll();
-    }, console.error);
+    function startRealtimeListeners() {
+        // Metadata changes membuat UI ikut merefleksikan cache Firestore dan pending writes.
+        db.collection('config').doc('wallets').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if(s.exists) {
+                store.wallets = normalizeWallets(s.data());
+                persistLocalSnapshot();
+            }
+            renderAll();
+        }, err => console.warn('Wallet listener:', err));
+
+        db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if(s.exists) {
+                store.goal = Number(s.data().amount) || 0;
+                persistLocalSnapshot();
+            }
+            renderAll();
+        }, err => console.warn('Goal listener:', err));
+
+        db.collection('config').doc('limits').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if(s.exists) {
+                store.limits = s.data() || {};
+                persistLocalSnapshot();
+            }
+            renderAll();
+        }, err => console.warn('Limits listener:', err));
+
+        db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
+            // Cache query Firestore yang belum pernah terisi bisa mengirim snapshot kosong saat offline.
+            // Jangan biarkan snapshot kosong dari-cache menghapus mirror transaksi lokal yang masih valid.
+            const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.trans.length > 0;
+            if (!emptyUnprimedOfflineCache) {
+                store.trans = incoming;
+                persistLocalSnapshot();
+            }
+            renderAll();
+        }, err => console.warn('Transactions listener:', err));
+    }
+
+    // Pulihkan mirror lokal SEBELUM Firestore mencoba konek. Jadi offline reload tidak mulai dari nol.
+    restoreLocalSnapshot();
+    renderAll();
+
+    // Persistence diaktifkan sebelum listener Firestore dibuat. Jika gagal (mis. multi-tab),
+    // mirror localStorage tetap menjadi fallback dan listener cloud tetap dijalankan.
+    db.enablePersistence({ synchronizeTabs: true })
+        .catch((err) => {
+            if (err && err.code === 'failed-precondition') console.warn('Persistence: lebih dari satu tab aktif.');
+            else if (err && err.code === 'unimplemented') console.warn('Persistence tidak didukung browser ini.');
+            else console.warn('Persistence warning:', err);
+        })
+        .then(startRealtimeListeners);
 
     function updateNetworkStatus() {
         const badge = document.getElementById('statusBadge');
@@ -600,6 +763,7 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
+        renderAll();
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
         if(localStorage.getItem('agis_theme') === 'light') document.body.classList.add('light-mode');
         updateNetworkStatus();
