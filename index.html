@@ -195,7 +195,7 @@
     <div id="add" class="page">
         <div class="card">
             <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Catat Baru</h2>
-            <form id="transForm">
+            <form id="transForm" onsubmit="event.preventDefault();">
                 <input type="date" id="t-date">
                 <select id="t-wallet">
                     <option value="Tunai">💰 Tunai</option><option value="Bank">🏦 Bank</option><option value="E-Wallet">📱 E-Wallet</option>
@@ -279,6 +279,23 @@
     let pieChart;
     const fmt = (n) => "Rp " + new Intl.NumberFormat('id-ID').format(n || 0);
 
+    // Deteksi Status Online / Offline Real-time
+    window.updateOnlineStatus = () => {
+        const badge = document.getElementById('statusBadge');
+        if (badge) {
+            if (navigator.onLine) {
+                badge.innerText = 'Online';
+                badge.className = 'status-badge status-online';
+            } else {
+                badge.innerText = 'Offline';
+                badge.className = 'status-badge status-offline';
+            }
+        }
+    };
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
     // Formatter Ribuan Otomatis
     window.formatInput = (el) => {
         let val = el.value.replace(/\D/g, "");
@@ -302,7 +319,15 @@
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        if(el) el.classList.add('active');
+        if(el) {
+            el.classList.add('active');
+        } else {
+            const items = document.querySelectorAll('.nav-item');
+            if (id === 'home' && items[0]) items[0].classList.add('active');
+            if (id === 'history' && items[1]) items[1].classList.add('active');
+            if (id === 'add' && items[2]) items[2].classList.add('active');
+            if (id === 'settings' && items[3]) items[3].classList.add('active');
+        }
     };
 
     window.togglePrivacy = () => {
@@ -323,8 +348,15 @@
         try {
             await updateDoc(doc(db, "config", "wallets"), { [w]: increment(-a) });
             await addDoc(collection(db, "pengeluaran"), { tanggal: d, dompet: w, kategori: c, nominal: a });
+            
+            // Auto Reset Form Input
             document.getElementById('t-amount-display').value = "";
             document.getElementById('t-amount').value = "";
+            document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('t-wallet').selectedIndex = 0;
+            document.getElementById('t-cat').selectedIndex = 0;
+
+            // Alihkan otomatis ke halaman utama (Home)
             nav('home');
         } catch (e) { console.error(e); }
     };
@@ -500,6 +532,9 @@
         document.getElementById('t-date').value = today;
         document.getElementById('filterMonth').value = today.slice(0, 7);
         if(localStorage.getItem('agis_privacy') === 'true') window.togglePrivacy();
+        
+        // Panggil penentu status koneksi saat load
+        updateOnlineStatus();
         lucide.createIcons();
 
         // Registrasi Service Worker PWA
