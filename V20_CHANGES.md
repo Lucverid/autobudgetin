@@ -26,3 +26,11 @@ Catatan: Firestore tetap membutuhkan koneksi internet untuk sinkronisasi ke clou
 - Setelah `Simpan Saldo`, aplikasi langsung kembali ke halaman Home dan ikon Home kembali aktif.
 - Operasi transaksi/saldo memakai optimistic local mirror agar UI dan reload offline langsung mencerminkan perubahan terbaru.
 - Service worker cache dinaikkan ke `agis-finance-v20-1` agar browser mengambil patch terbaru.
+
+## v20.2 patch
+
+- Kolom Update Saldo otomatis dikosongkan setelah `Simpan Saldo`, sebelum kembali ke Home.
+- Input Target Tabungan sekarang memakai pemisah ribuan Indonesia saat diketik.
+- Input Limit Bulanan sekarang memakai pemisah ribuan Indonesia saat diketik.
+- Parsing Target Tabungan dan Limit disamakan dengan input saldo agar nilai seperti `1.500.000` tersimpan sebagai `1500000`.
+- Service worker cache dinaikkan ke `agis-finance-v20-2`.
