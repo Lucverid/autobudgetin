@@ -1,0 +1,113 @@
+/* v25.3 — Health Pulse: animated, glanceable financial condition card. */
+#v244-score-card{
+  position:relative!important;
+  overflow:hidden!important;
+  padding:15px 16px!important;
+  min-height:92px!important;
+  border-radius:20px!important;
+  isolation:isolate;
+}
+#v244-score-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.12;
+  background:
+    linear-gradient(90deg,transparent 0 8%,currentColor 8.2% 8.5%,transparent 8.7% 14%,currentColor 14.2% 14.5%,transparent 14.7% 100%);
+  mask:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);
+}
+#v244-score-card .v244-row{
+  position:relative;
+  z-index:2;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center!important;
+  gap:13px!important;
+}
+#v244-score-card .v244-health-copy{min-width:0}
+#v244-score-card .section-title{
+  margin:0 0 4px!important;
+  font-size:.62rem!important;
+  letter-spacing:.075em!important;
+  text-transform:uppercase;
+  color:var(--text-dim)!important;
+}
+#v244-score-card #v244-score-note{display:none!important}
+#v244-score-card .v244-grid{display:none!important}
+
+.v253-heart{
+  width:48px;height:48px;border-radius:16px;
+  display:grid;place-items:center;
+  color:var(--primary);
+  background:color-mix(in srgb,var(--primary) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--primary) 27%,var(--border));
+  box-shadow:0 0 0 0 color-mix(in srgb,var(--primary) 26%,transparent);
+  animation:v253-heartbeat 1.65s ease-in-out infinite;
+}
+.v253-heart svg{width:24px;height:24px;stroke-width:2.25}
+@keyframes v253-heartbeat{
+  0%,42%,100%{transform:scale(1);box-shadow:0 0 0 0 color-mix(in srgb,var(--primary) 22%,transparent)}
+  8%{transform:scale(1.08)}
+  15%{transform:scale(.98)}
+  23%{transform:scale(1.06);box-shadow:0 0 0 9px transparent}
+  30%{transform:scale(1)}
+}
+
+.v253-score-wrap{display:flex;align-items:baseline;gap:3px;line-height:1}
+#v244-score-card .v244-score-ring{
+  width:auto!important;height:auto!important;min-width:0!important;
+  padding:0!important;border-radius:0!important;background:none!important;
+  box-shadow:none!important;display:block!important;position:static!important;
+}
+#v244-score-card .v244-score-ring::after{display:none!important}
+#v244-score-card .v244-score-ring b{
+  font-size:1.75rem!important;line-height:1!important;letter-spacing:-.045em;font-weight:950!important;
+}
+.v253-score-max{font-size:.62rem;font-weight:850;color:var(--text-dim)}
+.v253-label{
+  justify-self:end;
+  min-width:70px;
+  padding:7px 10px;
+  border-radius:999px;
+  text-align:center;
+  font-size:.59rem;
+  font-weight:950;
+  letter-spacing:.06em;
+  border:1px solid color-mix(in srgb,currentColor 28%,var(--border));
+  background:color-mix(in srgb,currentColor 9%,transparent);
+}
+.v253-ecg{
+  position:absolute;left:76px;right:96px;bottom:11px;height:16px;z-index:1;
+  opacity:.23;overflow:hidden;pointer-events:none;
+}
+.v253-ecg::before{
+  content:"";position:absolute;inset:0;width:200%;
+  background-repeat:repeat-x;background-size:92px 16px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='16' viewBox='0 0 92 16'%3E%3Cpath d='M0 9h19l4-4 5 9 7-14 7 15 5-6h45' fill='none' stroke='%232dd4bf' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  animation:v253-ecg 3.2s linear infinite;
+}
+@keyframes v253-ecg{to{transform:translateX(-92px)}}
+
+#v244-score-card[data-grade="healthy"]{color:var(--success)}
+#v244-score-card[data-grade="healthy"] .v253-heart{color:var(--success);background:color-mix(in srgb,var(--success) 12%,transparent);border-color:color-mix(in srgb,var(--success) 28%,var(--border))}
+#v244-score-card[data-grade="healthy"] .v253-label{color:var(--success)}
+#v244-score-card[data-grade="okay"]{color:var(--primary)}
+#v244-score-card[data-grade="okay"] .v253-label{color:var(--primary)}
+#v244-score-card[data-grade="warn"]{color:var(--warning)}
+#v244-score-card[data-grade="warn"] .v253-heart{color:var(--warning);background:color-mix(in srgb,var(--warning) 12%,transparent);border-color:color-mix(in srgb,var(--warning) 28%,var(--border))}
+#v244-score-card[data-grade="warn"] .v253-label{color:var(--warning)}
+#v244-score-card[data-grade="critical"]{color:var(--danger)}
+#v244-score-card[data-grade="critical"] .v253-heart{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent);border-color:color-mix(in srgb,var(--danger) 28%,var(--border));animation-duration:1.05s}
+#v244-score-card[data-grade="critical"] .v253-label{color:var(--danger)}
+
+@media(max-width:759px){
+  #v244-score-card{padding:13px 14px!important;min-height:82px!important;border-radius:18px!important}
+  #v244-score-card .v244-row{grid-template-columns:auto minmax(0,1fr) auto;gap:10px!important}
+  .v253-heart{width:42px;height:42px;border-radius:14px}
+  .v253-heart svg{width:21px;height:21px}
+  #v244-score-card .v244-score-ring b{font-size:1.5rem!important}
+  .v253-label{min-width:62px;padding:6px 8px;font-size:.54rem}
+  .v253-ecg{left:65px;right:82px;bottom:9px}
+}
+@media(prefers-reduced-motion:reduce){.v253-heart,.v253-ecg::before{animation:none!important}}
