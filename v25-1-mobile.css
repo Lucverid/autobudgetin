@@ -1,0 +1,20 @@
+/* v25.1 — Mobile Focus Layout. Keeps the existing theme, reduces visual density on phones. */
+.purpose-chip{display:inline-flex;align-items:center;vertical-align:middle;margin-left:6px;padding:3px 7px;border-radius:999px;font-size:.52rem;font-weight:900;letter-spacing:.02em;border:1px solid var(--border);white-space:nowrap}.purpose-chip.plan{color:var(--success);background:color-mix(in srgb,var(--success) 10%,transparent)}.purpose-chip.guard{color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent)}.purpose-explain,.v25-purpose-note{line-height:1.5}.v25-purpose-note{opacity:.9}
+.mobile-focus-switch{display:none}
+.mobile-focus-hidden{display:initial}
+@media(max-width:759px){
+  .container{padding:13px 12px 108px}
+  .header{margin-bottom:12px}.interactive-greeting{margin-bottom:8px!important}.master-balance{margin-top:0}.master-amount{font-size:clamp(2rem,10vw,2.7rem)}.goal-info{margin-bottom:14px}
+  .mobile-focus-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 0 12px;border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.025)}
+  .mobile-focus-switch button{border:0;background:transparent;color:var(--text-dim);font:inherit;font-size:.68rem;font-weight:900;padding:9px 10px;border-radius:12px;cursor:pointer}
+  .mobile-focus-switch button.active{background:var(--surface-2,#1d2630);color:var(--text)}
+  body.v251-compact #home .v251-secondary{display:none!important}
+  .wallet-container{display:flex!important;overflow-x:auto;scroll-snap-type:x mandatory;gap:9px;margin:0 -2px 14px;padding:2px 2px 7px;scrollbar-width:none}.wallet-container::-webkit-scrollbar{display:none}.wallet-container .w-card{flex:0 0 42%;min-width:130px;scroll-snap-align:start;padding:13px 10px;min-height:122px}.wallet-container .w-name{font-size:.62rem}.wallet-container .w-val{font-size:.78rem}
+  .overview-grid{gap:7px;margin-bottom:12px}.overview-stat{padding:12px 10px;min-height:94px;border-radius:17px}.overview-title{font-size:.58rem}.overview-value{font-size:.82rem}.overview-note{font-size:.58rem;line-height:1.35}.carry-over-stat,.recovery-stat{min-height:84px}
+  .card{border-radius:19px;padding:14px;margin-bottom:10px}.section-title{font-size:.78rem}.mini-muted{font-size:.62rem!important}
+  .v25-dashboard-grid{display:flex!important;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;margin:10px -12px;padding:0 12px 7px;scrollbar-width:none}.v25-dashboard-grid::-webkit-scrollbar{display:none}.v25-dashboard-grid .v25-panel{flex:0 0 min(86vw,360px);scroll-snap-align:start;margin:0!important}.v25-title{margin-bottom:10px}.v25-title b{font-size:.78rem}.v25-title small{font-size:.58rem}.v25-budget-row,.v25-bill-row{padding:8px 0}.v25-progress{height:6px}
+  .v25-year-card{padding:14px}.v25-year-stats{grid-template-columns:repeat(3,1fr);gap:6px}.v25-year-stats>div{padding:9px 7px;border-radius:11px}.v25-year-stats b{font-size:.67rem}.v25-year-stats small{font-size:.5rem}.v25-year-bars{height:105px;overflow-x:auto;grid-template-columns:repeat(12,minmax(22px,1fr));padding-bottom:4px}.v25-bars{height:76px}
+  .purpose-chip{font-size:.46rem;padding:2px 6px;margin-left:4px}.purpose-explain{margin-top:2px}
+  #settings.page.active .card{padding:14px;border-radius:19px}#settings.page.active input,#settings.page.active select{min-height:43px}#settings.page.active .btn-primary{min-height:44px}
+  .advisor{height:auto;min-height:190px;margin:10px 0}.home-chart-card>div:last-child{height:220px!important}
+}

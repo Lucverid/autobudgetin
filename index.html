@@ -253,6 +253,7 @@
     <link rel="stylesheet" href="./v24-5-automation.css">
     <link rel="stylesheet" href="./v24-6-layout.css">
     <link rel="stylesheet" href="./v25-features.css">
+    <link rel="stylesheet" href="./v25-1-mobile.css">
 </head>
 <body>
 
@@ -497,11 +498,12 @@
             <div class="mini-muted" style="margin-top:12px">Nominal “disisihkan” dianggap dana yang tidak boleh dibelanjakan dan dikurangi dari Saldo Tersedia.</div>
         </div>
 
-        <div class="card">
-            <div class="section-title" style="margin-bottom:14px"><i data-lucide="gauge"></i> Limit Bulanan</div>
+        <div class="card limit-guard-card">
+            <div class="section-title" style="margin-bottom:6px"><i data-lucide="gauge"></i> Limit Bulanan <span class="purpose-chip guard">Pagar Maksimum</span></div>
+            <div class="mini-muted purpose-explain" style="margin-bottom:14px">Limit = batas keras/alarm. Berbeda dari Budget Planning yang merupakan target alokasi ideal. Contoh: budget makan Rp300k, limit maksimal Rp400k.</div>
             <select id="l-cat"><option>Makan & Minum</option><option>Transportasi</option><option>Belanja</option><option>Tagihan</option><option>Hiburan</option></select>
-            <input type="text" id="l-amount" placeholder="Limit Bulanan" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
-            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Limit</button>
+            <input type="text" id="l-amount" placeholder="Batas maksimum bulan ini" inputmode="numeric" autocomplete="off" oninput="formatMoneyField(this)">
+            <button class="btn-primary" style="background:var(--danger)" onclick="setLimit()">Pasang Batas Maksimum</button>
         </div>
 
         <div class="card">
@@ -2326,5 +2328,6 @@
 <script src="./v24-4-features.js"></script>
 <script src="./v24-5-automation.js"></script>
 <script src="./v25-features.js"></script>
+<script src="./v25-1-mobile.js"></script>
 </body>
 </html>
