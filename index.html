@@ -249,6 +249,8 @@
         @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 
     </style>
+    <link rel="stylesheet" href="./v24-4-features.css">
+    <link rel="stylesheet" href="./v24-5-automation.css">
 </head>
 <body>
 
@@ -2318,5 +2320,7 @@
         valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
     }
 </script>
+<script src="./v24-4-features.js"></script>
+<script src="./v24-5-automation.js"></script>
 </body>
 </html>
