@@ -1,0 +1,15 @@
+/* v25.2 — Clean Home: remove redundant Smart Insight and compress Financial Score. */
+#home .advisor{display:none!important}
+#v244-score-card{padding:11px 13px!important;margin-bottom:10px!important}
+#v244-score-card .v244-row{align-items:center!important;gap:10px!important}
+#v244-score-card .section-title{margin:0!important;font-size:.7rem!important}
+#v244-score-card #v244-score-note{font-size:.58rem!important;margin-top:2px!important;line-height:1.35!important}
+#v244-score-card .v244-score-ring{width:auto!important;height:auto!important;min-width:0!important;border-radius:999px!important;padding:6px 10px!important;background:rgba(45,212,191,.09)!important;box-shadow:none!important;display:flex!important;align-items:center!important;gap:3px!important}
+#v244-score-card .v244-score-ring::after{content:'/100';font-size:.5rem;font-weight:800;opacity:.7}
+#v244-score-card .v244-score-ring b{font-size:.78rem!important}
+#v244-score-card .v244-grid{display:none!important}
+@media(max-width:759px){
+  #v244-score-card{padding:9px 11px!important;border-radius:16px!important}
+  #v244-score-card .section-title{font-size:.64rem!important}
+  #v244-score-card #v244-score-note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+}
