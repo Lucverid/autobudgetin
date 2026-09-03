@@ -1,11 +1,11 @@
 /**
- * Agis Finance v24.5 — Google Apps Script backend
+ * Agis Finance v25.0 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
 const DB = {
   config: 'Config', snapshot: 'Snapshot', expenses: 'Expenses', incomes: 'Incomes',
-  transfers: 'Transfers', goals: 'Goals', recurring: 'Recurring', logs: 'Notification Log'
+  transfers: 'Transfers', goals: 'Goals', recurring: 'Recurring', budgets: 'Budgets', bills: 'Bills', logs: 'Notification Log'
 };
 
 function onOpen(){ SpreadsheetApp.getUi().createMenu('Agis Finance').addItem('Setup database','setupAgisFinance').addItem('Simpan secret dari Config','saveSecretsFromConfig').addItem('Tes Telegram','testTelegramFromSheet').addToUi(); }
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v24.5','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v25.0','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -58,6 +58,8 @@ function ensureHeaders_(){
   setHeader_(ss.getSheetByName(DB.transfers),['ID','Tanggal','Nominal','Dari','Ke','Catatan','Updated At']);
   setHeader_(ss.getSheetByName(DB.goals),['ID','Nama','Target','Saved','Deadline','Updated At']);
   setHeader_(ss.getSheetByName(DB.recurring),['ID','Nama','Type','Nominal','Kategori','Dompet','Frequency','Next Date','Active']);
+  setHeader_(ss.getSheetByName(DB.budgets),['Bulan','Kategori','Budget']);
+  setHeader_(ss.getSheetByName(DB.bills),['ID','Nama','Nominal','Kategori','Frequency','Start Date','Day','Active','Updated At']);
   setHeader_(ss.getSheetByName(DB.logs),['Timestamp','Event ID','Message']);
 }
 function setHeader_(sh,headers){if(!sh)return;sh.clear();sh.getRange(1,1,1,headers.length).setValues([headers]);sh.setFrozenRows(1);styleHeader_(sh,headers.length)}
@@ -72,6 +74,10 @@ function saveSnapshot_(snap){
   rewrite_(DB.transfers,['ID','Tanggal','Nominal','Dari','Ke','Catatan','Updated At'],(d.transfers||[]).map(x=>[x.id||'',x.tanggal||'',Number(x.nominal)||0,x.dari||x.from||'',x.ke||x.to||'',x.catatan||x.note||'',x.updatedAt||x.createdAt||'']));
   rewrite_(DB.goals,['ID','Nama','Target','Saved','Deadline','Updated At'],(d.goals||[]).map(x=>[x.id||'',x.name||'',Number(x.target)||0,Number(x.saved)||0,x.deadline||'',x.updatedAt||x.createdAt||'']));
   rewrite_(DB.recurring,['ID','Nama','Type','Nominal','Kategori','Dompet','Frequency','Next Date','Active'],(d.recurring||[]).map(x=>[x.id||'',x.name||'',x.type||'',Number(x.nominal)||0,x.kategori||'',x.dompet||'',x.frequency||'',x.nextDate||'',x.active!==false]));
+  const v25=d.v25||{};
+  const budgetRows=[];Object.entries(v25.budgets||{}).forEach(([month,cats])=>Object.entries(cats||{}).forEach(([cat,amount])=>budgetRows.push([month,cat,Number(amount)||0])));
+  rewrite_(DB.budgets,['Bulan','Kategori','Budget'],budgetRows);
+  rewrite_(DB.bills,['ID','Nama','Nominal','Kategori','Frequency','Start Date','Day','Active','Updated At'],(v25.bills||[]).map(x=>[x.id||'',x.name||'',Number(x.amount)||0,x.category||'Tagihan',x.frequency||'monthly',x.startDate||'',Number(x.day)||'',x.active!==false,x.updatedAt||'']));
 }
 function ensureSheetsSafe_(){const ss=SpreadsheetApp.getActive();Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});}
 function latestSnapshot_(){const sh=SpreadsheetApp.getActive().getSheetByName(DB.snapshot);if(!sh||sh.getLastRow()<2)return null;const raw=sh.getRange(2,9).getValue();try{return JSON.parse(raw)}catch{return null}}
@@ -83,12 +89,38 @@ function checkSnapshot_(snap,scheduled){
   if(Number(s.score)<40)notifyOnce_('score:'+today,`🔴 Financial Score kritis: ${Math.round(Number(s.score)||0)}/100`);
   if(s.recovery&&Number(s.recovery.pct)>=100)notifyOnce_('recovery:'+(s.recovery.createdAt||s.recovery.startDate||s.recovery.name),`🎯 Recovery selesai\n${s.recovery.name||'Target'} sudah 100% pulih.`);
   const last=s.latestExpense;if(last&&last.id){const key='latest-expense-notified';const props=PropertiesService.getScriptProperties();if(props.getProperty(key)!==String(last.id)){props.setProperty(key,String(last.id));const amount=Number(last.nominal)||0;if(amount>=50000)sendTelegram_(`💸 Transaksi baru\n${last.kategori||'Pengeluaran'} · Rp ${fmt_(amount)}\n${last.tanggal||''}`);}}
-  if(scheduled){const now=new Date(),dow=Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','EEEE').toUpperCase(),hour=Number(Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','H'));if(dow==='MONDAY'&&hour===8){const week=Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','YYYY-ww');notifyOnce_('weekly:'+week,weeklyMessage_(snap));}}
+  if(scheduled){checkBills_(snap);const now=new Date(),dow=Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','EEEE').toUpperCase(),hour=Number(Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','H'));if(dow==='MONDAY'&&hour===8){const week=Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','YYYY-ww');notifyOnce_('weekly:'+week,weeklyMessage_(snap));}}
 }
+
+function checkBills_(snap){
+  const bills=snap.data?.v25?.bills||[]; if(!bills.length)return;
+  const tz=Session.getScriptTimeZone()||'Asia/Jakarta';
+  const now=new Date(); const todayStr=Utilities.formatDate(now,tz,'yyyy-MM-dd');
+  const today=new Date(todayStr+'T00:00:00');
+  bills.filter(b=>b.active!==false).forEach(b=>{
+    const due=nextBillDate_(b,today); if(!due)return;
+    const dueStr=Utilities.formatDate(due,tz,'yyyy-MM-dd');
+    const diff=Math.round((due-today)/86400000);
+    if([3,1,0].includes(diff)){
+      const when=diff===0?'hari ini':`H-${diff}`;
+      notifyOnce_(`bill:${b.id||b.name}:${dueStr}:${diff}`,`🧾 Tagihan ${when}\n${b.name||'Tagihan'} · Rp ${fmt_(b.amount)}\nJatuh tempo ${dueStr}`);
+    }
+  });
+}
+function nextBillDate_(b,ref){
+  const parts=String(b.startDate||'').split('-').map(Number); if(parts.length!==3)return null;
+  const start=new Date(parts[0],parts[1]-1,parts[2]);
+  if((b.frequency||'monthly')==='once')return start>=ref?start:null;
+  const wanted=Number(b.day)||start.getDate();
+  const cap=(y,m)=>Math.min(wanted,new Date(y,m+1,0).getDate());
+  let d=new Date(ref.getFullYear(),ref.getMonth(),cap(ref.getFullYear(),ref.getMonth()));
+  if(d<ref){const nm=ref.getMonth()+1,ny=ref.getFullYear()+Math.floor(nm/12),m=nm%12;d=new Date(ny,m,cap(ny,m));} return d;
+}
+
 function weeklyMessage_(snap){const rows=snap.data?.trans||[],now=new Date(),cut=new Date(now.getTime()-7*86400000);let total=0;const cats={};rows.forEach(x=>{const d=new Date((x.tanggal||'1970-01-01')+'T00:00:00');if(d>=cut){const n=Number(x.nominal)||0;total+=n;cats[x.kategori||'Lainnya']=(cats[x.kategori||'Lainnya']||0)+n}});const top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];return `📊 Weekly Review\n7 hari keluar Rp ${fmt_(total)}${top?`\nTerbesar: ${top[0]} Rp ${fmt_(top[1])}`:''}\nScore ${Math.round(Number(snap.summary?.score)||0)}/100 · Carry-over Rp ${fmt_(snap.summary?.carryOver||0)}`;}
 function notifyOnce_(id,msg){const p=PropertiesService.getScriptProperties();if(p.getProperty('N:'+id))return;p.setProperty('N:'+id,new Date().toISOString());sendTelegram_(msg);log_(id,msg)}
 function sendTelegram_(text){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const r=UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'post',contentType:'application/json',payload:JSON.stringify({chat_id:chat,text}),muteHttpExceptions:true});if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());}
-function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v24.5 backend aktif. Notifikasi otomatis siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
+function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v25.0 backend aktif. Notifikasi otomatis siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
 function log_(id,msg){const sh=SpreadsheetApp.getActive().getSheetByName(DB.logs);sh.appendRow([new Date(),id,msg]);}
-function wipeDatabase_(){ensureSheetsSafe_();[DB.snapshot,DB.expenses,DB.incomes,DB.transfers,DB.goals,DB.recurring].forEach(n=>{const sh=SpreadsheetApp.getActive().getSheetByName(n);if(sh)sh.clearContents()});ensureHeaders_();}
+function wipeDatabase_(){ensureSheetsSafe_();[DB.snapshot,DB.expenses,DB.incomes,DB.transfers,DB.goals,DB.recurring,DB.budgets,DB.bills].forEach(n=>{const sh=SpreadsheetApp.getActive().getSheetByName(n);if(sh)sh.clearContents()});ensureHeaders_();}
 function fmt_(n){return Math.round(Number(n)||0).toLocaleString('id-ID');}

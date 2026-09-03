@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v24-6';
+const CACHE_NAME = 'agis-finance-v25-0';
 
 const APP_SHELL = [
   './',
@@ -11,7 +11,7 @@ const APP_SHELL = [
   './firebase-app.js',
   './firebase-firestore.js',
   './v24-4-features.css',
-  './v24-4-features.js', './v24-5-automation.js', './v24-5-automation.css', './v24-6-layout.css',
+  './v24-4-features.js', './v24-5-automation.js', './v24-5-automation.css', './v24-6-layout.css', './v25-features.js', './v25-features.css',
   './icon-192.png',
   './icon-512.png'
 ];

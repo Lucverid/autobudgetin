@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v24.6</title>
+    <title>Agis Finance AI - v25.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -252,6 +252,7 @@
     <link rel="stylesheet" href="./v24-4-features.css">
     <link rel="stylesheet" href="./v24-5-automation.css">
     <link rel="stylesheet" href="./v24-6-layout.css">
+    <link rel="stylesheet" href="./v25-features.css">
 </head>
 <body>
 
@@ -269,7 +270,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 24.6 SPACIOUS</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.0 STABILITY</p>
 </div>
 
 <div class="container">
@@ -568,7 +569,7 @@
                 <button class="btn-primary" style="background:var(--accent);color:white" onclick="document.getElementById('restoreFile').click()">Restore</button>
             </div>
             <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restoreBackupFile(event)">
-            <div class="mini-muted" style="margin-top:12px">Backup schema v24 memuat wallet, transaksi, limit, target tabungan, transaksi rutin, dan audit log. Backup v22–v23 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
+            <div class="mini-muted" style="margin-top:12px">Backup schema v25 memuat wallet, transaksi, limit, target tabungan, transaksi rutin, audit log, Budget Planning, dan Bill Calendar. Backup v22–v24 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
         </div>
     </div>
 </div>
@@ -1475,7 +1476,8 @@
             transfers:Array.isArray(d.transfers)?d.transfers.map(cleanBackupRecord):[],
             goals:Array.isArray(d.goals)?d.goals.map(cleanBackupRecord):[],
             recurring:Array.isArray(d.recurring)?d.recurring.map(cleanBackupRecord):[],
-            audit:Array.isArray(d.audit)?d.audit.map(cleanBackupRecord):[]
+            audit:Array.isArray(d.audit)?d.audit.map(cleanBackupRecord):[],
+            v25:d.v25&&typeof d.v25==='object'?d.v25:null
         }};
     }
 
@@ -1489,11 +1491,11 @@
         const file=event.target.files?.[0]; event.target.value=''; if(!file)return;
         try{
             const raw=await file.text(); const parsed=JSON.parse(raw); const migrated=migrateBackupPayload(parsed); const d=migrated.data;
-            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v24 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
-            store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit; store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
+            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v25 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit; if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify(d.v25));}catch{}} store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
             const now=Date.now(); enqueueSync({opId:`restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now}); enqueueSync({opId:`restore-goal-total:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now}); Object.entries(store.limits).forEach(([category,amount])=>enqueueSync({opId:`restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));
             store.trans.forEach(t=>{if(t.id)enqueueSync({opId:`restore-expense:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.incomes.forEach(t=>{if(t.id)enqueueSync({opId:`restore-income:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.transfers.forEach(t=>{if(t.id)enqueueSync({opId:`restore-transfer:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.goals.forEach(g=>enqueueSync({opId:`restore-goal-item:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:cleanBackupRecord(g),createdAt:now,force:true})); store.recurring.forEach(r=>enqueueSync({opId:`restore-recurring:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:cleanBackupRecord(r),createdAt:now,force:true}));
-            auditEvent('Restore backup',`Schema v${migrated.version} → v24`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal sudah dimigrasikan ke schema v24 dan antrean sinkronisasi dibuat.','success');
+            auditEvent('Restore backup',`Schema v${migrated.version} → v25`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal sudah dimigrasikan ke schema v25 dan antrean sinkronisasi dibuat.','success');
         }catch(err){Swal.fire('Restore gagal',err.message||'File backup rusak.','error');}
     };
 
@@ -2323,5 +2325,6 @@
 </script>
 <script src="./v24-4-features.js"></script>
 <script src="./v24-5-automation.js"></script>
+<script src="./v25-features.js"></script>
 </body>
 </html>
