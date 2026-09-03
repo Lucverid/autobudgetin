@@ -257,6 +257,8 @@
     <link rel="stylesheet" href="./v25-2-clean-home.css">
     <link rel="stylesheet" href="./v25-3-health-pulse.css">
     <link rel="stylesheet" href="./v25-3-1-quick-transaction.css">
+    <link rel="stylesheet" href="./v25-3-2-ui-polish.css">
+    <link rel="stylesheet" href="./v25-3-3-financial-plan.css">
 </head>
 <body>
 
@@ -274,7 +276,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.1 QUICK TRANSACTION</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.2 UI POLISH</p>
 </div>
 
 <div class="container">
@@ -290,12 +292,6 @@
             </div>
         </div>
 
-        <div class="interactive-greeting" id="interactiveGreeting">Halo, Agis.</div>
-        <div class="master-balance">
-            <span style="font-size: 0.7rem; color: var(--text-dim); font-weight: 800; text-transform: uppercase;">Saldo Tersedia</span>
-            <span class="master-amount" id="total-balance">Rp 0</span>
-        </div>
-        
         <div class="goal-info" onclick="nav('settings')">
             <i data-lucide="target" style="width:14px; margin-right:5px"></i>
             Tabungan: <span id="goal-amount">Rp 0</span>
@@ -478,7 +474,7 @@
             <div>
                 <span class="v2531-page-kicker">FINANCIAL PLAN</span>
                 <h2>Planning</h2>
-                <p>Budget, tagihan, dan laporan tahunan dalam satu tempat.</p>
+                <p>Budget, tagihan, simulator keputusan, dan laporan tahunan dalam satu tempat.</p>
             </div>
             <i data-lucide="calendar-range" aria-hidden="true"></i>
         </div>
@@ -1164,6 +1160,15 @@
         }
 
         if (id === 'settings') syncWalletInputsFromStore(true);
+        if (id === 'add') {
+            const transactionDate = document.getElementById('t-date');
+            if (transactionDate) {
+                const today = localDateKey();
+                const previousAutoDate = transactionDate.dataset.autoDate || '';
+                if (!transactionDate.value || transactionDate.value === previousAutoDate) transactionDate.value = today;
+                transactionDate.dataset.autoDate = today;
+            }
+        }
     };
 
     window.togglePrivacy = () => {
@@ -1986,7 +1991,7 @@
 
         const totalWallets = (store.wallets.Tunai || 0) + (store.wallets.Bank || 0) + (store.wallets['E-Wallet'] || 0);
         const disposable = totalWallets - (store.goal || 0);
-        document.getElementById('total-balance').innerText = fmt(disposable);
+        const totalBalanceEl = document.getElementById('total-balance'); if (totalBalanceEl) totalBalanceEl.innerText = fmt(disposable);
         document.getElementById('goal-amount').innerText = fmt(store.goal || 0);
         document.getElementById('w-cash').innerText = fmt(store.wallets.Tunai || 0);
         document.getElementById('w-bank').innerText = fmt(store.wallets.Bank || 0);
@@ -2300,8 +2305,9 @@
     window.addEventListener('offline', updateNetworkStatus);
 
     window.addEventListener('load', () => {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('t-date').value = today;
+        const today = localDateKey();
+        const transactionDate = document.getElementById('t-date');
+        if (transactionDate) { transactionDate.value = today; transactionDate.dataset.autoDate = today; }
         document.getElementById('filterMonth').value = today.slice(0, 7);
         populateHistoryFilterOptions();
         setTransactionType('expense');
@@ -2350,5 +2356,6 @@
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
 <script src="./v25-3-1-quick-transaction.js"></script>
+<script src="./v25-3-3-financial-plan.js"></script>
 </body>
 </html>

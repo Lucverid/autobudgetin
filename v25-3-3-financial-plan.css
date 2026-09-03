@@ -1,0 +1,21 @@
+/* v25.3.3 — What-if Simulator belongs to Financial Plan, not Settings. */
+#planning #v244-simulator-card.v2533-whatif-card{
+  width:100%;
+  margin-top:14px;
+}
+
+#planning #v244-simulator-card .v244-form-grid{
+  align-items:stretch;
+}
+
+@media (min-width: 760px){
+  #planning #v244-simulator-card.v2533-whatif-card{
+    padding:20px;
+  }
+}
+
+@media (max-width: 759px){
+  #planning #v244-simulator-card.v2533-whatif-card{
+    margin-top:10px;
+  }
+}

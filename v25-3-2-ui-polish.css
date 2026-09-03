@@ -1,0 +1,79 @@
+/* v25.3.2 — UI Polish. Keeps v25.3 Health Pulse + v25.3.1 quick transaction navigation. */
+
+/* Requested cleanup: the greeting and big "Saldo Tersedia" hero are intentionally removed from view. */
+#home > .interactive-greeting,
+#home > .master-balance{display:none!important}
+
+/* Make the remaining top summary feel intentional instead of leaving empty hero space. */
+#home > .goal-info{
+  width:max-content;
+  max-width:100%;
+  padding:8px 11px!important;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:rgba(255,255,255,.018);
+  line-height:1.2;
+}
+
+@media (min-width:760px){
+  /* Explicit placement prevents dynamically injected v24/v25 cards from auto-flowing into awkward gaps. */
+  #home.page.active{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:auto auto auto auto auto auto auto;
+    gap:16px 18px;
+    align-items:stretch;
+  }
+  #home > .header{grid-column:1/-1;grid-row:1;margin:0 0 2px}
+  #home > .goal-info{grid-column:1/-1;grid-row:2;margin:0!important;justify-self:start}
+  #home > .wallet-container{
+    grid-column:1/-1;grid-row:3;
+    margin:0!important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:12px;
+  }
+  #home > .wallet-container .w-card{min-height:140px}
+
+  #home > .overview-grid{
+    grid-column:1/-1;grid-row:4;
+    margin:0!important;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:12px;
+  }
+  #home > .overview-grid .overview-stat{min-height:108px}
+  #home > .overview-grid .carry-over-stat,
+  #home > .overview-grid .recovery-stat{grid-column:span 2}
+
+  #home > #v244-score-card{grid-column:1;grid-row:5;margin:0!important;height:100%}
+  #home > .home-cashflow-card{grid-column:2;grid-row:5;margin:0!important;height:100%}
+
+  #home > #v244-week-card{grid-column:1;grid-row:6;margin:0!important;height:100%}
+  #home > #v244-heatmap-card{grid-column:2;grid-row:6;margin:0!important;height:100%}
+  #home > .advisor{display:none!important}
+  #home > .home-chart-card{grid-column:1/-1;grid-row:7;margin:0!important}
+
+  /* Settings read better as two stable columns instead of three narrow columns. */
+  #settings.page.active{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:16px!important;
+    align-items:start;
+  }
+  #settings > .v25-control,
+  #settings > .v245-card{grid-column:1/-1!important}
+  #settings > .card{min-width:0}
+
+  /* Slightly slimmer desktop navigation so it doesn't visually dominate the content. */
+  .v2531-nav{max-width:560px!important;height:70px}
+}
+
+@media (min-width:1180px){
+  #home.page.active{gap:18px 22px}
+  #home > .overview-grid{gap:14px}
+  #settings.page.active{gap:18px!important}
+}
+
+@media (max-width:759px){
+  #home > .goal-info{margin:2px 0 13px!important;font-size:.72rem}
+  /* No blank space is kept where greeting/balance used to be. */
+  #home > .header{margin-bottom:10px}
+}
