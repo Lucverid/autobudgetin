@@ -256,6 +256,7 @@
     <link rel="stylesheet" href="./v25-1-mobile.css">
     <link rel="stylesheet" href="./v25-2-clean-home.css">
     <link rel="stylesheet" href="./v25-3-health-pulse.css">
+    <link rel="stylesheet" href="./v25-3-1-quick-transaction.css">
 </head>
 <body>
 
@@ -273,7 +274,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.0 STABILITY</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.1 QUICK TRANSACTION</p>
 </div>
 
 <div class="container">
@@ -472,6 +473,20 @@
         </div>
     </div>
 
+    <div id="planning" class="page">
+        <div class="v2531-planning-head">
+            <div>
+                <span class="v2531-page-kicker">FINANCIAL PLAN</span>
+                <h2>Planning</h2>
+                <p>Budget, tagihan, dan laporan tahunan dalam satu tempat.</p>
+            </div>
+            <i data-lucide="calendar-range" aria-hidden="true"></i>
+        </div>
+        <div id="v2531-planning-host">
+            <div class="v2531-planning-loading">Menyiapkan data planning…</div>
+        </div>
+    </div>
+
     <div id="settings" class="page">
         <div class="card">
             <h2 style="font-size:1rem; font-weight:700; margin-bottom:18px">Update Saldo</h2>
@@ -605,11 +620,12 @@
     <div class="resizer" id="calcResizer"></div>
 </div>
 
-<nav class="nav-bar">
-    <div class="nav-item active" onclick="nav('home', this)"><i data-lucide="layout-grid"></i></div>
-    <div class="nav-item" onclick="nav('history', this)"><i data-lucide="receipt"></i></div>
-    <div class="nav-item" onclick="nav('add', this)"><i data-lucide="plus-circle" style="width:30px; height:30px; color:var(--primary)"></i></div>
-    <div class="nav-item" onclick="nav('settings', this)"><i data-lucide="sliders"></i></div>
+<nav class="nav-bar v2531-nav" aria-label="Navigasi utama">
+    <div class="nav-item active" role="button" tabindex="0" aria-label="Home" title="Home" onclick="nav('home', this)"><i data-lucide="layout-grid"></i></div>
+    <div class="nav-item" role="button" tabindex="0" aria-label="Riwayat" title="Riwayat" onclick="nav('history', this)"><i data-lucide="receipt-text"></i></div>
+    <div class="nav-item nav-add" role="button" tabindex="0" aria-label="Catat transaksi" title="Catat transaksi" onclick="nav('add', this)"><span class="nav-add-button"><i data-lucide="plus"></i></span></div>
+    <div class="nav-item" role="button" tabindex="0" aria-label="Planning" title="Planning" onclick="nav('planning', this)"><i data-lucide="calendar-range"></i></div>
+    <div class="nav-item" role="button" tabindex="0" aria-label="Pengaturan" title="Pengaturan" onclick="nav('settings', this)"><i data-lucide="sliders-horizontal"></i></div>
 </nav>
 
 <script>
@@ -1142,7 +1158,7 @@
         if (el) {
             el.classList.add('active');
         } else {
-            const pageOrder = ['home', 'history', 'add', 'settings'];
+            const pageOrder = ['home', 'history', 'add', 'planning', 'settings'];
             const index = pageOrder.indexOf(id);
             if (index >= 0 && navItems[index]) navItems[index].classList.add('active');
         }
@@ -2333,5 +2349,6 @@
 <script src="./v25-1-mobile.js"></script>
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
+<script src="./v25-3-1-quick-transaction.js"></script>
 </body>
 </html>
