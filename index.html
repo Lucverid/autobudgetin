@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v24.0</title>
+    <title>Agis Finance AI - v24.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -143,6 +143,11 @@
         .overview-label { display:block; color:var(--text-dim); font-size:.58rem; font-weight:900; text-transform:uppercase; margin-bottom:5px; }
         .overview-value { display:block; font-weight:900; font-size:.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .overview-note { color:var(--text-dim); font-size:.61rem; margin-top:4px; line-height:1.35; }
+        /* v24.1 additive: carry-over budget. Tidak mengubah batas aman harian. */
+        .carry-over-stat { grid-column:1 / -1; position:relative; }
+        .carry-over-row { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .carry-over-reset { border:1px solid var(--border); background:transparent; color:var(--text-dim); border-radius:9px; padding:5px 8px; font-size:.58rem; font-weight:850; cursor:pointer; flex-shrink:0; }
+        .carry-over-potential { color:var(--primary); font-weight:800; }
         .filter-panel { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
         .filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
         .filter-panel input, .filter-panel select { margin-bottom:0; padding:12px 13px; border-radius:14px; font-size:.75rem; }
@@ -289,6 +294,16 @@
                 <span class="overview-label">Target Tabungan</span>
                 <span class="overview-value" id="home-goal-progress">0%</span>
                 <div class="overview-note" id="home-sync-note">Sync bersih</div>
+            </div>
+            <div class="overview-stat carry-over-stat">
+                <div class="carry-over-row">
+                    <div>
+                        <span class="overview-label">Budget Tersimpan</span>
+                        <span class="overview-value" id="home-carry-over" style="color:var(--success)">Rp 0</span>
+                        <div class="overview-note" id="home-carry-note">Sisa jatah yang tidak dipakai akan masuk besok.</div>
+                    </div>
+                    <button class="carry-over-reset" onclick="resetCarryOver()" title="Reset budget tersimpan">Reset</button>
+                </div>
             </div>
         </div>
 
@@ -547,6 +562,8 @@
     const PIN_GUARD_KEY = 'agis_finance_pin_guard_v24';
     const DEVICE_ID_KEY = 'agis_finance_device_id_v24';
     const LAST_BACKUP_KEY = 'agis_finance_last_backup_v24';
+    const CARRY_OVER_KEY = 'agis_finance_carry_over_v24_1';
+    const CARRY_OVER_EXCLUDED_CATEGORIES = ['Keluarga & Pemberian', 'Penyesuaian Saldo'];
     const SYSTEM_ADJUSTMENT_CATEGORY = 'Penyesuaian Saldo';
     const LEGACY_GOAL_MIGRATION_KEY = 'agis_finance_goal_migrated_v23';
     const moneyFormatter = new Intl.NumberFormat('id-ID');
@@ -964,7 +981,7 @@
         if (hidden) hidden.value = val;
     };
 
-    const EXPENSE_CATEGORIES = ['Makan & Minum','Transportasi','Belanja','Tagihan','Hiburan','Lainnya'];
+    const EXPENSE_CATEGORIES = ['Makan & Minum','Transportasi','Belanja','Tagihan','Hiburan','Keluarga & Pemberian','Lainnya'];
     const INCOME_CATEGORIES = ['Gaji','Bonus','Penjualan','Refund','Hadiah','Lainnya'];
 
     function fillCategoryOptions(values, selected = '') {
@@ -1635,6 +1652,106 @@
         return new Date(y || 1970, (m || 1) - 1, d || 1);
     }
 
+    // v24.1: Budget Tersimpan disimpan terpisah dari snapshot/sync v24 agar fitur lama tetap kompatibel.
+    function readCarryOverState() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(CARRY_OVER_KEY) || '{}');
+            return {
+                month: String(parsed.month || ''),
+                balance: Math.max(0, Number(parsed.balance) || 0),
+                lastDate: String(parsed.lastDate || ''),
+                dailyBase: Math.max(0, Number(parsed.dailyBase) || 0),
+                history: parsed.history && typeof parsed.history === 'object' ? parsed.history : {}
+            };
+        } catch (err) {
+            console.warn('Carry-over gagal dibaca:', err);
+            return { month:'', balance:0, lastDate:'', dailyBase:0, history:{} };
+        }
+    }
+
+    function writeCarryOverState(state) {
+        try { localStorage.setItem(CARRY_OVER_KEY, JSON.stringify(state)); }
+        catch (err) { console.warn('Carry-over gagal disimpan:', err); }
+    }
+
+    function carryOverSpentOn(dateKey) {
+        return store.trans.reduce((sum, t) => {
+            if (t.tanggal !== dateKey || CARRY_OVER_EXCLUDED_CATEGORIES.includes(t.kategori)) return sum;
+            return sum + Number(t.nominal || 0);
+        }, 0);
+    }
+
+    function dateKeyPlusDays(key, days) {
+        const d = dateFromKey(key); d.setDate(d.getDate() + days);
+        const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function updateCarryOver(baseDaily) {
+        const todayKey = localDateKey();
+        const monthKey = todayKey.slice(0,7);
+        const state = readCarryOverState();
+        if (state.month !== monthKey) {
+            state.month = monthKey; state.balance = 0; state.lastDate = ''; state.dailyBase = 0; state.history = {};
+        }
+
+        const safeBase = Math.max(0, Math.floor(Number(baseDaily) || 0));
+        if (!state.lastDate) {
+            state.lastDate = todayKey;
+            state.dailyBase = safeBase;
+            state.history[todayKey] = { base:safeBase, spent:carryOverSpentOn(todayKey), saved:0, pending:true };
+            writeCarryOverState(state);
+        } else if (state.lastDate < todayKey) {
+            let cursor = state.lastDate;
+            let guard = 0;
+            while (cursor < todayKey && guard++ < 40) {
+                const row = state.history[cursor] || {};
+                const base = Math.max(0, Number(row.base) || Number(state.dailyBase) || safeBase);
+                const spent = carryOverSpentOn(cursor);
+                const saved = Math.max(0, base - spent);
+                const oldSaved = Math.max(0, Number(row.saved) || 0);
+                state.balance = Math.max(0, state.balance + saved - oldSaved);
+                state.history[cursor] = { base, spent, saved, pending:false };
+                cursor = dateKeyPlusDays(cursor, 1);
+                if (cursor < todayKey && !state.history[cursor]) state.history[cursor] = { base:Number(state.dailyBase)||safeBase, spent:0, saved:0, pending:true };
+            }
+            state.lastDate = todayKey;
+            state.dailyBase = safeBase;
+            state.history[todayKey] = state.history[todayKey] || { base:safeBase, spent:0, saved:0, pending:true };
+        }
+
+        // Koreksi otomatis jika transaksi hari yang sudah selesai diedit/dihapus.
+        Object.entries(state.history).forEach(([key,row]) => {
+            if (key >= todayKey || !key.startsWith(monthKey)) return;
+            const base = Math.max(0, Number(row.base) || 0);
+            const spent = carryOverSpentOn(key);
+            const saved = Math.max(0, base - spent);
+            const oldSaved = Math.max(0, Number(row.saved) || 0);
+            if (saved !== oldSaved || spent !== Number(row.spent || 0)) {
+                state.balance = Math.max(0, state.balance + saved - oldSaved);
+                state.history[key] = { base, spent, saved, pending:false };
+            }
+        });
+
+        const todayRow = state.history[todayKey] || { base:safeBase, spent:0, saved:0, pending:true };
+        if (!todayRow.base && safeBase) todayRow.base = safeBase;
+        todayRow.spent = carryOverSpentOn(todayKey);
+        todayRow.pending = true;
+        state.history[todayKey] = todayRow;
+        state.dailyBase = Math.max(0, Number(todayRow.base) || safeBase);
+        state.lastDate = todayKey;
+        const potential = Math.max(0, state.dailyBase - todayRow.spent);
+        writeCarryOverState(state);
+        return { balance:Math.floor(state.balance), potential:Math.floor(potential), base:Math.floor(state.dailyBase), spent:Math.floor(todayRow.spent) };
+    }
+
+    window.resetCarryOver = async () => {
+        const r = await Swal.fire({ title:'Reset Budget Tersimpan?', text:'Nilai carry-over bulan ini akan kembali ke Rp 0. Transaksi dan saldo tidak berubah.', icon:'warning', showCancelButton:true, confirmButtonText:'Reset', cancelButtonText:'Batal' });
+        if (!r.isConfirmed) return;
+        localStorage.removeItem(CARRY_OVER_KEY);
+        renderAll();
+    };
+
     function sumRange(transactions, start, end) {
         return transactions.reduce((sum, t) => {
             if (!t.tanggal) return sum;
@@ -1770,6 +1887,7 @@
         const statusEl=document.getElementById('home-fin-status'); if(statusEl){statusEl.textContent=`${insight.statusIcon} ${insight.status}`;statusEl.style.color=insight.status==='AMAN'?'var(--success)':insight.status==='WASPADA'?'var(--warning)':'var(--danger)';}
         const statusNote=document.getElementById('home-fin-status-note');if(statusNote)statusNote.textContent=insight.predictedEnd>=0?'Pace bulan ini masih tertahan.':'Prediksi akhir bulan mulai defisit.';
         const safeEl=document.getElementById('home-safe-today');if(safeEl)safeEl.textContent=fmt(remainingSafe); const safeNote=document.getElementById('home-safe-note');if(safeNote)safeNote.textContent=`Batas ${fmt(Math.floor(insight.safeDaily))} · sudah keluar ${fmt(spentToday)}`;
+        const carry=updateCarryOver(insight.safeDaily); const carryEl=document.getElementById('home-carry-over');if(carryEl)carryEl.textContent=fmt(carry.balance); const carryNote=document.getElementById('home-carry-note');if(carryNote)carryNote.innerHTML=`Potensi hari ini <span class="carry-over-potential">+${fmt(carry.potential)}</span> · masuk setelah hari berganti. Keluarga & Pemberian tidak mengurangi carry-over.`;
         const spentEl=document.getElementById('home-spent-today');if(spentEl)spentEl.textContent=fmt(spentToday);const spentNote=document.getElementById('home-spent-note');if(spentNote)spentNote.textContent=`${todayRows.length} transaksi pengeluaran`;
         const goalEl=document.getElementById('home-goal-progress');if(goalEl)goalEl.textContent=totalGoalTarget?`${goalPct.toFixed(0)}%`:'Belum ada';const syncNote=document.getElementById('home-sync-note');if(syncNote)syncNote.textContent=(store.conflicts||[]).length?`${store.conflicts.length} konflik sync`:userPendingOps()?`${userPendingOps()} perubahan menunggu sync`:'Sync bersih';
 
@@ -1783,6 +1901,7 @@
         document.getElementById('advisorContent').innerHTML = `
             <div class="insight-status ${insight.statusClass}">${insight.statusIcon} ${insight.status}</div>
             <div class="insight-row">💸 Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
+            <div class="insight-row">💾 Budget tersimpan: <b style="color:var(--success)">${fmt(carry.balance)}</b> · potensi hari ini +${fmt(carry.potential)}</div>
             <div class="insight-row">💰 Cashflow bulan ini: <b style="color:${netCashflow >= 0 ? 'var(--success)' : 'var(--danger)'}">${cashflowText}</b></div>
             <div class="insight-row">📈 Rata-rata pengeluaran 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
             <div class="insight-row">🔮 Prediksi akhir bulan: <b>${predictionText}</b></div>
