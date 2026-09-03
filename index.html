@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v24.1</title>
+    <title>Agis Finance AI - v24.3</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -218,6 +218,36 @@
         .page.active { display: block; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } }
         input, select { width: 100%; padding: 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 12px; outline: none; }
+
+        /* v24.3 — interaction layer; visual theme intentionally preserved */
+        html { scroll-behavior:smooth; }
+        .interactive-greeting { text-align:center; color:var(--text-dim); font-size:.72rem; font-weight:750; margin:-7px 0 8px; opacity:0; transform:translateY(4px); animation:v243Fade .45s .12s ease forwards; }
+        .card,.w-card,.overview-stat,.advisor,.goal-card,.recurring-card { transition:transform .22s ease, border-color .22s ease, box-shadow .22s ease, background .22s ease; }
+        @media (hover:hover) and (pointer:fine) {
+          .card:hover,.overview-stat:hover,.goal-card:hover,.recurring-card:hover { transform:translateY(-2px); border-color:rgba(45,212,191,.22); box-shadow:0 12px 28px rgba(0,0,0,.12); }
+          .w-card:hover { transform:translateY(-3px) scale(1.015); border-color:rgba(45,212,191,.24); }
+        }
+        .w-card:active,.overview-stat:active,.card:active { transform:scale(.985); }
+        .btn-icon,.btn-primary,.btn-small,.mini-action,.recovery-action,.carry-over-reset,.nav-item,.type-btn,.t-action { position:relative; overflow:hidden; transition:transform .16s ease, filter .16s ease, background .2s ease; }
+        .btn-icon:active,.btn-primary:active,.btn-small:active,.mini-action:active,.recovery-action:active,.carry-over-reset:active,.nav-item:active,.type-btn:active,.t-action:active { transform:scale(.92); }
+        .v243-ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,.22); transform:scale(0); animation:v243Ripple .48s ease-out; pointer-events:none; }
+        @keyframes v243Ripple { to { transform:scale(3.4); opacity:0; } }
+        @keyframes v243Fade { to { opacity:1; transform:none; } }
+        @keyframes v243ValuePulse { 0%{transform:translateY(2px);opacity:.72} 55%{transform:translateY(-1px)} 100%{transform:none;opacity:1} }
+        .v243-value-pulse { animation:v243ValuePulse .32s ease; }
+        .progress-fill,.recovery-progress span { transition:width .65s cubic-bezier(.2,.8,.2,1); }
+        .advisor { cursor:pointer; height:225px; }
+        .advisor::after { content:'Ketuk untuk detail'; position:absolute; right:18px; bottom:10px; font-size:.56rem; font-weight:800; color:var(--text-dim); opacity:.62; }
+        .advisor { position:relative; }
+        .advisor.expanded { height:min(420px,62vh); border-color:rgba(45,212,191,.24); box-shadow:0 14px 34px rgba(0,0,0,.16); }
+        .advisor.expanded::after { content:'Ketuk untuk ringkas'; }
+        .page.active { animation:v243Page .34s cubic-bezier(.2,.75,.2,1); }
+        @keyframes v243Page { from { opacity:0; transform:translateY(8px) scale(.995); } to { opacity:1; transform:none; } }
+        .nav-item.active::after { content:''; position:absolute; left:50%; bottom:2px; width:5px; height:5px; border-radius:50%; background:var(--primary); transform:translateX(-50%); box-shadow:0 0 10px var(--primary); }
+        .t-item { transition:background .18s ease, transform .18s ease; border-radius:14px; padding-left:7px; padding-right:5px; }
+        .t-item:active { background:rgba(148,163,184,.06); transform:scale(.99); }
+        @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+
     </style>
 </head>
 <body>
@@ -236,7 +266,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 24.0 CONTROL</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 24.3 INTERACTIVE</p>
 </div>
 
 <div class="container">
@@ -252,6 +282,7 @@
             </div>
         </div>
 
+        <div class="interactive-greeting" id="interactiveGreeting">Halo, Agis.</div>
         <div class="master-balance">
             <span style="font-size: 0.7rem; color: var(--text-dim); font-weight: 800; text-transform: uppercase;">Saldo Tersedia</span>
             <span class="master-amount" id="total-balance">Rp 0</span>
@@ -2257,12 +2288,35 @@
         if (pinEnabled()) lockApp();
         processRecurringTransactions();
         lucide.createIcons();
+        installV243Interactions();
 
         // PWA registration sebelumnya belum ada di v19.8.
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(err => console.error('Service Worker:', err));
         }
     });
+
+
+    // v24.3: lightweight interaction layer. No finance/sync calculation is changed.
+    function updateInteractiveGreeting(){
+        const el=document.getElementById('interactiveGreeting'); if(!el)return;
+        const h=new Date().getHours();
+        const part=h<11?'Pagi':h<15?'Siang':h<18?'Sore':'Malam';
+        el.textContent=`${part}, Agis · pantau pace, bukan cuma saldo.`;
+    }
+    function installV243Interactions(){
+        updateInteractiveGreeting();
+        const advisor=document.querySelector('.advisor');
+        if(advisor && !advisor.dataset.v243){ advisor.dataset.v243='1'; advisor.addEventListener('click',e=>{ if(e.target.closest('button,a,input,select'))return; advisor.classList.toggle('expanded'); }); }
+        const rippleSelector='.btn-icon,.btn-primary,.btn-small,.mini-action,.recovery-action,.carry-over-reset,.nav-item,.type-btn,.t-action';
+        document.addEventListener('pointerdown',e=>{
+            const b=e.target.closest(rippleSelector); if(!b)return;
+            const r=b.getBoundingClientRect(), d=Math.max(r.width,r.height), x=e.clientX-r.left-d/2, y=e.clientY-r.top-d/2;
+            const span=document.createElement('span'); span.className='v243-ripple'; span.style.cssText=`width:${d}px;height:${d}px;left:${x}px;top:${y}px`; b.appendChild(span); setTimeout(()=>span.remove(),520);
+        },{passive:true});
+        const valueIds=['total-balance','goal-amount','w-cash','w-bank','w-e','home-safe-today','home-spent-today','home-carry-over','home-no-spend-streak','home-eom-prediction','month-income','month-expense','month-net'];
+        valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
+    }
 </script>
 </body>
 </html>
