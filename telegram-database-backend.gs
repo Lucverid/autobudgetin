@@ -1,5 +1,5 @@
 /**
- * Agis Finance v25.0 — Google Apps Script backend
+ * Agis Finance v25.3.5 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -8,14 +8,14 @@ const DB = {
   transfers: 'Transfers', goals: 'Goals', recurring: 'Recurring', budgets: 'Budgets', bills: 'Bills', logs: 'Notification Log'
 };
 
-function onOpen(){ SpreadsheetApp.getUi().createMenu('Agis Finance').addItem('Setup database','setupAgisFinance').addItem('Simpan secret dari Config','saveSecretsFromConfig').addItem('Tes Telegram','testTelegramFromSheet').addToUi(); }
+function onOpen(){ SpreadsheetApp.getUi().createMenu('Agis Finance').addItem('Setup database','setupAgisFinance').addItem('Aktifkan ulang pengingat','installReminderTrigger').addItem('Simpan secret dari Config','saveSecretsFromConfig').addItem('Tes Telegram','testTelegramFromSheet').addToUi(); }
 
 function setupAgisFinance(){
   const ss=SpreadsheetApp.getActive();
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v25.0','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v25.3.5','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -23,9 +23,14 @@ function setupAgisFinance(){
   ]);
   cfg.setFrozenRows(1); styleHeader_(cfg,2);
   ensureHeaders_();
+  installReminderTrigger(false);
+  SpreadsheetApp.getUi().alert('Setup selesai. Isi B2–B4 di Config, lalu menu Agis Finance → Simpan secret dari Config.');
+}
+
+function installReminderTrigger(showAlert=true){
   ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==='scheduledCheck').forEach(t=>ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('scheduledCheck').timeBased().everyHours(1).create();
-  SpreadsheetApp.getUi().alert('Setup selesai. Isi B2–B4 di Config, lalu menu Agis Finance → Simpan secret dari Config.');
+  if(showAlert)SpreadsheetApp.getUi().alert('Pengingat aktif. Bot akan mengecek tagihan tiap jam dan mengirim ringkasan harian sekitar pukul 20.00.');
 }
 
 function saveSecretsFromConfig(){
@@ -84,12 +89,106 @@ function latestSnapshot_(){const sh=SpreadsheetApp.getActive().getSheetByName(DB
 
 function scheduledCheck(){const snap=latestSnapshot_();if(snap)checkSnapshot_(snap,true);}
 function checkSnapshot_(snap,scheduled){
-  const s=snap.summary||{}, today=Utilities.formatDate(new Date(),Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd');
+  const s=snap.summary||{}, tz=Session.getScriptTimeZone()||'Asia/Jakarta', now=new Date();
+  const today=Utilities.formatDate(now,tz,'yyyy-MM-dd');
   if(Number(s.safeFloor)>0&&Number(s.available)<Number(s.safeFloor))notifyOnce_('floor:'+today,`⚠️ Safe Floor terlewati\nSaldo tersedia Rp ${fmt_(s.available)}\nSafe Floor Rp ${fmt_(s.safeFloor)}`);
   if(Number(s.score)<40)notifyOnce_('score:'+today,`🔴 Financial Score kritis: ${Math.round(Number(s.score)||0)}/100`);
   if(s.recovery&&Number(s.recovery.pct)>=100)notifyOnce_('recovery:'+(s.recovery.createdAt||s.recovery.startDate||s.recovery.name),`🎯 Recovery selesai\n${s.recovery.name||'Target'} sudah 100% pulih.`);
-  const last=s.latestExpense;if(last&&last.id){const key='latest-expense-notified';const props=PropertiesService.getScriptProperties();if(props.getProperty(key)!==String(last.id)){const amount=Number(last.nominal)||0;if(amount>0){sendTelegram_(`💸 Pengeluaran baru\n${last.kategori||'Pengeluaran'} · Rp ${fmt_(amount)}\n${last.dompet?last.dompet+' · ':''}${last.tanggal||''}`);props.setProperty(key,String(last.id));}}}
-  if(scheduled){checkBills_(snap);const now=new Date(),dow=Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','EEEE').toUpperCase(),hour=Number(Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','H'));if(dow==='MONDAY'&&hour===8){const week=Utilities.formatDate(now,Session.getScriptTimeZone()||'Asia/Jakarta','YYYY-ww');notifyOnce_('weekly:'+week,weeklyMessage_(snap));}}
+
+  const last=s.latestExpense;
+  if(last&&last.id){
+    const key='latest-expense-notified', props=PropertiesService.getScriptProperties();
+    if(props.getProperty(key)!==String(last.id)&&Number(last.nominal)>0){
+      sendTelegram_(expenseMessage_(snap,last));
+      props.setProperty(key,String(last.id));
+      log_('expense:'+String(last.id),expenseMessage_(snap,last));
+    }
+  }
+
+  if(scheduled){
+    checkBills_(snap);
+    const hour=Number(Utilities.formatDate(now,tz,'H'));
+    const dow=Utilities.formatDate(now,tz,'EEEE').toUpperCase();
+    if(hour===20)notifyOnce_('daily:'+today,dailyReminderMessage_(snap));
+    if(dow==='MONDAY'&&hour===8){
+      const week=Utilities.formatDate(now,tz,'YYYY-ww');
+      notifyOnce_('weekly:'+week,weeklyMessage_(snap));
+    }
+  }
+}
+
+function expenseMessage_(snap,last){
+  const s=snap.summary||{}, amount=Number(last.nominal)||0, category=String(last.kategori||'Pengeluaran');
+  const note=String(last.catatan||last.note||'').trim();
+  const todayExpense=Number(s.todayExpense)||todayExpenseFromRows_(snap);
+  const dailySafe=Number(s.dailySafe)||dailySafeFallback_(snap);
+  const lines=[
+    '💸 Pengeluaran baru',
+    `Rp ${fmt_(amount)} · ${category}`,
+    `Untuk: ${note||category}`,
+    `${last.dompet?`Dari: ${last.dompet} · `:''}${humanDate_(last.tanggal||s.date||'')}`
+  ];
+  if(String(last.tanggal||'')===String(s.date||'')){
+    if(dailySafe>0){
+      const diff=todayExpense-dailySafe;
+      lines.push(`Hari ini: Rp ${fmt_(todayExpense)} / batas aman Rp ${fmt_(dailySafe)}`);
+      if(diff>0)lines.push(`🚨 Batas aman harian terlewati Rp ${fmt_(diff)}.`);
+      else if(amount>=dailySafe*.5)lines.push(`⚠️ Transaksi ini memakai ${Math.round(amount/dailySafe*100)}% jatah aman harian.`);
+      else lines.push(`Sisa aman hari ini Rp ${fmt_(Math.max(0,dailySafe-todayExpense))}.`);
+    }else if(amount>0){
+      lines.push('🚨 Tidak ada jatah aman harian tersisa. Pengeluaran ini langsung mengurangi buffer.');
+    }
+  }
+  const catWarn=categoryWarning_(snap,category);
+  if(catWarn)lines.push(catWarn);
+  return lines.join('\n');
+}
+
+function categoryWarning_(snap,category){
+  if(!category||category==='Penyesuaian Saldo')return '';
+  const s=snap.summary||{}, month=String(s.date||'').slice(0,7), rows=snap.data?.trans||[];
+  const spent=rows.filter(x=>x.kategori===category&&String(x.tanggal||'').startsWith(month)).reduce((sum,x)=>sum+(Number(x.nominal)||0),0);
+  const hard=Number(snap.data?.limits?.[category])||0;
+  const plan=Number(snap.data?.v25?.budgets?.[month]?.[category])||0;
+  if(hard>0&&spent>hard)return `🚨 Limit ${category} terlewati Rp ${fmt_(spent-hard)} (Rp ${fmt_(spent)} / Rp ${fmt_(hard)}).`;
+  if(plan>0&&spent>plan)return `⚠️ Target alokasi ${category} terlewati Rp ${fmt_(spent-plan)}.`;
+  if(plan>0&&spent>=plan*.8)return `🟡 Target alokasi ${category} sudah ${Math.round(spent/plan*100)}%.`;
+  return '';
+}
+
+function dailyReminderMessage_(snap){
+  const s=snap.summary||{}, spent=Number(s.todayExpense)||todayExpenseFromRows_(snap), safe=Number(s.dailySafe)||dailySafeFallback_(snap);
+  const lines=['⏰ Pengingat keuangan malam',`Hari ini keluar Rp ${fmt_(spent)}`];
+  if(safe>0){
+    if(spent>safe)lines.push(`🚨 Lewat batas aman Rp ${fmt_(spent-safe)} · batas harian Rp ${fmt_(safe)}`);
+    else lines.push(`Sisa aman hari ini Rp ${fmt_(safe-spent)} · batas harian Rp ${fmt_(safe)}`);
+  }else if(spent>0){
+    lines.push('🚨 Jatah aman harian sudah Rp 0. Pengeluaran hari ini memakai buffer.');
+  }
+  lines.push(`Saldo tersedia Rp ${fmt_(s.available||0)} · Tabungan Rp ${fmt_(s.reservedSavings||0)}`);
+  const next=nearestBill_(snap);
+  if(next)lines.push(`🧾 Tagihan terdekat: ${next.name||'Tagihan'} Rp ${fmt_(next.amount)} · ${next.date}`);
+  if(!spent)lines.push('✅ Belum ada pengeluaran tercatat hari ini.');
+  return lines.join('\n');
+}
+
+function todayExpenseFromRows_(snap){
+  const day=String(snap.summary?.date||''), rows=snap.data?.trans||[];
+  return rows.filter(x=>x.tanggal===day&&x.kategori!=='Penyesuaian Saldo').reduce((sum,x)=>sum+(Number(x.nominal)||0),0);
+}
+function dailySafeFallback_(snap){
+  const s=snap.summary||{}, available=Math.max(0,Number(s.available)||0), floor=Math.max(0,Number(s.safeFloor)||0), days=Math.max(1,Number(s.remainingDays)||1);
+  return Math.floor(Math.max(0,available-floor)/days);
+}
+function humanDate_(key){
+  const p=String(key||'').split('-').map(Number); if(p.length!==3||!p[0])return String(key||'');
+  const d=new Date(p[0],p[1]-1,p[2]);
+  return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Jakarta','dd MMM yyyy');
+}
+function nearestBill_(snap){
+  const bills=(snap.data?.v25?.bills||[]).filter(b=>b.active!==false); if(!bills.length)return null;
+  const tz=Session.getScriptTimeZone()||'Asia/Jakarta', todayStr=Utilities.formatDate(new Date(),tz,'yyyy-MM-dd'), today=new Date(todayStr+'T00:00:00');
+  return bills.map(b=>({bill:b,due:nextBillDate_(b,today)})).filter(x=>x.due).sort((a,b)=>a.due-b.due).map(x=>({name:x.bill.name,amount:Number(x.bill.amount)||0,date:Utilities.formatDate(x.due,tz,'dd MMM yyyy')}))[0]||null;
 }
 
 function checkBills_(snap){
@@ -118,9 +217,9 @@ function nextBillDate_(b,ref){
 }
 
 function weeklyMessage_(snap){const rows=snap.data?.trans||[],now=new Date(),cut=new Date(now.getTime()-7*86400000);let total=0;const cats={};rows.forEach(x=>{const d=new Date((x.tanggal||'1970-01-01')+'T00:00:00');if(d>=cut){const n=Number(x.nominal)||0;total+=n;cats[x.kategori||'Lainnya']=(cats[x.kategori||'Lainnya']||0)+n}});const top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];return `📊 Weekly Review\n7 hari keluar Rp ${fmt_(total)}${top?`\nTerbesar: ${top[0]} Rp ${fmt_(top[1])}`:''}\nScore ${Math.round(Number(snap.summary?.score)||0)}/100 · Carry-over Rp ${fmt_(snap.summary?.carryOver||0)}`;}
-function notifyOnce_(id,msg){const p=PropertiesService.getScriptProperties();if(p.getProperty('N:'+id))return;p.setProperty('N:'+id,new Date().toISOString());sendTelegram_(msg);log_(id,msg)}
+function notifyOnce_(id,msg){const p=PropertiesService.getScriptProperties();if(p.getProperty('N:'+id))return;sendTelegram_(msg);p.setProperty('N:'+id,new Date().toISOString());log_(id,msg)}
 function sendTelegram_(text){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const r=UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'post',contentType:'application/json',payload:JSON.stringify({chat_id:chat,text}),muteHttpExceptions:true});if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());}
-function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v25.0 backend aktif. Notifikasi otomatis siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
+function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v25.3.5 backend aktif. Notifikasi transaksi, peringatan, tagihan, dan pengingat harian siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
 function log_(id,msg){const sh=SpreadsheetApp.getActive().getSheetByName(DB.logs);sh.appendRow([new Date(),id,msg]);}
 function wipeDatabase_(){ensureSheetsSafe_();[DB.snapshot,DB.expenses,DB.incomes,DB.transfers,DB.goals,DB.recurring,DB.budgets,DB.bills].forEach(n=>{const sh=SpreadsheetApp.getActive().getSheetByName(n);if(sh)sh.clearContents()});ensureHeaders_();}
 function fmt_(n){return Math.round(Number(n)||0).toLocaleString('id-ID');}

@@ -260,6 +260,7 @@
     <link rel="stylesheet" href="./v25-3-2-ui-polish.css">
     <link rel="stylesheet" href="./v25-3-3-financial-plan.css">
     <link rel="stylesheet" href="./v25-3-4-balance-wallet.css">
+    <link rel="stylesheet" href="./v25-3-5-balance-savings.css">
 </head>
 <body>
 
@@ -277,7 +278,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.4 BALANCE & WALLET FIX</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.5 SMART TELEGRAM REMINDER</p>
 </div>
 
 <div class="container">
@@ -293,13 +294,14 @@
             </div>
         </div>
 
-        <div class="master-balance v2534-balance-only" aria-label="Saldo tersedia">
-            <span class="master-amount" id="total-balance">Rp 0</span>
-        </div>
-
-        <div class="goal-info" onclick="nav('settings')">
-            <i data-lucide="target" style="width:14px; margin-right:5px"></i>
-            Tabungan: <span id="goal-amount">Rp 0</span>
+        <div class="v2535-balance-savings-row" aria-label="Ringkasan saldo dan tabungan">
+            <div class="master-balance v2534-balance-only" aria-label="Saldo tersedia">
+                <span class="master-amount" id="total-balance">Rp 0</span>
+            </div>
+            <div class="goal-info v2535-savings-inline" onclick="nav('settings')" title="Buka target tabungan">
+                <i data-lucide="target" aria-hidden="true"></i>
+                <span>Tabungan</span> <strong id="goal-amount">Rp 0</strong>
+            </div>
         </div>
 
         <div class="wallet-container">
@@ -469,6 +471,7 @@
                 </div>
                 <input type="text" id="t-amount-display" placeholder="Nominal" inputmode="numeric" oninput="formatInput(this)">
                 <input type="hidden" id="t-amount">
+                <input type="text" id="t-note" maxlength="120" placeholder="Keterangan (opsional), contoh: makan siang / bensin">
             </form>
             <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>
         </div>
@@ -1214,20 +1217,21 @@
 
         let id, data, op;
         const createdAt = Date.now();
+        const catatan = (document.getElementById('t-note')?.value || '').trim().slice(0,120);
         if (type === 'expense') {
             const ref = db.collection('pengeluaran').doc(); id = ref.id;
-            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
+            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, catatan, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
             op = { opId:`add:${id}`, type:'addExpense', expenseId:id, data, createdAt };
         } else if (type === 'income') {
             const ref = db.collection('pemasukan').doc(); id = ref.id;
-            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
+            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, catatan, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
             op = { opId:`income:${id}`, type:'addIncome', incomeId:id, data, createdAt };
         } else {
             const from = document.getElementById('t-from').value;
             const to = document.getElementById('t-to').value;
             if (from === to) return Swal.fire('Transfer tidak valid', 'Wallet asal dan tujuan harus berbeda.', 'warning');
             const ref = db.collection('transfer').doc(); id = ref.id;
-            data = { tanggal:d, dari:from, ke:to, nominal:amount, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
+            data = { tanggal:d, dari:from, ke:to, nominal:amount, catatan, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
             op = { opId:`transfer:${id}`, type:'addTransfer', transferId:id, data, createdAt };
         }
 
@@ -1239,6 +1243,7 @@
 
         document.getElementById('t-amount-display').value = '';
         document.getElementById('t-amount').value = '';
+        const noteInput = document.getElementById('t-note'); if (noteInput) noteInput.value = '';
         nav('home');
         const label = type === 'expense' ? 'Pengeluaran' : type === 'income' ? 'Pemasukan' : 'Transfer';
         auditEvent(`Tambah ${label}`, `${type === 'transfer' ? `${data.dari} → ${data.ke}` : `${data.kategori} · ${data.dompet}`} · ${fmt(data.nominal)}`, {entityType:type, entityId:id});
@@ -1585,12 +1590,14 @@
                 <label>Dari wallet</label><select id="edit-from">${walletOptionHtml(current.dari)}</select>
                 <label>Ke wallet</label><select id="edit-to">${walletOptionHtml(current.ke)}</select>
                 <label>Nominal</label><input id="edit-amount" inputmode="numeric" value="${moneyFormatter.format(Number(current.nominal)||0)}">
+                <label>Keterangan</label><input id="edit-note" maxlength="120" value="${escapeHtml(current.catatan||current.note||'')}" placeholder="Opsional">
             </div>` : `
             <div class="edit-modal-grid">
                 <label>Tanggal</label><input id="edit-date" type="date" value="${escapeHtml(current.tanggal)}">
                 <label>Wallet</label><select id="edit-wallet">${walletOptionHtml(current.dompet)}</select>
                 <label>Kategori</label><select id="edit-cat">${categoryOptionHtml(categories, current.kategori)}</select>
                 <label>Nominal</label><input id="edit-amount" inputmode="numeric" value="${moneyFormatter.format(Number(current.nominal)||0)}">
+                <label>Keterangan</label><input id="edit-note" maxlength="120" value="${escapeHtml(current.catatan||current.note||'')}" placeholder="Opsional">
             </div>`;
 
         const result = await Swal.fire({
@@ -1608,9 +1615,9 @@
                     const dari = document.getElementById('edit-from').value;
                     const ke = document.getElementById('edit-to').value;
                     if (dari === ke) return Swal.showValidationMessage('Wallet asal dan tujuan harus berbeda.');
-                    return { tanggal, dari, ke, nominal, createdAt:Number(current.createdAt)||Date.now() };
+                    return { tanggal, dari, ke, nominal, catatan:(document.getElementById('edit-note')?.value||'').trim().slice(0,120), createdAt:Number(current.createdAt)||Date.now() };
                 }
-                return { tanggal, dompet:document.getElementById('edit-wallet').value, kategori:document.getElementById('edit-cat').value, nominal, createdAt:Number(current.createdAt)||Date.now() };
+                return { tanggal, dompet:document.getElementById('edit-wallet').value, kategori:document.getElementById('edit-cat').value, nominal, catatan:(document.getElementById('edit-note')?.value||'').trim().slice(0,120), createdAt:Number(current.createdAt)||Date.now() };
             }
         });
         if (!result.isConfirmed || !result.value) return;

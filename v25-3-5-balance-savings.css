@@ -1,0 +1,97 @@
+/* v25.3.5 — Keep v25.3 look, but place savings next to the available balance. */
+
+#home > .v2535-balance-savings-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(12px,3vw,22px);
+  min-width:0;
+  margin:0 0 12px;
+}
+#home > .v2535-balance-savings-row .master-balance.v2534-balance-only{
+  display:block!important;
+  min-width:0;
+  margin:0!important;
+  text-align:left;
+}
+#home > .v2535-balance-savings-row .master-amount{
+  display:block;
+  font-size:clamp(2rem,8.8vw,2.7rem);
+  line-height:1;
+  letter-spacing:-.045em;
+  white-space:nowrap;
+}
+#home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{
+  display:inline-flex!important;
+  align-items:center;
+  gap:5px;
+  width:auto!important;
+  max-width:48%;
+  margin:0!important;
+  padding:7px 10px!important;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:rgba(255,255,255,.022);
+  color:var(--warning);
+  font-size:.69rem;
+  line-height:1.05;
+  white-space:nowrap;
+  flex:0 1 auto;
+}
+#home > .v2535-balance-savings-row .goal-info svg{
+  width:13px;
+  height:13px;
+  flex:0 0 auto;
+}
+#home > .v2535-balance-savings-row .goal-info strong{
+  color:inherit;
+  font-weight:800;
+}
+
+@media (min-width:760px){
+  #home.page.active{
+    grid-template-rows:auto auto auto auto auto auto auto;
+  }
+  #home > .header{grid-column:1/-1;grid-row:1}
+  #home > .v2535-balance-savings-row{
+    grid-column:1/-1;
+    grid-row:2;
+    justify-content:flex-start;
+    margin:0!important;
+    padding:2px 4px 0;
+  }
+  #home > .v2535-balance-savings-row .master-amount{
+    font-size:clamp(2.45rem,4.2vw,3.45rem);
+  }
+  #home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{
+    font-size:.78rem;
+    padding:8px 12px!important;
+  }
+  #home > .wallet-container{grid-column:1/-1;grid-row:3}
+  #home > .overview-grid{grid-column:1/-1;grid-row:4}
+  #home > #v244-score-card{grid-column:1;grid-row:5}
+  #home > .home-cashflow-card{grid-column:2;grid-row:5}
+  #home > #v244-week-card{grid-column:1;grid-row:6}
+  #home > #v244-heatmap-card{grid-column:2;grid-row:6}
+  #home > .home-chart-card{grid-column:1/-1;grid-row:7}
+}
+
+@media (max-width:420px){
+  #home > .v2535-balance-savings-row{
+    justify-content:space-between;
+    gap:8px;
+  }
+  #home > .v2535-balance-savings-row .master-amount{
+    font-size:clamp(1.82rem,8.7vw,2.22rem);
+  }
+  #home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{
+    max-width:46%;
+    padding:6px 8px!important;
+    font-size:.62rem;
+  }
+}
+
+@media (max-width:350px){
+  #home > .v2535-balance-savings-row .goal-info.v2535-savings-inline span{display:none}
+  #home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{max-width:42%}
+}
