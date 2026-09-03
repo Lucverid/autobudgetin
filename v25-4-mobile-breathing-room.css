@@ -1,0 +1,57 @@
+/* v25.4 — Mobile Breathing Room. UI-only overrides; finance/data logic untouched. */
+@media(max-width:759px){
+  #home{padding-bottom:112px!important}
+  #home .mobile-focus-switch{display:none!important}
+  body.v251-compact #home .v251-secondary{display:initial!important}
+
+  #home .header{margin-bottom:16px!important}
+  #home .interactive-greeting{margin:0 0 10px!important;font-size:.72rem!important}
+  #home .master-balance{padding:2px 1px 0!important;margin:0!important}
+  #home .master-amount{font-size:clamp(2.25rem,11.5vw,3rem)!important;line-height:1.02!important}
+  #home .goal-info{margin:8px 0 20px!important}
+
+  /* Wallets are glanceable at first sight: no swipe, no hidden card. */
+  #home .wallet-container{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    overflow:visible!important;scroll-snap-type:none!important;gap:8px!important;
+    margin:0 0 22px!important;padding:0!important;
+  }
+  #home .wallet-container .w-card{
+    min-width:0!important;width:auto!important;min-height:94px!important;flex:none!important;
+    padding:11px 8px!important;border-radius:17px!important;align-items:flex-start!important;
+    scroll-snap-align:none!important;
+  }
+  #home .wallet-container .w-icon{width:32px!important;height:32px!important;border-radius:11px!important;margin-bottom:9px!important}
+  #home .wallet-container .w-icon svg{width:16px!important;height:16px!important}
+  #home .wallet-container .w-name{font-size:.56rem!important;white-space:nowrap!important}
+  #home .wallet-container .w-val{font-size:.69rem!important;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* Health pulse is the single high-level condition indicator. */
+  #home #v244-score-card{margin:0 0 20px!important;min-height:78px!important}
+
+  /* Only the two daily controls that matter at a glance stay on Home. */
+  #home .overview-grid{display:grid!important;grid-template-columns:1fr!important;gap:9px!important;margin:0 0 22px!important}
+  #home .overview-stat{display:none!important}
+  #home .overview-stat:has(#home-safe-today),
+  #home .overview-stat:has(#home-carry-over){display:block!important;min-height:0!important;padding:13px 14px!important;border-radius:17px!important}
+  #home .overview-stat:has(#home-safe-today) .overview-note,
+  #home .overview-stat:has(#home-carry-over) .overview-note{margin-top:3px!important}
+
+  /* Planning is useful on Home, but should read as sections rather than a wall of cards. */
+  #home .v25-dashboard-grid{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;margin:0 0 22px!important}
+  #home .v25-panel{padding:14px!important;border-radius:18px!important}
+  #home .v25-panel .v25-title{margin-bottom:10px!important}
+
+  /* Deep reports stay available but out of the first mobile scan. */
+  #home .home-cashflow-card,#home .home-chart-card,#home .v25-year-card{margin-top:20px!important}
+  #home .v25-year-card{display:none!important}
+
+  #home>.card,#home>.advisor{margin-bottom:18px}
+}
+
+@media(max-width:370px){
+  #home .wallet-container{gap:6px!important}
+  #home .wallet-container .w-card{padding:10px 6px!important}
+  #home .wallet-container .w-val{font-size:.62rem!important}
+  #home .wallet-container .w-name{font-size:.52rem!important}
+}
