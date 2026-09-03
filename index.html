@@ -259,6 +259,7 @@
     <link rel="stylesheet" href="./v25-3-1-quick-transaction.css">
     <link rel="stylesheet" href="./v25-3-2-ui-polish.css">
     <link rel="stylesheet" href="./v25-3-3-financial-plan.css">
+    <link rel="stylesheet" href="./v25-3-4-balance-wallet.css">
 </head>
 <body>
 
@@ -276,7 +277,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.2 UI POLISH</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 25.3.4 BALANCE & WALLET FIX</p>
 </div>
 
 <div class="container">
@@ -290,6 +291,10 @@
                 <button onclick="lockApp()" class="btn-icon" id="pinLockBtn" style="display:none" title="Kunci aplikasi"><i data-lucide="lock-keyhole"></i></button>
                 <button onclick="toggleTheme()" class="btn-icon"><i data-lucide="sun-moon"></i></button>
             </div>
+        </div>
+
+        <div class="master-balance v2534-balance-only" aria-label="Saldo tersedia">
+            <span class="master-amount" id="total-balance">Rp 0</span>
         </div>
 
         <div class="goal-info" onclick="nav('settings')">

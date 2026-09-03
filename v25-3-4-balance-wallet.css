@@ -1,0 +1,91 @@
+/* v25.3.4 — Restore available balance number, keep the label/greeting removed, and fit all wallets without horizontal scrolling. */
+
+/* v25.3.2 intentionally hid the whole balance hero. v25.3.4 restores ONLY the number. */
+#home > .master-balance.v2534-balance-only{
+  display:block!important;
+  text-align:center;
+  margin:2px 0 10px!important;
+  min-width:0;
+}
+#home > .master-balance.v2534-balance-only .master-amount{
+  font-size:clamp(2.15rem,7vw,3rem);
+  line-height:1.05;
+  letter-spacing:-.045em;
+}
+
+/* Keep greeting and old text label gone. */
+#home > .interactive-greeting{display:none!important}
+
+/* Wallets must all be visible at once. */
+#home > .wallet-container{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  overflow:visible!important;
+  scroll-snap-type:none!important;
+  padding:0!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+#home > .wallet-container .w-card{
+  min-width:0!important;
+  width:auto!important;
+  flex:none!important;
+  scroll-snap-align:none!important;
+}
+
+@media (min-width:760px){
+  #home.page.active{
+    grid-template-rows:auto auto auto auto auto auto auto auto;
+  }
+  #home > .header{grid-column:1/-1;grid-row:1}
+  #home > .master-balance.v2534-balance-only{grid-column:1/-1;grid-row:2;margin:0!important}
+  #home > .goal-info{grid-column:1/-1;grid-row:3}
+  #home > .wallet-container{grid-column:1/-1;grid-row:4}
+  #home > .overview-grid{grid-column:1/-1;grid-row:5}
+  #home > #v244-score-card{grid-column:1;grid-row:6}
+  #home > .home-cashflow-card{grid-column:2;grid-row:6}
+  #home > #v244-week-card{grid-column:1;grid-row:7}
+  #home > #v244-heatmap-card{grid-column:2;grid-row:7}
+  #home > .home-chart-card{grid-column:1/-1;grid-row:8}
+}
+
+@media (max-width:759px){
+  #home > .master-balance.v2534-balance-only{margin:0 0 11px!important}
+  #home > .master-balance.v2534-balance-only .master-amount{
+    font-size:clamp(2rem,10.5vw,2.65rem);
+  }
+  #home > .wallet-container{
+    gap:6px!important;
+    margin:0 0 13px!important;
+  }
+  #home > .wallet-container .w-card{
+    padding:10px 5px!important;
+    min-height:101px!important;
+    border-radius:17px!important;
+  }
+  #home > .wallet-container .w-icon{
+    width:34px!important;
+    height:34px!important;
+    border-radius:11px!important;
+    margin-bottom:8px!important;
+  }
+  #home > .wallet-container .w-icon svg{
+    width:17px!important;
+    height:17px!important;
+  }
+  #home > .wallet-container .w-name{
+    font-size:.52rem!important;
+    margin-bottom:3px!important;
+  }
+  #home > .wallet-container .w-val{
+    font-size:clamp(.61rem,2.9vw,.75rem)!important;
+    letter-spacing:-.025em;
+    text-overflow:clip!important;
+  }
+}
+
+@media (max-width:360px){
+  #home > .wallet-container{gap:5px!important}
+  #home > .wallet-container .w-card{padding:9px 3px!important}
+  #home > .wallet-container .w-val{font-size:.59rem!important}
+}
