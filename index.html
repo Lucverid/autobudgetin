@@ -148,6 +148,12 @@
         .carry-over-row { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
         .carry-over-reset { border:1px solid var(--border); background:transparent; color:var(--text-dim); border-radius:9px; padding:5px 8px; font-size:.58rem; font-weight:850; cursor:pointer; flex-shrink:0; }
         .carry-over-potential { color:var(--primary); font-weight:800; }
+        /* v24.2 additive: streak, recovery target, dan proyeksi akhir bulan. */
+        .recovery-stat { grid-column:1 / -1; }
+        .recovery-progress { height:7px; border-radius:999px; background:rgba(148,163,184,.16); overflow:hidden; margin-top:8px; }
+        .recovery-progress > span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--primary),var(--success)); }
+        .recovery-actions { display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+        .recovery-action { border:1px solid var(--border); background:transparent; color:var(--text-dim); border-radius:9px; padding:6px 8px; font-size:.58rem; font-weight:850; cursor:pointer; }
         .filter-panel { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
         .filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
         .filter-panel input, .filter-panel select { margin-bottom:0; padding:12px 13px; border-radius:14px; font-size:.75rem; }
@@ -303,6 +309,30 @@
                         <div class="overview-note" id="home-carry-note">Sisa jatah yang tidak dipakai akan masuk besok.</div>
                     </div>
                     <button class="carry-over-reset" onclick="resetCarryOver()" title="Reset budget tersimpan">Reset</button>
+                </div>
+            </div>
+            <div class="overview-stat">
+                <span class="overview-label">No-Spend Streak</span>
+                <span class="overview-value" id="home-no-spend-streak" style="color:var(--primary)">0 hari</span>
+                <div class="overview-note" id="home-no-spend-note">Hari tanpa belanja konsumtif</div>
+            </div>
+            <div class="overview-stat">
+                <span class="overview-label">Prediksi Akhir Bulan</span>
+                <span class="overview-value" id="home-eom-prediction">—</span>
+                <div class="overview-note" id="home-eom-note">Berdasarkan rata-rata 7 hari</div>
+            </div>
+            <div class="overview-stat recovery-stat">
+                <div class="carry-over-row">
+                    <div style="min-width:0;flex:1">
+                        <span class="overview-label">Recovery Target</span>
+                        <span class="overview-value" id="home-recovery-value">Belum dibuat</span>
+                        <div class="overview-note" id="home-recovery-note">Pulihkan buffer dari carry-over yang benar-benar sudah terkumpul.</div>
+                        <div class="recovery-progress"><span id="home-recovery-bar" style="width:0%"></span></div>
+                        <div class="recovery-actions">
+                            <button class="recovery-action" onclick="openRecoveryTarget()">Atur / Edit</button>
+                            <button class="recovery-action" onclick="clearRecoveryTarget()">Hapus Target</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -563,6 +593,7 @@
     const DEVICE_ID_KEY = 'agis_finance_device_id_v24';
     const LAST_BACKUP_KEY = 'agis_finance_last_backup_v24';
     const CARRY_OVER_KEY = 'agis_finance_carry_over_v24_1';
+    const RECOVERY_TARGET_KEY = 'agis_finance_recovery_target_v24_2';
     const CARRY_OVER_EXCLUDED_CATEGORIES = ['Keluarga & Pemberian', 'Penyesuaian Saldo'];
     const SYSTEM_ADJUSTMENT_CATEGORY = 'Penyesuaian Saldo';
     const LEGACY_GOAL_MIGRATION_KEY = 'agis_finance_goal_migrated_v23';
@@ -1752,6 +1783,63 @@
         renderAll();
     };
 
+    function eligibleSpendOn(dateKey) {
+        return store.trans.reduce((sum,t) => {
+            if (t.tanggal !== dateKey || CARRY_OVER_EXCLUDED_CATEGORIES.includes(t.kategori)) return sum;
+            return sum + Number(t.nominal || 0);
+        }, 0);
+    }
+
+    function calculateNoSpendStreak() {
+        const today = localDateKey();
+        const month = today.slice(0,7);
+        let cursor = today, streak = 0, guard = 0;
+        while (cursor.startsWith(month) && guard++ < 31) {
+            if (eligibleSpendOn(cursor) > 0) break;
+            streak += 1;
+            cursor = dateKeyPlusDays(cursor, -1);
+        }
+        return streak;
+    }
+
+    function readRecoveryTarget() {
+        try {
+            const data = JSON.parse(localStorage.getItem(RECOVERY_TARGET_KEY) || 'null');
+            if (!data || !Number(data.amount)) return null;
+            return { name:String(data.name || 'Recovery Buffer'), amount:Math.max(0,Number(data.amount)||0), startDate:String(data.startDate || localDateKey()), createdAt:Number(data.createdAt)||Date.now() };
+        } catch (err) { console.warn('Recovery target gagal dibaca:', err); return null; }
+    }
+
+    function recoveryProgress(target, carryState = readCarryOverState()) {
+        if (!target) return { recovered:0, pct:0, remaining:0 };
+        const recovered = Object.entries(carryState.history || {}).reduce((sum,[date,row]) => {
+            if (date < target.startDate || row?.pending) return sum;
+            return sum + Math.max(0,Number(row?.saved)||0);
+        }, 0);
+        const capped = Math.min(Number(target.amount)||0, recovered);
+        return { recovered:Math.floor(capped), pct:target.amount ? Math.min(100,(capped/target.amount)*100) : 0, remaining:Math.max(0,Math.floor((Number(target.amount)||0)-capped)) };
+    }
+
+    window.openRecoveryTarget = async () => {
+        const current = readRecoveryTarget();
+        const r = await Swal.fire({
+            title: current ? 'Edit Recovery Target' : 'Buat Recovery Target',
+            html:`<div style="text-align:left"><label class="mini-muted">Nama target</label><input id="recovery-name" class="modal-field" maxlength="40" value="${escapeHtml(current?.name || 'Pulihkan Buffer')}" placeholder="Contoh: Balikin buffer 100k"><label class="mini-muted">Nominal yang ingin dipulihkan</label><input id="recovery-amount" class="modal-field" inputmode="numeric" value="${current ? moneyFormatter.format(current.amount) : ''}" oninput="formatMoneyField(this)" placeholder="100.000"><label class="mini-muted">Mulai dihitung sejak</label><input id="recovery-start" class="modal-field" type="date" value="${escapeHtml(current?.startDate || localDateKey())}"><div class="mini-muted" style="margin-top:6px">Progress hanya mengambil carry-over yang sudah benar-benar masuk setelah hari berganti, bukan potensi hari ini.</div></div>`,
+            showCancelButton:true, confirmButtonText:'Simpan', cancelButtonText:'Batal', focusConfirm:false,
+            preConfirm:()=>{const name=document.getElementById('recovery-name').value.trim()||'Recovery Buffer';const amount=Number(digitsOnly(document.getElementById('recovery-amount').value));const startDate=document.getElementById('recovery-start').value;if(!amount||amount<=0||!startDate)return Swal.showValidationMessage('Nominal dan tanggal mulai wajib valid.');return{name,amount,startDate};}
+        });
+        if(!r.isConfirmed)return;
+        localStorage.setItem(RECOVERY_TARGET_KEY,JSON.stringify({...r.value,createdAt:current?.createdAt||Date.now()}));
+        renderAll();
+    };
+
+    window.clearRecoveryTarget = async () => {
+        if (!readRecoveryTarget()) return;
+        const r = await Swal.fire({title:'Hapus Recovery Target?',text:'Hanya target recovery yang dihapus. Saldo, transaksi, dan carry-over tetap aman.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});
+        if(!r.isConfirmed)return;
+        localStorage.removeItem(RECOVERY_TARGET_KEY); renderAll();
+    };
+
     function sumRange(transactions, start, end) {
         return transactions.reduce((sum, t) => {
             if (!t.tanggal) return sum;
@@ -1888,6 +1976,9 @@
         const statusNote=document.getElementById('home-fin-status-note');if(statusNote)statusNote.textContent=insight.predictedEnd>=0?'Pace bulan ini masih tertahan.':'Prediksi akhir bulan mulai defisit.';
         const safeEl=document.getElementById('home-safe-today');if(safeEl)safeEl.textContent=fmt(remainingSafe); const safeNote=document.getElementById('home-safe-note');if(safeNote)safeNote.textContent=`Batas ${fmt(Math.floor(insight.safeDaily))} · sudah keluar ${fmt(spentToday)}`;
         const carry=updateCarryOver(insight.safeDaily); const carryEl=document.getElementById('home-carry-over');if(carryEl)carryEl.textContent=fmt(carry.balance); const carryNote=document.getElementById('home-carry-note');if(carryNote)carryNote.innerHTML=`Potensi hari ini <span class="carry-over-potential">+${fmt(carry.potential)}</span> · masuk setelah hari berganti. Keluarga & Pemberian tidak mengurangi carry-over.`;
+        const streak=calculateNoSpendStreak(); const streakEl=document.getElementById('home-no-spend-streak');if(streakEl)streakEl.textContent=`${streak} hari`; const streakNote=document.getElementById('home-no-spend-note');if(streakNote)streakNote.textContent=streak?`🔥 ${streak} hari tanpa belanja konsumtif berturut-turut`:'Ada pengeluaran konsumtif hari ini.';
+        const predEl=document.getElementById('home-eom-prediction'); const predNote=document.getElementById('home-eom-note'); if(predEl){if(insight.avg7>0){predEl.textContent=fmt(Math.max(0,Math.floor(insight.predictedEnd)));predEl.style.color=insight.predictedEnd>=0?'var(--success)':'var(--danger)';}else{predEl.textContent='Belum cukup data';predEl.style.color='var(--text-dim)';}} if(predNote)predNote.textContent=insight.avg7>0?(insight.predictedEnd>=0?`Estimasi sisa · pace ${fmt(Math.round(insight.avg7))}/hari`:`Defisit ${fmt(Math.abs(Math.floor(insight.predictedEnd)))} jika pace berlanjut`):'Butuh data pengeluaran untuk proyeksi.';
+        const recoveryTarget=readRecoveryTarget(); const recoveryValue=document.getElementById('home-recovery-value'); const recoveryNote=document.getElementById('home-recovery-note'); const recoveryBar=document.getElementById('home-recovery-bar'); if(recoveryTarget){const rp=recoveryProgress(recoveryTarget,readCarryOverState());if(recoveryValue)recoveryValue.textContent=`${fmt(rp.recovered)} / ${fmt(recoveryTarget.amount)}`;if(recoveryNote)recoveryNote.textContent=`${recoveryTarget.name} · ${rp.pct.toFixed(0)}% pulih · kurang ${fmt(rp.remaining)}`;if(recoveryBar)recoveryBar.style.width=`${rp.pct}%`;}else{if(recoveryValue)recoveryValue.textContent='Belum dibuat';if(recoveryNote)recoveryNote.textContent='Contoh: pulihkan Rp100k dari carry-over yang terkumpul.';if(recoveryBar)recoveryBar.style.width='0%';}
         const spentEl=document.getElementById('home-spent-today');if(spentEl)spentEl.textContent=fmt(spentToday);const spentNote=document.getElementById('home-spent-note');if(spentNote)spentNote.textContent=`${todayRows.length} transaksi pengeluaran`;
         const goalEl=document.getElementById('home-goal-progress');if(goalEl)goalEl.textContent=totalGoalTarget?`${goalPct.toFixed(0)}%`:'Belum ada';const syncNote=document.getElementById('home-sync-note');if(syncNote)syncNote.textContent=(store.conflicts||[]).length?`${store.conflicts.length} konflik sync`:userPendingOps()?`${userPendingOps()} perubahan menunggu sync`:'Sync bersih';
 
@@ -1902,6 +1993,7 @@
             <div class="insight-status ${insight.statusClass}">${insight.statusIcon} ${insight.status}</div>
             <div class="insight-row">💸 Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
             <div class="insight-row">💾 Budget tersimpan: <b style="color:var(--success)">${fmt(carry.balance)}</b> · potensi hari ini +${fmt(carry.potential)}</div>
+            <div class="insight-row">🔥 No-spend streak: <b>${streak} hari</b></div>
             <div class="insight-row">💰 Cashflow bulan ini: <b style="color:${netCashflow >= 0 ? 'var(--success)' : 'var(--danger)'}">${cashflowText}</b></div>
             <div class="insight-row">📈 Rata-rata pengeluaran 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
             <div class="insight-row">🔮 Prediksi akhir bulan: <b>${predictionText}</b></div>
