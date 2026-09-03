@@ -1,0 +1,76 @@
+/* v24.6 — Spacious responsive layout. Theme and finance logic are unchanged. */
+:root{--content-max:1180px;--layout-gap:18px}
+.container{width:min(100%,var(--content-max));max-width:none;margin:0 auto;padding:22px clamp(16px,3vw,34px)}
+
+/* Home: give important information breathing room on larger screens. */
+@media (min-width:760px){
+  #home.page.active{
+    display:grid;
+    grid-template-columns:minmax(0,1.08fr) minmax(340px,.92fr);
+    grid-template-rows:auto auto auto auto auto auto auto;
+    column-gap:var(--layout-gap);
+    row-gap:12px;
+    align-items:start;
+  }
+  #home>.header{grid-column:1/-1;grid-row:1;margin-bottom:6px}
+  #home>.interactive-greeting{grid-column:1;grid-row:2;text-align:left;margin:3px 0 0;padding-left:4px}
+  #home>.master-balance{grid-column:1;grid-row:3;text-align:left;margin:0;padding:8px 4px 0}
+  #home>.master-balance .master-amount{font-size:clamp(2.55rem,5vw,4.15rem);letter-spacing:-2.5px}
+  #home>.goal-info{grid-column:1;grid-row:4;text-align:left;margin:0 0 4px;padding-left:4px}
+  #home>.wallet-container{grid-column:1;grid-row:5;margin:0;gap:12px}
+  #home>.overview-grid{grid-column:2;grid-row:2/6;margin:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  #home>.home-cashflow-card{grid-column:1;grid-row:6;margin:0}
+  #home>.advisor{grid-column:2;grid-row:6;margin:0;height:100%;min-height:245px}
+  #home>.home-chart-card{grid-column:1/-1;grid-row:7;margin-top:6px}
+  #home>.home-chart-card>div:last-child{height:300px!important;max-width:720px;margin:0 auto}
+
+  .overview-stat{padding:17px 16px;min-height:116px;border-radius:22px}
+  .overview-value{font-size:clamp(.9rem,1.6vw,1.1rem)}
+  .overview-note{font-size:.68rem;line-height:1.45}
+  .carry-over-stat,.recovery-stat{grid-column:1/-1;min-height:auto}
+  .wallet-container .w-card{padding:19px 12px;border-radius:22px;align-items:flex-start}
+  .wallet-container .w-icon{margin-bottom:14px}
+  .wallet-container .w-name,.wallet-container .w-val{text-align:left}
+  .wallet-container .w-val{font-size:.9rem}
+  .cashflow-grid{gap:12px}.cashflow-stat{padding:16px 14px}
+  .cashflow-value{font-size:.94rem}
+
+  /* History/add/settings use the available desktop width instead of a phone-width column. */
+  #history.page.active,#add.page.active,#settings.page.active{display:block;max-width:100%}
+  #history>.card,#add>.card{max-width:920px;margin-left:auto;margin-right:auto}
+  #settings.page.active{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+  #settings>.card{margin:0;height:auto}
+  #settings>.card:nth-last-child(1){grid-column:1/-1}
+  #settings .v245-card{grid-column:1/-1}
+
+  .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nav-bar{max-width:560px}
+}
+
+@media (min-width:1080px){
+  #home.page.active{grid-template-columns:minmax(0,1.14fr) minmax(420px,.86fr);column-gap:24px}
+  #settings.page.active{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+  #settings>.card:nth-last-child(1),#settings .v245-card{grid-column:1/-1}
+  #history>.card,#add>.card{max-width:1040px}
+  .filter-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
+/* Mobile: less cramped while preserving the familiar one-column flow. */
+@media (max-width:759px){
+  .container{padding:16px 14px 118px}
+  .header{margin-bottom:18px}
+  .master-balance{margin-top:6px}.master-amount{font-size:clamp(2.15rem,11vw,3rem)}
+  .goal-info{margin-bottom:22px}
+  .wallet-container{gap:8px;margin-bottom:18px}
+  .w-card{border-radius:20px;padding:15px 7px}.w-icon{width:42px;height:42px;border-radius:14px;margin-bottom:10px}
+  .overview-grid{gap:8px}.overview-stat{border-radius:19px;padding:14px 12px;min-height:105px}
+  .carry-over-stat,.recovery-stat{grid-column:1/-1}
+  .card{border-radius:24px;padding:18px;margin-bottom:14px}
+  .advisor{margin:14px 0;height:240px;border-radius:24px}
+  .nav-bar{left:12px;right:12px;bottom:12px;height:68px;border-radius:24px}
+  .calc-toggle{right:14px;bottom:94px}
+}
+
+/* A little more separation without changing the color theme. */
+.card,.overview-stat,.w-card,.advisor{box-shadow:0 10px 30px rgba(0,0,0,.07)}
+body.light-mode .card,body.light-mode .overview-stat,body.light-mode .w-card,body.light-mode .advisor{box-shadow:0 8px 24px rgba(15,23,42,.045)}

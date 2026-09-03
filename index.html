@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v24.3</title>
+    <title>Agis Finance AI - v24.6</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -251,6 +251,7 @@
     </style>
     <link rel="stylesheet" href="./v24-4-features.css">
     <link rel="stylesheet" href="./v24-5-automation.css">
+    <link rel="stylesheet" href="./v24-6-layout.css">
 </head>
 <body>
 
@@ -268,7 +269,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 24.3 INTERACTIVE</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 24.6 SPACIOUS</p>
 </div>
 
 <div class="container">
@@ -370,7 +371,7 @@
             </div>
         </div>
 
-        <div class="card" style="padding:18px">
+        <div class="card home-cashflow-card" style="padding:18px">
             <div style="display:flex; justify-content:space-between; align-items:center">
                 <div style="font-weight:800; display:flex; gap:8px; align-items:center"><i data-lucide="chart-no-axes-combined" style="width:18px"></i> Cashflow Bulan Ini</div>
                 <span id="cashflow-month" style="font-size:.65rem; color:var(--text-dim); font-weight:800"></span>
@@ -391,7 +392,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card home-chart-card">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center">
                 <div style="font-weight:700; display:flex; align-items:center; gap:8px"><i data-lucide="pie-chart"></i> Pengeluaran</div>
                 <div id="chart-total-val" style="font-weight:800; color:var(--danger)">Rp 0</div>
