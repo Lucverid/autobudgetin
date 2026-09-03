@@ -1,0 +1,115 @@
+/* v25.3.6 — Health pulse sync + cleaner vertical balance/savings hierarchy. */
+
+/* Heart/ECG speed is driven by v25-3-6-health-sync.js from the live financial score. */
+#v244-score-card .v253-heart{
+  animation-duration:var(--v253-heart-duration,1.55s)!important;
+  animation-timing-function:ease-in-out!important;
+}
+#v244-score-card .v253-ecg::before{
+  animation-duration:var(--v253-ecg-duration,3s)!important;
+}
+
+/* Give each condition a sensible fallback even before JS calculates the exact speed. */
+#v244-score-card[data-grade="healthy"]{--v253-heart-duration:1.8s;--v253-ecg-duration:3.8s}
+#v244-score-card[data-grade="okay"]{--v253-heart-duration:1.42s;--v253-ecg-duration:3s}
+#v244-score-card[data-grade="warn"]{--v253-heart-duration:1.05s;--v253-ecg-duration:2.15s}
+#v244-score-card[data-grade="critical"]{--v253-heart-duration:.76s;--v253-ecg-duration:1.45s}
+
+/* Balance on top, savings directly underneath on the same visual axis. */
+#home > .v2535-balance-savings-row{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  margin:1px 0 14px!important;
+  padding:0 8px!important;
+  min-width:0;
+}
+#home > .v2535-balance-savings-row .master-balance.v2534-balance-only{
+  width:100%!important;
+  margin:0!important;
+  text-align:center!important;
+}
+#home > .v2535-balance-savings-row .master-amount{
+  display:block!important;
+  max-width:100%;
+  font-size:clamp(2.05rem,10vw,2.75rem)!important;
+  line-height:1.02!important;
+  letter-spacing:-.05em!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{
+  display:inline-flex!important;
+  width:fit-content!important;
+  max-width:100%!important;
+  min-width:0;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  margin:0!important;
+  padding:5px 9px!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:color-mix(in srgb,var(--warning) 7%,transparent)!important;
+  color:var(--text-dim)!important;
+  font-size:clamp(.67rem,2.8vw,.77rem)!important;
+  line-height:1.1!important;
+  white-space:nowrap!important;
+}
+#home > .v2535-balance-savings-row .goal-info.v2535-savings-inline svg{
+  width:13px!important;
+  height:13px!important;
+  color:var(--warning)!important;
+  flex:0 0 auto;
+}
+#home > .v2535-balance-savings-row .goal-info.v2535-savings-inline span{
+  display:inline!important;
+  color:var(--text-dim)!important;
+}
+#home > .v2535-balance-savings-row .goal-info.v2535-savings-inline strong{
+  color:var(--warning)!important;
+  font-weight:900!important;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+@media (min-width:760px){
+  #home > .v2535-balance-savings-row{
+    grid-column:1/-1!important;
+    grid-row:2!important;
+    align-items:flex-start!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+    margin:0!important;
+    padding:3px 5px 2px!important;
+  }
+  #home > .v2535-balance-savings-row .master-balance.v2534-balance-only{
+    text-align:left!important;
+  }
+  #home > .v2535-balance-savings-row .master-amount{
+    font-size:clamp(2.55rem,4.3vw,3.45rem)!important;
+  }
+  #home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{
+    font-size:.78rem!important;
+    justify-content:flex-start!important;
+  }
+}
+
+@media (max-width:360px){
+  #home > .v2535-balance-savings-row{padding:0 3px!important}
+  #home > .v2535-balance-savings-row .master-amount{
+    font-size:clamp(1.86rem,10.2vw,2.2rem)!important;
+  }
+  #home > .v2535-balance-savings-row .goal-info.v2535-savings-inline{
+    max-width:96%!important;
+    font-size:.64rem!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  #v244-score-card .v253-heart,
+  #v244-score-card .v253-ecg::before{animation:none!important}
+}
