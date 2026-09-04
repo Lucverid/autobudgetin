@@ -1,0 +1,67 @@
+/* v25.3.10 — deterministic monthly Health Pulse + END state. */
+#v244-score-card,
+#v244-score-card .v253-heart,
+#v244-score-card .v253-label,
+#v244-score-card .v244-score-ring b,
+#v244-score-card .v253-score-max,
+#v244-score-card .v253-ecg{
+  transition:color .28s ease,background-color .28s ease,border-color .28s ease,box-shadow .28s ease,opacity .28s ease;
+}
+
+/* ECG follows the same status color as score/heart/label. */
+#v244-score-card .v253-ecg::before{
+  background-image:none!important;
+  background-color:currentColor!important;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='16' viewBox='0 0 92 16'%3E%3Cpath d='M0 9h19l4-4 5 9 7-14 7 15 5-6h45' fill='none' stroke='%23000' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='16' viewBox='0 0 92 16'%3E%3Cpath d='M0 9h19l4-4 5 9 7-14 7 15 5-6h45' fill='none' stroke='%23000' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat:repeat-x;
+  mask-repeat:repeat-x;
+  -webkit-mask-size:92px 16px;
+  mask-size:92px 16px;
+}
+
+#v244-score-card[data-grade="healthy"] .v253-ecg{color:var(--success)}
+#v244-score-card[data-grade="warn"] .v253-ecg{color:var(--warning)}
+#v244-score-card[data-grade="critical"] .v253-ecg{color:var(--danger)}
+
+#v244-score-card[data-grade="healthy"] .v244-score-ring b{color:var(--success)!important}
+#v244-score-card[data-grade="warn"] .v244-score-ring b{color:var(--warning)!important}
+#v244-score-card[data-grade="critical"] .v244-score-ring b{color:var(--danger)!important}
+
+/* END: actual available balance is zero/minus. No heartbeat and no moving ECG. */
+#v244-score-card[data-grade="end"]{
+  color:var(--text-dim)!important;
+  border-color:color-mix(in srgb,var(--text-dim) 28%,var(--border))!important;
+}
+#v244-score-card[data-grade="end"] .v253-heart{
+  color:var(--text-dim)!important;
+  background:color-mix(in srgb,var(--text-dim) 9%,transparent)!important;
+  border-color:color-mix(in srgb,var(--text-dim) 24%,var(--border))!important;
+  box-shadow:none!important;
+  animation:none!important;
+  transform:none!important;
+  opacity:.58;
+}
+#v244-score-card[data-grade="end"] .v253-label,
+#v244-score-card[data-grade="end"] .v244-score-ring b,
+#v244-score-card[data-grade="end"] .v253-score-max{
+  color:var(--text-dim)!important;
+}
+#v244-score-card[data-grade="end"] .v253-label{
+  background:color-mix(in srgb,var(--text-dim) 7%,transparent)!important;
+  border-color:color-mix(in srgb,var(--text-dim) 24%,var(--border))!important;
+}
+#v244-score-card[data-grade="end"] .v253-ecg{
+  color:var(--text-dim)!important;
+  opacity:.22!important;
+}
+#v244-score-card[data-grade="end"] .v253-ecg::before{
+  animation:none!important;
+  transform:none!important;
+  -webkit-mask-image:none!important;
+  mask-image:none!important;
+  background:linear-gradient(90deg,transparent 0%,currentColor 8%,currentColor 92%,transparent 100%)!important;
+  height:1px!important;
+  top:8px!important;
+  bottom:auto!important;
+}
