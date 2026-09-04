@@ -1,0 +1,28 @@
+/* v25.3.9 — Health Pulse colors follow the same monthly status as the Home STATUS card. */
+#v244-score-card,
+#v244-score-card .v253-heart,
+#v244-score-card .v253-label,
+#v244-score-card .v244-score-ring b,
+#v244-score-card .v253-score-max{
+  transition:color .28s ease,background-color .28s ease,border-color .28s ease,box-shadow .28s ease;
+}
+
+/* ECG uses currentColor so AMAN/WASPADA/KRITIS changes the whole pulse consistently. */
+#v244-score-card .v253-ecg::before{
+  background-image:none!important;
+  background-color:currentColor!important;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='16' viewBox='0 0 92 16'%3E%3Cpath d='M0 9h19l4-4 5 9 7-14 7 15 5-6h45' fill='none' stroke='%23000' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='16' viewBox='0 0 92 16'%3E%3Cpath d='M0 9h19l4-4 5 9 7-14 7 15 5-6h45' fill='none' stroke='%23000' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat:repeat-x;
+  mask-repeat:repeat-x;
+  -webkit-mask-size:92px 16px;
+  mask-size:92px 16px;
+}
+
+#v244-score-card[data-grade="healthy"] .v253-ecg{color:var(--success)}
+#v244-score-card[data-grade="warn"] .v253-ecg{color:var(--warning)}
+#v244-score-card[data-grade="critical"] .v253-ecg{color:var(--danger)}
+
+#v244-score-card[data-grade="healthy"] .v244-score-ring b{color:var(--success)!important}
+#v244-score-card[data-grade="warn"] .v244-score-ring b{color:var(--warning)!important}
+#v244-score-card[data-grade="critical"] .v244-score-ring b{color:var(--danger)!important}

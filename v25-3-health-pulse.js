@@ -51,6 +51,8 @@
     const scoreEl=document.getElementById('v244-score');
     const label=document.getElementById('v253-condition-label');
     if(!card||!scoreEl||!label)return;
+    // v25.3.9 owns score/label/warna/tempo from the same monthly pace status.
+    if(card.dataset.healthSource==='monthly-status')return;
     const n=Math.max(0,Math.min(100,Number(scoreEl.textContent)||0));
     const g=grade(n);card.dataset.grade=g.key;label.textContent=g.label;
     card.setAttribute('aria-label',`Kondisi keuangan ${g.label}, skor ${Math.round(n)} dari 100`);

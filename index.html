@@ -262,7 +262,7 @@
     <link rel="stylesheet" href="./v25-3-4-balance-wallet.css">
     <link rel="stylesheet" href="./v25-3-5-balance-savings.css">
     <link rel="stylesheet" href="./v25-3-6-health-balance.css">
-    <link rel="stylesheet" href="./v25-3-8-daily-health.css">
+    <link rel="stylesheet" href="./v25-3-9-monthly-status-health.css">
 </head>
 <body>
 
@@ -2045,6 +2045,18 @@
         }
 
         const insight = buildSmartInsight(disposable, insightCats, remainingDays);
+        // v25.3.9: Health Pulse memakai sumber status/pace bulanan yang SAMA
+        // dengan kartu STATUS di Home. Dengan begitu AMAN/WASPADA/KRITIS, skor,
+        // warna, dan tempo tidak lagi dipengaruhi transaksi satu hari secara terpisah.
+        window.__agisFinancialPace = {
+            safeDaily:Number(insight.safeDaily)||0,
+            avg7:Number(insight.avg7)||0,
+            predictedEnd:Number(insight.predictedEnd)||0,
+            status:String(insight.status||'AMAN'),
+            disposable:Number(disposable)||0,
+            remainingDays:Number(remainingDays)||0
+        };
+        document.dispatchEvent(new CustomEvent('agis:financial-pace',{detail:window.__agisFinancialPace}));
         const todayKey=localDateKey(); const todayRows=store.trans.filter(t=>t.tanggal===todayKey); const spentToday=todayRows.reduce((sum,t)=>sum+Number(t.nominal||0),0); const remainingSafe=Math.max(0,Math.floor(insight.safeDaily-spentToday));
         const totalGoalTarget=(store.goals||[]).reduce((sum,g)=>sum+Math.max(0,Number(g.target)||0),0); const totalGoalSaved=(store.goals||[]).reduce((sum,g)=>sum+Math.max(0,Number(g.saved)||0),0); const goalPct=totalGoalTarget>0?Math.min(100,(totalGoalSaved/totalGoalTarget)*100):0;
         const statusEl=document.getElementById('home-fin-status'); if(statusEl){statusEl.textContent=`${insight.statusIcon} ${insight.status}`;statusEl.style.color=insight.status==='AMAN'?'var(--success)':insight.status==='WASPADA'?'var(--warning)':'var(--danger)';}
@@ -2371,6 +2383,6 @@
 <script src="./v25-3-health-pulse.js"></script>
 <script src="./v25-3-1-quick-transaction.js"></script>
 <script src="./v25-3-3-financial-plan.js"></script>
-<script src="./v25-3-8-daily-health.js"></script>
+<script src="./v25-3-9-monthly-status-health.js"></script>
 </body>
 </html>
