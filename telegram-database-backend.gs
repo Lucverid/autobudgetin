@@ -200,9 +200,10 @@ function checkBills_(snap){
     const due=nextBillDate_(b,today); if(!due)return;
     const dueStr=Utilities.formatDate(due,tz,'yyyy-MM-dd');
     const diff=Math.round((due-today)/86400000);
-    if([3,1,0].includes(diff)){
-      const when=diff===0?'hari ini':`H-${diff}`;
-      notifyOnce_(`bill:${b.id||b.name}:${dueStr}:${diff}`,`🧾 Tagihan ${when}\n${b.name||'Tagihan'} · Rp ${fmt_(b.amount)}\nJatuh tempo ${dueStr}`);
+    if(diff>=0 && diff<=7){
+      const when=diff===0?'jatuh tempo hari ini':diff===1?'jatuh tempo besok':`H-${diff}`;
+      const icon=diff===0?'🔴':diff===1?'⚠️':'🧾';
+      notifyOnce_(`bill:${b.id||b.name}:${dueStr}:${diff}`,`${icon} Tagihan ${when}\n${b.name||'Tagihan'} · Rp ${fmt_(b.amount)}\nJatuh tempo ${humanDate_(dueStr)}`);
     }
   });
 }

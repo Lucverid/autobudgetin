@@ -591,10 +591,11 @@
             <div class="section-title" style="margin-bottom:14px"><i data-lucide="archive"></i> Backup & Restore</div>
             <div class="backup-grid">
                 <button class="btn-primary" onclick="exportBackup()">Backup JSON</button>
-                <button class="btn-primary" style="background:var(--accent);color:white" onclick="document.getElementById('restoreFile').click()">Restore / Import</button>
+                <button class="btn-primary" style="background:var(--accent);color:white" onclick="document.getElementById('v245-import').click()">Restore / Import</button>
             </div>
-            <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="previewImportV245(event)">
-            <div class="mini-muted" style="margin-top:12px">Backup schema v25 memuat wallet, transaksi, limit, target tabungan, transaksi rutin, audit log, Budget Planning, dan Bill Calendar. Backup v22–v24 tetap bisa direstore. File akan dipreview sebelum diterapkan. PIN sengaja tidak ikut diekspor.</div>
+            <input type="file" id="v245-import" accept="application/json,.json" style="display:none" onchange="previewImportV245(event)">
+            <div id="v245-preview" class="v245-preview" hidden></div>
+            <div class="mini-muted" style="margin-top:12px">Backup schema v25 memuat wallet, transaksi, limit, target tabungan, transaksi rutin, audit log, Budget Planning, dan Bill Calendar. Backup v22–v24 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
         </div>
     </div>
 </div>

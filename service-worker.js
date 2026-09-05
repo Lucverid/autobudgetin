@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v25-3-10';
+const CACHE_NAME = 'agis-finance-v25-4-2';
 
 const APP_SHELL = [
   './',
