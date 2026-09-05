@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v25-4-8';
+const CACHE_NAME = 'agis-finance-v25-4-9';
 
 const APP_SHELL = [
   './',
@@ -12,7 +12,7 @@ const APP_SHELL = [
   './firebase-firestore.js',
   './v24-4-features.css',
   './v24-4-features.js', './v24-5-automation.js', './v24-5-automation.css', './v24-6-layout.css', './v25-features.js', './v25-features.css', './v25-1-mobile.js', './v25-1-mobile.css', './v25-2-clean-home.js', './v25-2-clean-home.css', './v25-3-health-pulse.js', './v25-3-health-pulse.css', './v25-3-1-quick-transaction.js', './v25-3-1-quick-transaction.css',
-  './v25-3-2-ui-polish.css', './v25-4-8-easter-egg.css', './v25-4-8-easter-egg.js', './cat-idle-strip.png', './cat-walk-strip.png', './cat-run-strip.png', './cat-sleep-strip.png', './cat-pet-strip.png', './mouse-run-strip.png', './v25-3-3-financial-plan.js', './v25-3-3-financial-plan.css', './v25-3-4-balance-wallet.css', './v25-3-5-balance-savings.css', './v25-3-6-health-balance.css', './v25-3-10-health-engine.js', './v25-3-10-health-engine.css',
+  './v25-3-2-ui-polish.css', './v25-4-9-easter-egg.css', './v25-4-9-easter-egg.js', './cat-idle-strip.png', './cat-walk-strip.png', './cat-run-strip.png', './cat-sleep-strip.png', './cat-pet-strip.png', './mouse-run-strip.png', './v25-3-3-financial-plan.js', './v25-3-3-financial-plan.css', './v25-3-4-balance-wallet.css', './v25-3-5-balance-savings.css', './v25-3-6-health-balance.css', './v25-3-10-health-engine.js', './v25-3-10-health-engine.css',
   './icon-192.png',
   './icon-512.png'
 ];
