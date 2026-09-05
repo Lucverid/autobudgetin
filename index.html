@@ -263,7 +263,7 @@
     <link rel="stylesheet" href="./v25-3-5-balance-savings.css">
     <link rel="stylesheet" href="./v25-3-6-health-balance.css">
     <link rel="stylesheet" href="./v25-3-10-health-engine.css">
-    <link rel="stylesheet" href="./v25-5-6-easter-egg.css">
+    <link rel="stylesheet" href="./v25-5-7-easter-egg.css">
 </head>
 <body>
 
@@ -596,7 +596,7 @@
             </div>
             <input type="file" id="v245-import" accept="application/json,.json" style="display:none" onchange="previewImportV245(event)">
             <div id="v245-preview" class="v245-preview" hidden></div>
-            <div class="mini-muted" style="margin-top:12px">Backup schema v25 memuat wallet, transaksi, limit, target tabungan, transaksi rutin, audit log, Budget Planning, dan Bill Calendar. Backup v22–v24 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
+            <div class="mini-muted" style="margin-top:12px">Backup schema v25 memuat wallet, transaksi, limit, target tabungan, transaksi rutin, audit log, Budget Planning, Bill Calendar, Budget Tersimpan (carry-over), dan Recovery Target. Backup v22–v24 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
         </div>
     </div>
 </div>
@@ -1516,14 +1516,19 @@
             goals:Array.isArray(d.goals)?d.goals.map(cleanBackupRecord):[],
             recurring:Array.isArray(d.recurring)?d.recurring.map(cleanBackupRecord):[],
             audit:Array.isArray(d.audit)?d.audit.map(cleanBackupRecord):[],
-            v25:d.v25&&typeof d.v25==='object'?d.v25:null
+            v25:d.v25&&typeof d.v25==='object'?d.v25:null,
+            carryOver:d.carryOver&&typeof d.carryOver==='object'?d.carryOver:null,
+            recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null
         }};
     }
 
     window.exportBackup = () => {
-        const payload={app:'Agis Finance',schemaVersion:24,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord)}};
-        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_v24_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
-        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v24'); renderHealth();
+        const carryOver = typeof readCarryOverState === 'function' ? readCarryOverState() : null;
+        const recoveryTarget = typeof readRecoveryTarget === 'function' ? readRecoveryTarget() : null;
+        const v25 = typeof window.getV25SnapshotData === 'function' ? window.getV25SnapshotData() : (()=>{try{return JSON.parse(localStorage.getItem('agis_finance_v25_planning')||'null')}catch{return null}})();
+        const payload={app:'Agis Finance',schemaVersion:25,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord),v25,carryOver,recoveryTarget}};
+        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_v25_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v25 · carry-over ikut'); renderHealth();
     };
 
     window.restoreBackupFile = async (event) => {
@@ -1531,10 +1536,14 @@
         try{
             const raw=await file.text(); const parsed=JSON.parse(raw); const migrated=migrateBackupPayload(parsed); const d=migrated.data;
             const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v25 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
-            store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit; if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify(d.v25));}catch{}} store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
+            store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit;
+            if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}));}catch{}}
+            if(d.carryOver){try{writeCarryOverState({month:String(d.carryOver.month||''),balance:Math.max(0,Number(d.carryOver.balance)||0),lastDate:String(d.carryOver.lastDate||''),dailyBase:Math.max(0,Number(d.carryOver.dailyBase)||0),history:d.carryOver.history&&typeof d.carryOver.history==='object'?d.carryOver.history:{}});}catch(err){console.warn('Carry-over restore gagal:',err)}}
+            if(d.recoveryTarget){try{localStorage.setItem(RECOVERY_TARGET_KEY,JSON.stringify(d.recoveryTarget));}catch{}}
+            store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
             const now=Date.now(); enqueueSync({opId:`restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now}); enqueueSync({opId:`restore-goal-total:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now}); Object.entries(store.limits).forEach(([category,amount])=>enqueueSync({opId:`restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));
             store.trans.forEach(t=>{if(t.id)enqueueSync({opId:`restore-expense:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.incomes.forEach(t=>{if(t.id)enqueueSync({opId:`restore-income:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.transfers.forEach(t=>{if(t.id)enqueueSync({opId:`restore-transfer:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.goals.forEach(g=>enqueueSync({opId:`restore-goal-item:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:cleanBackupRecord(g),createdAt:now,force:true})); store.recurring.forEach(r=>enqueueSync({opId:`restore-recurring:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:cleanBackupRecord(r),createdAt:now,force:true}));
-            auditEvent('Restore backup',`Schema v${migrated.version} → v25`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal sudah dimigrasikan ke schema v25 dan antrean sinkronisasi dibuat.','success');
+            auditEvent('Restore backup',`Schema v${migrated.version} → v25`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, Budget Tersimpan, dan data planning sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
         }catch(err){Swal.fire('Restore gagal',err.message||'File backup rusak.','error');}
     };
 
@@ -2386,6 +2395,6 @@
 <script src="./v25-3-1-quick-transaction.js"></script>
 <script src="./v25-3-3-financial-plan.js"></script>
 <script src="./v25-3-10-health-engine.js"></script>
-<script src="./v25-5-6-easter-egg.js"></script>
+<script src="./v25-5-7-easter-egg.js"></script>
 </body>
 </html>
