@@ -1,0 +1,498 @@
+(() => {
+  'use strict';
+
+  let audioCtx = null, musicOn = false, musicTimer = null, masterGain = null, musicBus = null, compressor = null;
+  let activeNodes = [];
+  let wanderTimer = null, mouseTimer = null, rafId = null, timerId = null;
+  let sceneEl = null, catEl = null, mouseEl = null, moodEl = null, timerEl = null, bubbleEl = null, volumeEl = null;
+  let startedAt = 0;
+  let lastSceneWidth = 0, lastSceneHeight = 0;
+  const state = {
+    cat: { x: 70, y: 210, targetX: 70, targetY: 210, speed: 1.45, pausedUntil: 0 },
+    mouse: { visible: false, x: 240, y: 214 },
+    volume: clamp(Number(localStorage.getItem('agis_cat_lobby_volume') || 118), 55, 180)
+  };
+
+  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+  function rand(min, max){ return Math.random() * (max - min) + min; }
+  function now(){ return Date.now(); }
+
+  function build(){
+    if (document.getElementById('catEggOverlay')) return;
+    const el = document.createElement('div');
+    el.id = 'catEggOverlay';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `
+      <div class="cat-lounge" role="dialog" aria-modal="true" aria-label="Cat Lounge">
+        <div class="cat-lounge-head">
+          <div>
+            <div class="cat-lounge-kicker">hidden lounge</div>
+            <div class="cat-lounge-title">Cat After Hours</div>
+            <div class="cat-lounge-sub">Sudoku diganti meong santai. Dia bisa jalan-jalan, dipat-pat, dan ngejar tikus kecil.</div>
+          </div>
+          <button class="cat-icon-btn" id="catClose" aria-label="Tutup">✕</button>
+        </div>
+
+        <div class="cat-toolbar">
+          <button class="cat-tool active" id="catMusic">♫ Lobby on</button>
+          <button class="cat-tool" id="catMouseBtn">🐭 Munculin tikus</button>
+          <button class="cat-tool" id="catCalmBtn">✨ Bikin santai</button>
+          <label class="cat-volume-wrap" for="catVolume">🔊
+            <input id="catVolume" type="range" min="55" max="180" step="1" />
+          </label>
+        </div>
+
+        <div class="cat-scene" id="catScene">
+          <div class="cat-lamp-glow"></div>
+          <div class="cat-window"></div>
+          <div class="cat-couch"></div>
+          <div class="cat-plant"></div>
+          <div class="cat-rug"></div>
+          <div class="cat-bubble" id="catBubble">purrr...</div>
+          <button class="cat-avatar" id="catPet" aria-label="Pat pat kucing" title="Pat pat kucing">🐈‍⬛</button>
+          <button class="mouse-avatar hidden" id="catMouse" aria-label="Tikus kecil" title="Tikus kecil">🐭</button>
+        </div>
+
+        <div class="cat-status">
+          <span id="catMood">Meong lagi jalan santai di lobby malam.</span>
+          <span>Waktu tenang <strong id="catTime">00:00</strong></span>
+        </div>
+
+        <div class="cat-tip">Tip: tap kucing buat <strong>pat pat</strong>. Kalau tikus muncul, si meong bakal otomatis ngejar.</div>
+      </div>`;
+    document.body.appendChild(el);
+
+    sceneEl = document.getElementById('catScene');
+    catEl = document.getElementById('catPet');
+    mouseEl = document.getElementById('catMouse');
+    moodEl = document.getElementById('catMood');
+    timerEl = document.getElementById('catTime');
+    bubbleEl = document.getElementById('catBubble');
+    volumeEl = document.getElementById('catVolume');
+    volumeEl.value = String(state.volume);
+
+    document.getElementById('catClose').onclick = close;
+    document.getElementById('catMusic').onclick = toggleMusic;
+    document.getElementById('catMouseBtn').onclick = () => spawnMouse(true);
+    document.getElementById('catCalmBtn').onclick = calmCat;
+    catEl.onclick = petCat;
+    mouseEl.onclick = () => {
+      burst(mouseEl.offsetLeft + 10, mouseEl.offsetTop - 6, 'ciut!');
+      setMood('Tikus lari kecil... si meong langsung fokus.');
+      chaseMouse();
+    };
+    volumeEl.addEventListener('input', applyVolumeFromUi);
+    el.addEventListener('click', e => { if (e.target === el) close(); });
+    window.addEventListener('resize', syncSceneBounds);
+    document.addEventListener('keydown', keyHandler);
+  }
+
+  function keyHandler(e){
+    const ov = document.getElementById('catEggOverlay');
+    if(!ov || !ov.classList.contains('open')) return;
+    if(e.key === 'Escape') close();
+    if(e.key.toLowerCase() === 'm') toggleMusic();
+    if(e.key.toLowerCase() === 'p') petCat();
+  }
+
+  function open(){
+    build();
+    const ov = document.getElementById('catEggOverlay');
+    ov.classList.add('open');
+    ov.setAttribute('aria-hidden', 'false');
+    startScene();
+    startMusic();
+  }
+
+  function close(){
+    const ov = document.getElementById('catEggOverlay');
+    if(!ov) return;
+    ov.classList.remove('open');
+    ov.setAttribute('aria-hidden', 'true');
+    stopScene();
+    stopMusic();
+  }
+
+  function startScene(){
+    build();
+    startedAt = Date.now();
+    syncSceneBounds();
+    hideMouse();
+    setMood('Meong lagi jalan santai di lobby malam.');
+    state.cat.pausedUntil = 0;
+    chooseWanderTarget(true);
+    clearInterval(timerId);
+    timerId = setInterval(updateTime, 1000);
+    updateTime();
+    clearInterval(wanderTimer);
+    wanderTimer = setInterval(() => {
+      if (state.mouse.visible) chaseMouse();
+      else chooseWanderTarget(false);
+    }, 2400);
+    clearInterval(mouseTimer);
+    mouseTimer = setInterval(() => {
+      if (!state.mouse.visible && Math.random() < 0.42) spawnMouse(false);
+    }, 5200);
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stopScene(){
+    clearInterval(timerId); timerId = null;
+    clearInterval(wanderTimer); wanderTimer = null;
+    clearInterval(mouseTimer); mouseTimer = null;
+    cancelAnimationFrame(rafId); rafId = null;
+    hideBubble();
+  }
+
+  function updateTime(){
+    const s = Math.floor((Date.now() - startedAt) / 1000);
+    const m = Math.floor(s / 60);
+    if (timerEl) timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  function sceneBounds(){
+    const w = sceneEl ? sceneEl.clientWidth : 0;
+    const h = sceneEl ? sceneEl.clientHeight : 0;
+    return { w, h, left: 18, right: Math.max(18, w - 78), floor: Math.max(120, h - 72) };
+  }
+
+  function syncSceneBounds(){
+    if (!sceneEl) return;
+    const b = sceneBounds();
+    if (!b.w || !b.h) return;
+    if (!lastSceneWidth) {
+      state.cat.x = b.left + 30;
+      state.cat.y = b.floor;
+      state.cat.targetX = state.cat.x;
+      state.cat.targetY = state.cat.y;
+    } else {
+      const scaleX = b.w / lastSceneWidth;
+      const scaleY = b.h / lastSceneHeight;
+      state.cat.x = clamp(state.cat.x * scaleX, b.left, b.right);
+      state.cat.targetX = clamp(state.cat.targetX * scaleX, b.left, b.right);
+      state.cat.y = clamp(state.cat.y * scaleY, b.floor - 12, b.floor + 8);
+      state.cat.targetY = clamp(state.cat.targetY * scaleY, b.floor - 12, b.floor + 8);
+      if (state.mouse.visible) {
+        state.mouse.x = clamp(state.mouse.x * scaleX, b.left + 40, b.right - 5);
+        state.mouse.y = clamp(state.mouse.y * scaleY, b.floor - 4, b.floor + 16);
+      }
+    }
+    lastSceneWidth = b.w;
+    lastSceneHeight = b.h;
+    render();
+  }
+
+  function chooseWanderTarget(initial){
+    const b = sceneBounds();
+    state.cat.targetX = rand(b.left + 6, b.right - 6);
+    state.cat.targetY = rand(b.floor - 10, b.floor + 6);
+    if (!initial) {
+      const moods = [
+        'Meong inspeksi karpet dulu.',
+        'Dia muter pelan kayak jaga lobby.',
+        'Langkahnya santai banget, nggak buru-buru.',
+        'Si meong lagi cari spot paling adem.'
+      ];
+      setMood(moods[Math.floor(Math.random() * moods.length)]);
+    }
+  }
+
+  function spawnMouse(manual){
+    const b = sceneBounds();
+    state.mouse.visible = true;
+    state.mouse.x = rand(b.left + 45, b.right - 5);
+    state.mouse.y = rand(b.floor - 2, b.floor + 10);
+    mouseEl.classList.remove('hidden');
+    if (manual) {
+      setMood('Tikus kecil muncul. Si meong langsung siaga.');
+      showBubble('eh ada tikus');
+    } else {
+      setMood('Ada tikus kecil nyelonong pelan di pojok lobby.');
+    }
+    chaseMouse();
+    render();
+  }
+
+  function hideMouse(){
+    state.mouse.visible = false;
+    if (mouseEl) mouseEl.classList.add('hidden');
+  }
+
+  function chaseMouse(){
+    if (!state.mouse.visible) return;
+    state.cat.targetX = clamp(state.mouse.x - 4, sceneBounds().left, sceneBounds().right);
+    state.cat.targetY = state.mouse.y;
+    setMood('Meong lagi ngejar tikus kecil...');
+  }
+
+  function calmCat(){
+    hideMouse();
+    showBubble('purrr...');
+    burst(state.cat.x + 28, state.cat.y - 8, '✨');
+    state.cat.pausedUntil = now() + 1200;
+    setMood('Lobby tenang lagi. Si meong diem sebentar sambil denger musik.');
+    setTimeout(() => chooseWanderTarget(false), 700);
+  }
+
+  function petCat(){
+    if (!catEl) return;
+    state.cat.pausedUntil = now() + 950;
+    catEl.classList.add('petted');
+    showBubble('pat pat ❤');
+    burst(state.cat.x + 22, state.cat.y - 8, 'pat pat');
+    burst(state.cat.x + 46, state.cat.y - 18, '❤');
+    burst(state.cat.x + 8, state.cat.y - 12, '❤');
+    setMood('Purrr... si meong seneng dipat-pat.');
+    purrTone();
+    setTimeout(() => catEl && catEl.classList.remove('petted'), 500);
+    setTimeout(() => {
+      if (state.mouse.visible) chaseMouse();
+      else chooseWanderTarget(false);
+    }, 650);
+  }
+
+  function render(){
+    if (!catEl || !sceneEl) return;
+    const dx = state.cat.targetX - state.cat.x;
+    const catScale = dx >= 0 ? 1 : -1;
+    const moving = Math.abs(dx) > 6 || Math.abs(state.cat.targetY - state.cat.y) > 4;
+    catEl.style.transform = `translate(${state.cat.x}px, ${state.cat.y}px) scaleX(${catScale})`;
+    catEl.classList.toggle('walking', moving && now() > state.cat.pausedUntil);
+    if (mouseEl) mouseEl.style.transform = `translate(${state.mouse.x}px, ${state.mouse.y}px)`;
+  }
+
+  function tick(){
+    const b = sceneBounds();
+    if (!b.w) { rafId = requestAnimationFrame(tick); return; }
+    const paused = now() < state.cat.pausedUntil;
+    if (!paused) {
+      const dx = state.cat.targetX - state.cat.x;
+      const dy = state.cat.targetY - state.cat.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.5) {
+        const speed = state.mouse.visible ? state.cat.speed * 1.6 : state.cat.speed;
+        const step = Math.min(speed, dist);
+        state.cat.x += dx / dist * step;
+        state.cat.y += dy / dist * step;
+      }
+      if (state.mouse.visible && Math.abs(state.cat.x - state.mouse.x) < 18 && Math.abs(state.cat.y - state.mouse.y) < 18) {
+        hideMouse();
+        showBubble('gotcha!');
+        burst(state.cat.x + 32, state.cat.y - 12, 'gotcha!');
+        setMood('Tikus ketangkap. Si meong balik santai lagi.');
+        chime();
+        setTimeout(() => chooseWanderTarget(false), 450);
+      }
+    }
+    render();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function setMood(text){ if (moodEl) moodEl.textContent = text; }
+
+  function showBubble(text){
+    if (!bubbleEl) return;
+    bubbleEl.textContent = text;
+    bubbleEl.classList.add('show');
+    clearTimeout(showBubble._t);
+    showBubble._t = setTimeout(hideBubble, 1400);
+  }
+  function hideBubble(){ if (bubbleEl) bubbleEl.classList.remove('show'); }
+
+  function burst(x, y, text){
+    if (!sceneEl) return;
+    const el = document.createElement('div');
+    el.className = 'cat-float';
+    el.textContent = text;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    sceneEl.appendChild(el);
+    setTimeout(() => el.remove(), 1100);
+  }
+
+  const midiToHz = n => 440 * Math.pow(2, (n - 69) / 12);
+  function remember(node){ activeNodes.push(node); node.addEventListener?.('ended', () => { activeNodes = activeNodes.filter(x => x !== node); }); }
+
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    musicBus = audioCtx.createGain();
+    compressor = audioCtx.createDynamicsCompressor();
+    compressor.threshold.value = -23;
+    compressor.knee.value = 22;
+    compressor.ratio.value = 4.7;
+    compressor.attack.value = 0.01;
+    compressor.release.value = 0.26;
+    musicBus.gain.value = 1.18;
+    masterGain.gain.value = 1.55;
+    musicBus.connect(compressor).connect(masterGain).connect(audioCtx.destination);
+    applyVolumeValue(state.volume);
+  }
+
+  function applyVolumeValue(v){
+    state.volume = clamp(Number(v || 118), 55, 180);
+    localStorage.setItem('agis_cat_lobby_volume', String(state.volume));
+    if (masterGain) {
+      const normalized = state.volume / 100;
+      masterGain.gain.setTargetAtTime(1.55 * normalized, audioCtx ? audioCtx.currentTime : 0, 0.04);
+    }
+  }
+  function applyVolumeFromUi(){ applyVolumeValue(volumeEl.value); }
+
+  function keyVoice(midi, when, dur=1.45, level=.18){
+    if(!audioCtx || !musicBus) return;
+    const o1=audioCtx.createOscillator(), o2=audioCtx.createOscillator(), g=audioCtx.createGain(), f=audioCtx.createBiquadFilter();
+    o1.type='sine'; o2.type='triangle';
+    o1.frequency.value=midiToHz(midi); o2.frequency.value=midiToHz(midi) * 2.004;
+    f.type='lowpass'; f.frequency.setValueAtTime(2400, when); f.Q.value=.5;
+    g.gain.setValueAtTime(.0001, when);
+    g.gain.exponentialRampToValueAtTime(level, when + .02);
+    g.gain.exponentialRampToValueAtTime(level * .42, when + .24);
+    g.gain.exponentialRampToValueAtTime(.0001, when + dur);
+    const shimmer = audioCtx.createGain(); shimmer.gain.value = .18;
+    o1.connect(g); o2.connect(shimmer).connect(g); g.connect(f).connect(musicBus);
+    o1.start(when); o2.start(when); o1.stop(when + dur + .05); o2.stop(when + dur + .05); remember(o1); remember(o2);
+  }
+
+  function padVoice(midis, when, dur=3.4, level=.05){
+    if(!audioCtx || !musicBus) return;
+    midis.forEach((m, i) => {
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain(), f=audioCtx.createBiquadFilter();
+      o.type = i % 2 ? 'triangle' : 'sine';
+      o.frequency.value = midiToHz(m) * (i === 0 ? 0.999 : 1.0015);
+      f.type = 'lowpass'; f.frequency.value = 1180;
+      g.gain.setValueAtTime(.0001, when);
+      g.gain.linearRampToValueAtTime(level, when + .62);
+      g.gain.setValueAtTime(level, when + dur - .62);
+      g.gain.exponentialRampToValueAtTime(.0001, when + dur);
+      o.connect(f).connect(g).connect(musicBus); o.start(when); o.stop(when + dur + .08); remember(o);
+    });
+  }
+
+  function bassVoice(midi, when, dur=.92, level=.205){
+    if(!audioCtx || !musicBus) return;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain(), f=audioCtx.createBiquadFilter();
+    o.type='triangle'; o.frequency.value=midiToHz(midi); f.type='lowpass'; f.frequency.value=450;
+    g.gain.setValueAtTime(.0001, when);
+    g.gain.exponentialRampToValueAtTime(level, when + .032);
+    g.gain.exponentialRampToValueAtTime(.0001, when + dur);
+    o.connect(f).connect(g).connect(musicBus); o.start(when); o.stop(when + dur + .05); remember(o);
+  }
+
+  function brush(when, level=.068, dur=.095){
+    if(!audioCtx || !musicBus) return;
+    const len = Math.max(1, Math.floor(audioCtx.sampleRate * dur)), buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate), d = buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = audioCtx.createBufferSource(), f = audioCtx.createBiquadFilter(), g = audioCtx.createGain();
+    src.buffer = buf; f.type='highpass'; f.frequency.value=3300;
+    g.gain.setValueAtTime(level, when); g.gain.exponentialRampToValueAtTime(.0001, when + dur);
+    src.connect(f).connect(g).connect(musicBus); src.start(when); src.stop(when + dur + .02); remember(src);
+  }
+
+  function softKick(when, level=.145){
+    if(!audioCtx || !musicBus) return;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(90, when); o.frequency.exponentialRampToValueAtTime(46, when + .19);
+    g.gain.setValueAtTime(level, when); g.gain.exponentialRampToValueAtTime(.0001, when + .34);
+    o.connect(g).connect(musicBus); o.start(when); o.stop(when + .36); remember(o);
+  }
+
+  function bellTone(midi, when, dur=.8, level=.06){
+    if(!audioCtx || !musicBus) return;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine'; o.frequency.value = midiToHz(midi) * 2;
+    g.gain.setValueAtTime(.0001, when); g.gain.exponentialRampToValueAtTime(level, when + .01); g.gain.exponentialRampToValueAtTime(.0001, when + dur);
+    o.connect(g).connect(musicBus); o.start(when); o.stop(when + dur + .04); remember(o);
+  }
+
+  function scheduleLoop(){
+    if(!audioCtx || !musicOn) return;
+    const beat = 60 / 74, bar = beat * 4, t = audioCtx.currentTime + .08;
+    const chords = [
+      {pad:[53,57,60,64,67], keys:[65,69,72,76], bass:41, mel:[76,74,72]},
+      {pad:[52,55,59,62,67], keys:[64,67,71,74], bass:40, mel:[74,71,69]},
+      {pad:[50,53,57,60,64], keys:[62,65,69,72], bass:38, mel:[72,69,67]},
+      {pad:[48,52,55,59,62], keys:[60,64,67,71], bass:36, mel:[71,69,67]}
+    ];
+    chords.forEach((ch, b) => {
+      const bt = t + b * bar;
+      padVoice(ch.pad, bt, bar + .62, .036);
+      [0, .5, 2, 2.5].forEach((off, j) => {
+        const tone = ch.keys[j % ch.keys.length];
+        keyVoice(tone, bt + off * beat, 1.1, j === 0 ? .14 : .112);
+        if (j === 0 || j === 2) keyVoice(ch.keys[(j + 2) % ch.keys.length], bt + off * beat + .018, 1.0, .078);
+      });
+      bassVoice(ch.bass, bt + .02, beat * .94, .165);
+      bassVoice(ch.bass + 7, bt + 2 * beat, beat * .84, .12);
+      softKick(bt + .01, .112); softKick(bt + 2 * beat, .076);
+      for (let q=1; q<4; q++) brush(bt + q * beat + .01, q === 2 ? .058 : .044, .078);
+      if (b % 2 === 0) {
+        keyVoice(ch.mel[0], bt + 1.5 * beat, .72, .067);
+        keyVoice(ch.mel[1], bt + 3.25 * beat, .63, .055);
+        bellTone(ch.mel[2], bt + 3.48 * beat, .56, .03);
+      } else {
+        keyVoice(ch.mel[2], bt + 3.1 * beat, .68, .05);
+      }
+    });
+  }
+
+  function startMusic(){
+    musicOn = true;
+    const btn = document.getElementById('catMusic');
+    if (btn) { btn.classList.add('active'); btn.textContent = '♫ Lobby on'; }
+    try {
+      ensureAudio();
+      audioCtx.resume();
+      applyVolumeValue(state.volume);
+      scheduleLoop();
+      clearInterval(musicTimer);
+      musicTimer = setInterval(scheduleLoop, Math.round((60 / 74) * 4 * 4 * 1000));
+    } catch (e) { musicOn = false; }
+  }
+
+  function stopMusic(){
+    musicOn = false;
+    clearInterval(musicTimer); musicTimer = null;
+    activeNodes.forEach(n => { try { n.stop(); } catch (e) {} }); activeNodes = [];
+    if (audioCtx) {
+      try {
+        masterGain?.gain.setTargetAtTime(.0001, audioCtx.currentTime, .03);
+        setTimeout(() => { try { audioCtx.suspend(); } catch (e) {} }, 110);
+      } catch (e) {}
+    }
+  }
+
+  function toggleMusic(){
+    const btn = document.getElementById('catMusic');
+    if (musicOn) {
+      stopMusic();
+      if (btn) { btn.classList.remove('active'); btn.textContent = '♫ Lobby off'; }
+    } else startMusic();
+  }
+
+  function chime(){ if(!audioCtx || !musicOn) return; const t=audioCtx.currentTime; [72,76,79].forEach((m,i)=> keyVoice(m, t + i * .12, 1.05, .095)); }
+  function purrTone(){ if(!audioCtx || !musicOn) return; const t=audioCtx.currentTime; bassVoice(45, t, .42, .12); bassVoice(47, t + .17, .36, .08); }
+
+  function installTrigger(){
+    const settings = [...document.querySelectorAll('.nav-item')].find(x => x.getAttribute('aria-label') === 'Pengaturan');
+    if (!settings) return;
+    let taps = [];
+    settings.addEventListener('click', () => {
+      const stamp = Date.now();
+      taps = taps.filter(t => stamp - t < 3000);
+      taps.push(stamp);
+      if (taps.length >= 7) {
+        taps = [];
+        setTimeout(open, 120);
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installTrigger);
+  else installTrigger();
+
+  window.openSudokuEasterEgg = open;
+  window.openCatEasterEgg = open;
+})();
