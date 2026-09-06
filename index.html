@@ -263,7 +263,7 @@
     <link rel="stylesheet" href="./v25-3-5-balance-savings.css">
     <link rel="stylesheet" href="./v25-3-6-health-balance.css">
     <link rel="stylesheet" href="./v25-3-10-health-engine.css">
-    <link rel="stylesheet" href="./v25-5-16-easter-egg.css">
+    <link rel="stylesheet" href="./v25-5-17-easter-egg.css">
 </head>
 <body>
 
@@ -1293,15 +1293,24 @@
         flushOutbox();
     };
 
+    // Legacy compatibility only. UI goal lama sudah tidak punya #goal-input.
+    // Jangan biarkan pemanggilan lama/console menyebabkan null error.
     window.setGoal = () => {
+        const input = document.getElementById('goal-input');
+        if (!input) {
+            console.warn('[Finance] setGoal legacy diabaikan: #goal-input sudah tidak dipakai. Gunakan Savings Goal UI.');
+            return false;
+        }
         const amount = parseMoneyField('goal-input');
         store.goal = amount;
         persistLocalSnapshot();
         renderAll();
-        enqueueSync({ opId: `goal:${Date.now()}`, type: 'setGoal', amount, createdAt: Date.now() });
-        document.getElementById('goal-input').value = '';
+        const now = Date.now();
+        enqueueSync({ opId: `goal:${now}`, type: 'setGoal', amount, createdAt: now, updatedAt: now });
+        input.value = '';
         queuedNotice('Target tabungan disimpan.', 'Target tabungan tersimpan di perangkat dan akan sinkron saat online.');
         flushOutbox();
+        return true;
     };
 
 
@@ -2395,6 +2404,6 @@
 <script src="./v25-3-1-quick-transaction.js"></script>
 <script src="./v25-3-3-financial-plan.js"></script>
 <script src="./v25-3-10-health-engine.js"></script>
-<script src="./v25-5-16-easter-egg.js"></script>
+<script src="./v25-5-17-easter-egg.js"></script>
 </body>
 </html>
