@@ -9,14 +9,16 @@
     simulator.classList.add('v2533-whatif-card');
     simulator.setAttribute('data-v2533-location','financial-plan');
 
-    // Let Budget Planning + Bill Calendar stay first, then the decision simulator,
-    // while Yearly Report remains the closing summary.
+    // Shared order: Budget/Bills -> What-if -> Decision Lab -> Yearly Report.
+    // Decision Lab owns the slot immediately before Yearly Report; targeting
+    // that same slot here would make both MutationObservers reorder forever.
     const year=host.querySelector('.v25-year-card');
+    const anchor=host.querySelector('#v26-decision-lab')||year;
     if(simulator.parentElement!==host){
-      if(year)host.insertBefore(simulator,year);
+      if(anchor)host.insertBefore(simulator,anchor);
       else host.appendChild(simulator);
-    }else if(year && simulator.nextElementSibling!==year){
-      host.insertBefore(simulator,year);
+    }else if(anchor && simulator.nextElementSibling!==anchor){
+      host.insertBefore(simulator,anchor);
     }
 
     const loading=host.querySelector('.v2531-planning-loading');

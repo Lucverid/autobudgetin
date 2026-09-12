@@ -1,5 +1,13 @@
 # Agis Finance AI v26.0 — Decision Lab
 
+## v26.0.1 — Planning stability fix
+
+- Urutan kartu disepakati: Budget/Bills → What-if → Decision Lab → Yearly Report.
+- Menghentikan loop pemindahan kartu oleh dua MutationObserver yang saling bertabrakan.
+- Observer Decision Lab hanya memantau perubahan kartu langsung, bukan setiap pembaruan hasil.
+- URL script dan cache PWA diperbarui agar refresh online mengambil perbaikan tanpa menghapus data lokal.
+- Rumus, profil, transaksi, dan format data tidak diubah. Uji regresi: `node --test tests/planning-layout.test.cjs`.
+
 ## Fitur baru
 
 - **Analisis Bisnis** di halaman Planning:

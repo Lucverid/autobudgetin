@@ -191,6 +191,8 @@
     if(!host)return false;
     const existing=document.getElementById('v26-decision-lab');
     if(existing){
+      // What-if anchors itself before this card, never before the year report.
+      // Only move the existing node when needed: preserve input/focus/drafts.
       const year=host.querySelector('.v25-year-card');
       if(year&&existing.nextElementSibling!==year)host.insertBefore(existing,year);
       return false;
@@ -314,7 +316,9 @@
   }
   function init(){
     const done=()=>{injectLab();injectProfile();};done();setTimeout(done,280);setTimeout(done,850);wrapFactoryReset();
-    const planning=document.getElementById('planning');if(planning)new MutationObserver(()=>injectLab()).observe(planning,{childList:true,subtree:true});
+    // Only direct card additions/removals affect ordering. Result/input updates
+    // inside the lab do not need another layout pass.
+    const host=document.getElementById('v2531-planning-host');if(host)new MutationObserver(()=>injectLab()).observe(host,{childList:true});
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,220),{once:true});else setTimeout(init,220);
 })();
