@@ -8,7 +8,7 @@
     businessDraft:{
       name:'',capitalAvailable:0,setupCost:0,fixedMonthly:0,initialStock:30,
       material:0,packaging:0,labor:0,operational:0,otherUnit:0,
-      salePrice:0,unitsPerDay:10,daysPerMonth:26,targetMargin:30
+      salePrice:0,unitsPerDay:10,daysPerMonth:26,targetMargin:30,targetProfit:0
     },
     creditDraft:{name:'',cashPrice:0,downPayment:0,adminFee:0,interest:0,months:12,method:'flat'},
     businesses:[],credits:[]
@@ -22,9 +22,27 @@
     const normalized=/^\d{1,3}(\.\d{3})+$/.test(raw)?raw.replace(/\./g,''):raw.replace(/[^0-9.-]/g,'');
     return Math.max(0,Number(normalized)||0);
   };
+  const moneyNum=v=>{
+    const digits=String(v??'').replace(/\D/g,'');
+    return Math.max(0,Number(digits)||0);
+  };
   const rp=v=>typeof fmt==='function'?fmt(Math.round(Number(v)||0)):`Rp ${Math.round(Number(v)||0).toLocaleString('id-ID')}`;
   const moneyValue=v=>Number(v)?Math.round(Number(v)).toLocaleString('id-ID'):'';
   const uid=p=>`${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
+  const friendlyPrice=v=>{
+    const n=Math.max(0,Number(v)||0);
+    if(!n)return 0;
+    const step=n<10000?500:n<100000?1000:n<1000000?5000:10000;
+    return Math.ceil(n/step)*step;
+  };
+  const timingLabel=(sellingDays,months)=>{
+    if(!(sellingDays>0)||!(months>0))return '—';
+    const calendarDays=months*30.44;
+    const weeks=calendarDays/7;
+    const weekText=weeks<10?weeks.toFixed(1):Math.ceil(weeks).toLocaleString('id-ID');
+    const monthText=months<10?months.toFixed(1):months.toFixed(0);
+    return `${Math.ceil(sellingDays).toLocaleString('id-ID')} hari jual · ${weekText} minggu · ${monthText} bulan`;
+  };
 
   function state(){
     try{
@@ -56,30 +74,52 @@
 
   function calcBusiness(d){
     const hpp=num(d.material)+num(d.packaging)+num(d.labor)+num(d.operational)+num(d.otherUnit);
-    const units=Math.round(num(d.unitsPerDay)*num(d.daysPerMonth));
-    const revenue=num(d.salePrice)*units;
+    const unitsPerDay=num(d.unitsPerDay);
+    const daysPerMonth=Math.max(1,num(d.daysPerMonth)||1);
+    const units=Math.round(unitsPerDay*daysPerMonth);
+    const salePrice=num(d.salePrice);
+    const fixedMonthly=num(d.fixedMonthly);
+    const targetProfit=num(d.targetProfit);
+    const revenue=salePrice*units;
     const variable=hpp*units;
-    const marginUnit=num(d.salePrice)-hpp;
+    const marginUnit=salePrice-hpp;
     const gross=marginUnit*units;
-    const net=gross-num(d.fixedMonthly);
-    const marginPct=num(d.salePrice)>0?(marginUnit/num(d.salePrice))*100:0;
-    const capitalNeeded=num(d.setupCost)+num(d.fixedMonthly)+(hpp*num(d.initialStock));
+    const net=gross-fixedMonthly;
+    const marginPct=salePrice>0?(marginUnit/salePrice)*100:0;
+    const capitalNeeded=num(d.setupCost)+fixedMonthly+(hpp*num(d.initialStock));
     const capitalGap=num(d.capitalAvailable)-capitalNeeded;
-    const bepUnits=marginUnit>0?Math.ceil(num(d.fixedMonthly)/marginUnit):0;
-    const bepDays=num(d.unitsPerDay)>0?bepUnits/num(d.unitsPerDay):0;
-    const payback=net>0?capitalNeeded/net:0;
+    const bepUnits=marginUnit>0?Math.ceil(fixedMonthly/marginUnit):0;
+    const bepDays=unitsPerDay>0?bepUnits/unitsPerDay:0;
+    const paybackMonths=net>0?capitalNeeded/net:0;
+    const paybackSellingDays=paybackMonths>0?paybackMonths*daysPerMonth:0;
     const target=Math.min(90,num(d.targetMargin));
-    const suggestedPrice=target<100&&hpp>0?hpp/(1-target/100):0;
-    let tone='warn',title='Lengkapi angka utama',reason='Isi HPP, harga jual, dan target penjualan agar analisis bisa menilai usaha.';
-    if(hpp>0&&num(d.salePrice)>0&&units>0){
+    const marginPrice=target<100&&hpp>0?hpp/(1-target/100):0;
+    const breakEvenPrice=units>0?hpp+(fixedMonthly/units):0;
+    const targetProfitPrice=units>0?hpp+((fixedMonthly+targetProfit)/units):0;
+    const exactRecommendedPrice=Math.max(marginPrice,targetProfitPrice);
+    const recommendedPrice=friendlyPrice(exactRecommendedPrice);
+    const targetUnits=marginUnit>0?Math.ceil((fixedMonthly+targetProfit)/marginUnit):0;
+    const targetUnitsPerDay=marginUnit>0?Math.ceil(targetUnits/daysPerMonth):0;
+    const targetProfitGap=net-targetProfit;
+    const targetMilestoneMonths=net>0?(capitalNeeded+targetProfit)/net:0;
+    const targetMilestoneSellingDays=targetMilestoneMonths>0?targetMilestoneMonths*daysPerMonth:0;
+    let tone='warn',title='Lengkapi angka utama',reason='Isi HPP, harga jual, target penjualan, dan target keuntungan agar analisis bisa menilai usaha.';
+    if(hpp>0&&salePrice>0&&units>0){
       if(marginUnit<=0){tone='bad';title='Belum layak dijual';reason='Harga jual lebih rendah atau sama dengan HPP per unit.';}
-      else if(net<=0){tone='bad';title='Usaha masih merugi';reason='Margin penjualan belum cukup untuk menutup biaya tetap bulanan.';}
+      else if(net<=0){tone='bad';title='Usaha masih merugi';reason=`Harga sekarang belum menutup biaya tetap. Minimal sekitar ${rp(breakEvenPrice)} per unit untuk impas pada volume ini.`;}
       else if(capitalGap<0){tone='warn';title='Potensial, modal belum cukup';reason=`Masih kurang ${rp(Math.abs(capitalGap))} untuk persiapan, stok awal, dan biaya tetap.`;}
-      else if(marginPct+0.01<target){tone='warn';title='Layak dengan margin tipis';reason=`Laba positif, tetapi margin ${marginPct.toFixed(1)}% masih di bawah target ${target}%.`;}
-      else {tone='good';title='Skenario usaha layak diuji';reason='Modal mencukupi, laba bulanan positif, dan target margin tercapai. Tetap mulai dari uji pasar kecil.';}
+      else if(targetProfit>0&&targetProfitGap<0){tone='warn';title='Untung, tapi target belum tercapai';reason=`Masih kurang ${rp(Math.abs(targetProfitGap))}/bulan. Pada volume sekarang, harga perlu sekitar ${rp(targetProfitPrice)} per unit.`;}
+      else if(marginPct+0.01<target){tone='warn';title='Layak dengan margin di bawah target';reason=`Laba positif, tetapi margin ${marginPct.toFixed(1)}% masih di bawah target ${target}%.`;}
+      else {tone='good';title='Skenario usaha layak diuji';reason=targetProfit>0?'Modal mencukupi dan target keuntungan tercapai pada asumsi penjualan saat ini. Tetap mulai dari uji pasar kecil.':'Modal mencukupi, laba bulanan positif, dan target margin tercapai. Tetap mulai dari uji pasar kecil.';}
     }
-    return {hpp,units,revenue,variable,marginUnit,gross,net,marginPct,capitalNeeded,capitalGap,bepUnits,bepDays,payback,suggestedPrice,tone,title,reason};
+    return {
+      hpp,units,unitsPerDay,daysPerMonth,revenue,variable,marginUnit,gross,net,marginPct,capitalNeeded,capitalGap,
+      bepUnits,bepDays,payback:paybackMonths,paybackMonths,paybackSellingDays,target,marginPrice,breakEvenPrice,
+      targetProfit,targetProfitPrice,exactRecommendedPrice,recommendedPrice,targetUnits,targetUnitsPerDay,targetProfitGap,
+      targetMilestoneMonths,targetMilestoneSellingDays,tone,title,reason
+    };
   }
+
 
   function monthlyInstallment(d){
     const principal=Math.max(0,num(d.cashPrice)-num(d.downPayment));
@@ -154,7 +194,9 @@
           ${input('unitsPerDay','Target unit / hari',d.unitsPerDay,'number','min="0" step="1"')}
           ${input('daysPerMonth','Hari jual / bulan',d.daysPerMonth,'number','min="1" max="31" step="1"')}
           ${input('targetMargin','Target margin (%)',d.targetMargin,'number','min="0" max="90" step="1"')}
+          ${input('targetProfit','Target keuntungan / bulan',d.targetProfit)}
         </div>
+        <div class="v26-helper">Target keuntungan dipakai untuk menghitung harga jual minimum dan volume penjualan yang dibutuhkan.</div>
       </div>
       <div id="v26-business-result" class="v26-result"></div>
       <div class="v26-actions"><button class="btn-primary" type="button" onclick="saveBusinessV26()"><i data-lucide="bookmark-plus"></i> Simpan skenario</button><button class="btn-small" type="button" onclick="resetBusinessV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
@@ -221,9 +263,20 @@
   }
 
   function formatField(el){
-    if(el.dataset.v26Type==='text')return;
-    const value=num(el.value);
-    if((el.dataset.v26Type||'money')==='money')el.value=value?Math.round(value).toLocaleString('id-ID'):'';
+    if(el.dataset.v26Type==='text')return el.value;
+    if((el.dataset.v26Type||'money')!=='money')return num(el.value);
+    const raw=String(el.value||'');
+    const caret=typeof el.selectionStart==='number'?el.selectionStart:raw.length;
+    const digitsBefore=raw.slice(0,caret).replace(/\D/g,'').length;
+    const value=moneyNum(raw);
+    const formatted=value?Math.round(value).toLocaleString('id-ID'):'';
+    el.value=formatted;
+    if(document.activeElement===el&&typeof el.setSelectionRange==='function'){
+      let pos=0,seen=0;
+      while(pos<formatted.length&&seen<digitsBefore){if(/\d/.test(formatted[pos]))seen++;pos++;}
+      try{el.setSelectionRange(pos,pos)}catch{}
+    }
+    return value;
   }
   function bindLab(){
     const lab=document.getElementById('v26-decision-lab');if(!lab||lab.dataset.bound)return;lab.dataset.bound='1';
@@ -231,13 +284,14 @@
     lab.addEventListener('input',e=>{
       const el=e.target,field=el.dataset.v26Field,credit=el.dataset.v26Credit;
       if(!field&&!credit)return;
-      if(el.dataset.v26Type==='money')formatField(el);
-      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=el.dataset.v26Type==='text'?el.value:num(el.value);});
+      const parsed=el.dataset.v26Type==='money'?formatField(el):el.dataset.v26Type==='text'?el.value:num(el.value);
+      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=parsed;});
       renderResults();
     });
     lab.addEventListener('change',e=>{
       const el=e.target,field=el.dataset.v26Field,credit=el.dataset.v26Credit;if(!field&&!credit)return;
-      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=el.dataset.v26Type==='text'?el.value:num(el.value);});renderResults();
+      const parsed=el.dataset.v26Type==='money'?moneyNum(el.value):el.dataset.v26Type==='text'?el.value:num(el.value);
+      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=parsed;});renderResults();
     });
   }
   function switchTab(name,save=true){
@@ -250,8 +304,41 @@
   function renderBusiness(){
     const s=state(),r=calcBusiness(s.businessDraft),el=document.getElementById('v26-business-result');if(!el)return;
     const gapTone=r.capitalGap>=0?'good':'bad';
-    el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>HPP / unit</small><b class="v26-money">${rp(r.hpp)}</b></div><div class="v26-metric"><small>Omzet / bulan</small><b class="v26-money">${rp(r.revenue)}</b></div><div class="v26-metric ${r.net>0?'good':'bad'}"><small>Laba bersih / bulan</small><b class="v26-money">${rp(r.net)}</b></div><div class="v26-metric ${gapTone}"><small>Selisih modal</small><b class="v26-money">${r.capitalGap>=0?'+ ': '- '}${rp(Math.abs(r.capitalGap))}</b></div><div class="v26-metric"><small>Modal minimum</small><b class="v26-money">${rp(r.capitalNeeded)}</b></div><div class="v26-metric"><small>Margin kotor</small><b>${r.marginPct.toFixed(1)}%</b></div><div class="v26-metric"><small>BEP operasional</small><b>${r.bepUnits?r.bepUnits+' unit':'—'}</b></div><div class="v26-metric"><small>Balik modal</small><b>${r.payback?`${r.payback.toFixed(1)} bulan`:'—'}</b></div></div><div class="v26-breakdown"><div><span>Harga rekomendasi sesuai target margin</span><b class="v26-money">${rp(r.suggestedPrice)}</b></div><div><span>Perkiraan BEP tercapai</span><b>${r.bepDays?`${r.bepDays.toFixed(1)} hari jual`:'Belum tercapai'}</b></div><div><span>Laba kotor sebelum biaya tetap</span><b class="v26-money">${rp(r.gross)}</b></div></div>`;
+    const profitTone=r.targetProfit>0?(r.targetProfitGap>=0?'good':'warn'):'';
+    const targetPriceText=r.targetProfit>0?rp(r.targetProfitPrice):'Isi target keuntungan';
+    const volumeText=r.targetProfit>0&&r.marginUnit>0?`${r.targetUnitsPerDay.toLocaleString('id-ID')} unit/hari · ${r.targetUnits.toLocaleString('id-ID')} unit/bulan`:'—';
+    const paybackText=timingLabel(r.paybackSellingDays,r.paybackMonths);
+    const targetMilestoneText=r.targetProfit>0?timingLabel(r.targetMilestoneSellingDays,r.targetMilestoneMonths):'Isi target keuntungan';
+    el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div>
+      <div class="v26-result-grid">
+        <div class="v26-metric"><small>HPP / unit</small><b class="v26-money">${rp(r.hpp)}</b></div>
+        <div class="v26-metric"><small>Omzet / bulan</small><b class="v26-money">${rp(r.revenue)}</b></div>
+        <div class="v26-metric ${r.net>0?'good':'bad'}"><small>Laba bersih / bulan</small><b class="v26-money">${rp(r.net)}</b></div>
+        <div class="v26-metric ${profitTone}"><small>Target keuntungan</small><b class="v26-money">${r.targetProfit?rp(r.targetProfit):'—'}</b></div>
+        <div class="v26-metric ${gapTone}"><small>Selisih modal</small><b class="v26-money">${r.capitalGap>=0?'+ ':'- '}${rp(Math.abs(r.capitalGap))}</b></div>
+        <div class="v26-metric"><small>Modal minimum</small><b class="v26-money">${rp(r.capitalNeeded)}</b></div>
+        <div class="v26-metric"><small>Margin kotor</small><b>${r.marginPct.toFixed(1)}%</b></div>
+        <div class="v26-metric"><small>BEP operasional</small><b>${r.bepUnits?r.bepUnits+' unit':'—'}</b></div>
+      </div>
+      <div class="v26-advice">
+        <div class="v26-advice-head"><div><span>REKOMENDASI HARGA</span><b>${r.recommendedPrice?rp(r.recommendedPrice):'Lengkapi HPP & volume'}</b></div><i data-lucide="badge-dollar-sign"></i></div>
+        <p>Harga praktis ini mengambil nilai tertinggi dari target margin dan target keuntungan pada volume penjualan yang kamu isi.</p>
+        <div class="v26-advice-grid">
+          <div><small>Minimal impas</small><b class="v26-money">${rp(r.breakEvenPrice)}</b></div>
+          <div><small>Untuk target keuntungan</small><b class="v26-money">${targetPriceText}</b></div>
+          <div><small>Untuk target margin ${r.target.toFixed(0)}%</small><b class="v26-money">${rp(r.marginPrice)}</b></div>
+          <div><small>Jika harga tetap ${rp(num(s.businessDraft.salePrice))}</small><b>${volumeText}</b></div>
+        </div>
+      </div>
+      <div class="v26-timeline">
+        <div class="v26-timeline-title"><i data-lucide="milestone"></i><span>Perkiraan waktu berdasarkan harga jual saat ini</span></div>
+        <div class="v26-timeline-row"><span><i></i><b>Balik modal</b><small>${rp(r.capitalNeeded)} kembali</small></span><strong>${paybackText}</strong></div>
+        <div class="v26-timeline-row"><span><i></i><b>Balik modal + target untung</b><small>${r.targetProfit?`${rp(r.capitalNeeded+r.targetProfit)} kumulatif`:'Tentukan target keuntungan dulu'}</small></span><strong>${targetMilestoneText}</strong></div>
+      </div>
+      <div class="v26-breakdown"><div><span>Perkiraan BEP operasional</span><b>${r.bepDays?`${r.bepDays.toFixed(1)} hari jual`:'Belum tercapai'}</b></div><div><span>Laba kotor sebelum biaya tetap</span><b class="v26-money">${rp(r.gross)}</b></div><div><span>Selisih dari target keuntungan / bulan</span><b class="v26-money">${r.targetProfit?(r.targetProfitGap>=0?'+ ':'- ')+rp(Math.abs(r.targetProfitGap)):'—'}</b></div></div>`;
+    if(window.lucide?.createIcons)lucide.createIcons();
   }
+
   function renderCredit(){
     const s=state(),r=calcCredit(s.creditDraft,s.profile),el=document.getElementById('v26-credit-result');if(!el)return;
     const pct=Math.min(100,r.dsr/35*100),progressTone=r.dsr>35?'bad':r.dsr>25?'warn':'';
@@ -278,7 +365,7 @@
   }
 
   window.saveV26Profile=()=>{
-    const values={};document.querySelectorAll('[data-v26-profile]').forEach(el=>values[el.dataset.v26Profile]=num(el.value));
+    const values={};document.querySelectorAll('[data-v26-profile]').forEach(el=>values[el.dataset.v26Profile]=moneyNum(el.value));
     setState(s=>s.profile={...s.profile,...values});renderResults();
     if(typeof auditEvent==='function')auditEvent('Profil perhitungan diperbarui','Gaji dan kebutuhan wajib untuk simulasi kredit');
     Swal.fire({title:'Profil disimpan',text:'Simulasi Kredit langsung memakai angka terbaru.',icon:'success',timer:1300,showConfirmButton:false});
