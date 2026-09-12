@@ -1,25 +1,4 @@
-# V26 Changes
-
-## v26.2.0 — UI lebih rapi, responsive, dan bahasa lebih mudah
-- Decision Lab diganti menjadi **Perencana Keputusan** dengan tab **Rencana Usaha** dan **Cek Cicilan**.
-- Form dibuat mobile-first: pada HP tampil 1 kolom, input lebih besar, dan target sentuh minimal sekitar 44–50 px.
-- Alur dibuat 3 langkah agar pengguna baru tahu urutan pengisian.
-- Istilah HPP, margin, BEP, anuitas, dan rasio cicilan diberi penjelasan bahasa sehari-hari. Istilah teknis dipindahkan ke bagian **Lihat rincian perhitungan**.
-- Hasil utama diprioritaskan: modal yang dibutuhkan, uang masuk, keuntungan bersih, saran harga, cicilan bulanan, sisa uang, dan biaya tambahan kredit.
-- Rekomendasi harga dan waktu balik modal tetap dipertahankan dari v26.1.0.
-- Cache PWA dinaikkan ke v26.2.0 supaya UI baru langsung terambil setelah deploy.
-
 # Agis Finance AI v26.0 — Decision Lab
-
-## v26.1.0 — Business target profit & nominal input fix
-
-- Memperbaiki bug input nominal yang dapat kembali menjadi 1 digit setelah angka melewati 4 digit. Formatter uang sekarang membaca digit mentah dan menjaga posisi kursor saat pemisah ribuan ditambahkan.
-- Menambahkan **Target keuntungan / bulan** pada Analisis Bisnis.
-- Menghitung harga minimum agar target keuntungan tercapai pada volume penjualan yang dipilih.
-- Menampilkan harga praktis yang disarankan berdasarkan nilai tertinggi antara target margin dan target keuntungan.
-- Jika harga jual dipertahankan, aplikasi menghitung kebutuhan unit per hari dan per bulan untuk mencapai target keuntungan.
-- Estimasi **balik modal** dan **balik modal + target keuntungan** kini ditampilkan dalam hari jual, minggu, dan bulan.
-- Cache PWA dinaikkan ke v26.1.0 agar perbaikan langsung terambil setelah deploy.
 
 ## v26.0.1 — Planning stability fix
 
