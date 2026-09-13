@@ -1,5 +1,5 @@
 /**
- * Agis Finance v27.5.0 — Google Apps Script backend
+ * Agis Finance v27.5.1 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v27.5.0','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v27.5.1','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -136,7 +136,7 @@ function checkV27Tracking_(snap,scheduled,today,now,tz){
     const plannedMargin=Math.max(0,(Number(b.salePrice)||0)-(Number(b.hpp)||0));
     const avgPrice=sold>0?revenue/sold:(Number(b.salePrice)||0), margin=Math.max(0,avgPrice-(Number(b.hpp)||0));
     if(!(plannedMargin>0||margin>0))return;
-    const capital=Math.max(0,Number(b.capitalNeeded)||0), target=Math.max(0,Number(b.targetProfit)||0);
+    const restockCost=adds.reduce((sum,x)=>sum+stockCost_(x,b),0), capital=Math.max(0,Number(b.capitalNeeded)||0)+restockCost, target=Math.max(0,Number(b.targetProfit)||0);
     const actualContribution=margin*sold, bepReached=capital>0&&actualContribution>=capital, targetReached=target>0&&actualContribution>=capital+target;
     const fallbackMargin=margin>0?margin:plannedMargin;
     const remainingBepMoney=Math.max(0,capital-actualContribution), remainingBep=fallbackMargin>0?Math.ceil(remainingBepMoney/fallbackMargin):0;
@@ -206,6 +206,10 @@ function checkV27CrudNotifications_(snap,previous){
         else if(!sameSale_(old,x,b)){notifyOnce_(`v271-sale-update:${b.id}:${x.id}:${x.updatedAt||x.qty+':'+saleRevenue_(x,b)+':'+x.date}`,`✏️ Penjualan diperbarui — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\nMenjadi ${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nLaba setelah biaya produk Rp ${fmt_(profit)}${factor}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
       });
       (ob.sales||[]).forEach(x=>{if(!newSales[String(x.id)])notifyOnce_(`v271-sale-delete:${b.id}:${x.id}:${x.updatedAt||x.createdAt||''}`,`🗑️ Data penjualan dihapus — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,ob))}`);});
+      const oldStock={};(ob.stockAdds||[]).forEach(x=>oldStock[String(x.id)]=x);
+      const newStock={};(b.stockAdds||[]).forEach(x=>newStock[String(x.id)]=x);
+      (b.stockAdds||[]).forEach(x=>{const old=oldStock[String(x.id)],cost=stockCost_(x,b);if(!old)notifyOnce_(`v2751-stock-create:${b.id}:${x.id}`,`📦 Restock dicatat — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n+${Math.round(Number(x.qty)||0)} pcs · biaya Rp ${fmt_(cost)}`);else if(!sameStock_(old,x,b))notifyOnce_(`v2751-stock-update:${b.id}:${x.id}:${x.updatedAt||x.qty+':'+cost+':'+x.date}`,`✏️ Restock diperbarui — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n+${Math.round(Number(x.qty)||0)} pcs · biaya Rp ${fmt_(cost)}`);});
+      (ob.stockAdds||[]).forEach(x=>{if(!newStock[String(x.id)])notifyOnce_(`v2751-stock-delete:${b.id}:${x.id}:${x.updatedAt||x.createdAt||''}`,`🗑️ Restock dihapus — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · biaya Rp ${fmt_(stockCost_(x,ob))}`);});
     });
   }
   if(settings.notifyCredit!==false){
@@ -220,9 +224,11 @@ function checkV27CrudNotifications_(snap,previous){
 }
 function sameSale_(a,b,biz){return String(a.date||'')===String(b.date||'')&&Number(a.qty||0)===Number(b.qty||0)&&Number(saleRevenue_(a,biz)||0)===Number(saleRevenue_(b,biz)||0)&&String(a.reason||'')===String(b.reason||'')&&String(a.note||'')===String(b.note||'')}
 function samePayment_(a,b){return String(a.date||'')===String(b.date||'')&&Number(a.amount||0)===Number(b.amount||0)&&String(a.note||'')===String(b.note||'')}
+function sameStock_(a,b,biz){return String(a.date||'')===String(b.date||'')&&Number(a.qty||0)===Number(b.qty||0)&&Number(stockCost_(a,biz)||0)===Number(stockCost_(b,biz)||0)&&String(a.note||'')===String(b.note||'')}
 function saleRevenue_(sale,biz){if(sale&&Object.prototype.hasOwnProperty.call(sale,'revenue'))return Math.max(0,Number(sale.revenue)||0);return Math.max(0,(Number(sale?.qty)||0)*(Number(biz?.salePrice)||0))}
-function salesDaily_(biz,date){const rows=(biz?.sales||[]).filter(x=>String(x.date||'')===String(date||''));return {qty:rows.reduce((s,x)=>s+(Number(x.qty)||0),0),revenue:rows.reduce((s,x)=>s+saleRevenue_(x,biz),0)}}
-function salesCompareText_(current,other,label){if(!current||!other)return '';const dq=(Number(current.qty)||0)-(Number(other.qty)||0),dr=(Number(current.revenue)||0)-(Number(other.revenue)||0);if(!dq&&!dr)return `Sama dengan ${label}: ${Math.round(current.qty||0)} pcs · Rp ${fmt_(current.revenue||0)}`;return `vs ${label}: ${dq>=0?'+':'-'}${Math.abs(Math.round(dq))} pcs · ${dr>=0?'+':'-'}Rp ${fmt_(Math.abs(dr))}`}
+function stockCost_(entry,biz){if(entry&&Object.prototype.hasOwnProperty.call(entry,'cost'))return Math.max(0,Number(entry.cost)||0);return Math.max(0,(Number(entry?.qty)||0)*(Number(biz?.hpp)||0))}
+function salesDaily_(biz,date){const rows=(biz?.sales||[]).filter(x=>String(x.date||'')===String(date||''));return {qty:rows.reduce((s,x)=>s+(Number(x.qty)||0),0),revenue:rows.reduce((s,x)=>s+saleRevenue_(x,biz),0),count:rows.length}}
+function salesCompareText_(current,other,label){if(!current||!other||!Number(other.count||0))return '';const dq=(Number(current.qty)||0)-(Number(other.qty)||0),dr=(Number(current.revenue)||0)-(Number(other.revenue)||0);if(!dq&&!dr)return `Sama dengan ${label}: ${Math.round(current.qty||0)} pcs · Rp ${fmt_(current.revenue||0)}`;return `vs ${label}: ${dq>=0?'+':'-'}${Math.abs(Math.round(dq))} pcs · ${dr>=0?'+':'-'}Rp ${fmt_(Math.abs(dr))}`}
 function shiftDateKey_(key,delta){const p=String(key||'').split('-').map(Number);if(p.length<3||!p[0])return key;const d=new Date(p[0],p[1]-1,p[2]+Number(delta||0));return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd')}
 
 function reasonLabel_(key){const m={normal:'Normal',ramai:'Ramai',promo:'Promo',hujan:'Hujan',libur:'Libur / event',stok:'Stok terbatas',lainnya:'Lainnya'};return m[String(key||'')]||String(key||'')}
@@ -233,8 +239,8 @@ function businessReasonInsight_(b,end){
 function businessWeeklyMessage_(b,end){
   const rows=Array.from({length:7},(_,i)=>salesDaily_(b,shiftDateKey_(end,i-6))), dates=Array.from({length:7},(_,i)=>shiftDateKey_(end,i-6));
   const prev=Array.from({length:7},(_,i)=>salesDaily_(b,shiftDateKey_(end,i-13))), qty=rows.reduce((s,x)=>s+(Number(x.qty)||0),0), revenue=rows.reduce((s,x)=>s+(Number(x.revenue)||0),0), profit=revenue-qty*(Number(b.hpp)||0), planned=Math.max(0,Number(b.unitsPerDay)||0);
-  const recorded=rows.map((x,i)=>({...x,date:dates[i]})).filter(x=>x.qty>0||x.revenue>0), best=recorded.slice().sort((a,z)=>z.qty-a.qty||z.revenue-a.revenue)[0], worst=recorded.slice().sort((a,z)=>a.qty-z.qty||a.revenue-z.revenue)[0], hits=planned>0?rows.filter(x=>x.qty>=planned).length:0;
-  const allSales=b.sales||[], sold=allSales.reduce((s,x)=>s+(Number(x.qty)||0),0), allRevenue=allSales.reduce((s,x)=>s+saleRevenue_(x,b),0), avgPrice=sold>0?allRevenue/sold:(Number(b.salePrice)||0), margin=Math.max(0,avgPrice-(Number(b.hpp)||0)), capital=Math.max(0,Number(b.capitalNeeded)||0), contribution=margin*sold, remain=margin>0?Math.ceil(Math.max(0,capital-contribution)/margin):0;
+  const recorded=rows.map((x,i)=>({...x,date:dates[i]})).filter(x=>Number(x.count||0)>0), best=recorded.slice().sort((a,z)=>z.qty-a.qty||z.revenue-a.revenue)[0], worst=recorded.slice().sort((a,z)=>a.qty-z.qty||a.revenue-z.revenue)[0], hits=planned>0?rows.filter(x=>x.qty>=planned).length:0;
+  const allSales=b.sales||[], sold=allSales.reduce((s,x)=>s+(Number(x.qty)||0),0), allRevenue=allSales.reduce((s,x)=>s+saleRevenue_(x,b),0), avgPrice=sold>0?allRevenue/sold:(Number(b.salePrice)||0), margin=Math.max(0,avgPrice-(Number(b.hpp)||0)), restockCost=(b.stockAdds||[]).reduce((s,x)=>s+stockCost_(x,b),0), capital=Math.max(0,Number(b.capitalNeeded)||0)+restockCost, contribution=margin*sold, remain=margin>0?Math.ceil(Math.max(0,capital-contribution)/margin):0;
   const pace=qty/7, prevPace=prev.reduce((s,x)=>s+(Number(x.qty)||0),0)/7, currentDays=pace>0?Math.ceil(remain/pace):0, prevDays=prevPace>0?Math.ceil(remain/prevPace):0, delta=currentDays&&prevDays?currentDays-prevDays:0;
   const factor=businessReasonInsight_(b,end), projection=delta<0?`Proyeksi BEP membaik sekitar ${Math.abs(delta)} hari vs 7 hari sebelumnya.`:delta>0?`Proyeksi BEP melambat sekitar ${delta} hari vs 7 hari sebelumnya.`:'Proyeksi BEP relatif stabil.';
   return `📊 Ringkasan 7 hari — ${b.name||'Usaha'}\nTerjual ${Math.round(qty)} pcs · omzet Rp ${fmt_(revenue)}\nLaba setelah biaya produk Rp ${fmt_(profit)}${planned>0?`\nTarget tercapai ${hits}/7 hari`:''}${best?`\nTerbaik ${humanDate_(best.date)}: ${Math.round(best.qty)} pcs · Rp ${fmt_(best.revenue)}`:''}${worst?`\nTerendah tercatat ${humanDate_(worst.date)}: ${Math.round(worst.qty)} pcs · Rp ${fmt_(worst.revenue)}`:''}\n${projection}${factor?`\nFaktor yang sering muncul pada hari di atas rata-rata: ${factor}.`:''}`;
@@ -351,7 +357,7 @@ function nextBillDate_(b,ref){
 function weeklyMessage_(snap){const rows=snap.data?.trans||[],now=new Date(),cut=new Date(now.getTime()-7*86400000);let total=0;const cats={};rows.forEach(x=>{const d=new Date((x.tanggal||'1970-01-01')+'T00:00:00');if(d>=cut){const n=Number(x.nominal)||0;total+=n;cats[x.kategori||'Lainnya']=(cats[x.kategori||'Lainnya']||0)+n}});const top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];return `📊 Weekly Review\n7 hari keluar Rp ${fmt_(total)}${top?`\nTerbesar: ${top[0]} Rp ${fmt_(top[1])}`:''}\nScore ${Math.round(Number(snap.summary?.score)||0)}/100 · Carry-over Rp ${fmt_(snap.summary?.carryOver||0)}`;}
 function notifyOnce_(id,msg){const p=PropertiesService.getScriptProperties();if(p.getProperty('N:'+id))return;sendTelegram_(msg);p.setProperty('N:'+id,new Date().toISOString());log_(id,msg)}
 function sendTelegram_(text){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const r=UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'post',contentType:'application/json',payload:JSON.stringify({chat_id:chat,text}),muteHttpExceptions:true});if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());}
-function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v27.5.0 backend aktif. Tracking penjualan, ringkasan mingguan, cicilan, dan notifikasi keuangan siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
+function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v27.5.1 backend aktif. Tracking penjualan, ringkasan mingguan, cicilan, dan notifikasi keuangan siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
 function log_(id,msg){const sh=SpreadsheetApp.getActive().getSheetByName(DB.logs);sh.appendRow([new Date(),id,msg]);}
 function wipeDatabase_(){ensureSheetsSafe_();[DB.snapshot,DB.expenses,DB.incomes,DB.transfers,DB.goals,DB.recurring,DB.budgets,DB.bills].forEach(n=>{const sh=SpreadsheetApp.getActive().getSheetByName(n);if(sh)sh.clearContents()});ensureHeaders_();}
 function fmt_(n){return Math.round(Number(n)||0).toLocaleString('id-ID');}

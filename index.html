@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v27.5.0</title>
+    <title>Agis Finance AI - v27.5.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -266,7 +266,7 @@
     <link rel="stylesheet" href="./v25-5-17-easter-egg.css">
     <link rel="stylesheet" href="./v26-decision-lab.css">
     <link rel="stylesheet" href="./v27-tracking.css?v=27.5.0">
-    <style id="v2731-feature-switcher-inline">
+    <style id="v2731-feature-switcher-inline-style">
 /* v27.3 — compact Financial Plan feature switcher */
 #planning .v273-feature-switcher{
   width:100%;
@@ -1622,7 +1622,7 @@ body.v273-sheet-open{overflow:hidden}
         const file=event.target.files?.[0]; event.target.value=''; if(!file)return;
         try{
             const raw=await file.text(); const parsed=JSON.parse(raw); const migrated=migrateBackupPayload(parsed); const d=migrated.data;
-            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v25 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v27 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
             store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit;
             if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}));}catch{}}
             if(d.v26){try{localStorage.setItem('agis_finance_v26_decision_lab',JSON.stringify(d.v26));}catch{}}
@@ -2476,8 +2476,8 @@ body.v273-sheet-open{overflow:hidden}
     }
 </script>
 <script src="./v24-4-features.js"></script>
-<script src="./v24-5-automation.js?v=27.2.0"></script>
-<script src="./v25-features.js"></script>
+<script src="./v24-5-automation.js?v=27.5.1"></script>
+<script src="./v25-features.js?v=27.5.1"></script>
 <script src="./v25-1-mobile.js"></script>
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
@@ -2486,8 +2486,8 @@ body.v273-sheet-open{overflow:hidden}
 <script src="./v25-3-10-health-engine.js"></script>
 <script src="./v25-5-17-easter-egg.js"></script>
 <script src="./v26-decision-lab.js?v=27.2.0"></script>
-<script src="./v27-tracking.js?v=27.5.0"></script>
-<script id="v2731-feature-switcher-inline">
+<script src="./v27-tracking.js?v=27.5.1"></script>
+<script id="v2731-feature-switcher-inline-script">
 (() => {
   'use strict';
 
@@ -2704,6 +2704,6 @@ body.v273-sheet-open{overflow:hidden}
   else init();
 })();
 </script>
-<!-- AutoBudgetin v27.5.0: adaptive sales intelligence, weekly review, credit safety, Telegram weekly summary -->
+<!-- AutoBudgetin v27.5.1: reliability hotfix for backup, offline resync, reset, zero-sales, restock BEP, and Telegram restock CRUD -->
 </body>
 </html>
