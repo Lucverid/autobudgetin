@@ -1,62 +1,99 @@
-# AutoBudgetin v27.0.0 — Patch Only (base v26.1.0)
+# AutoBudgetin v27.1.0 — Patch Only
 
-Patch ini **harus dipasang di atas v26.1.0 stable**. Jangan pakai v26.2.0 sebagai base.
+Base aman: **v26.1.0 stable**. Patch ini juga bisa langsung menimpa **v27.0.0**.
+Jangan gunakan v26.2.0 sebagai base.
 
-## Yang ditambahkan
+## Yang baru di v27.1.0
 
-### Tracking Penjualan
-- Saat **Simpan skenario bisnis**, tracking penjualan otomatis dibuat dan halaman tracking dibuka.
-- CRUD penjualan harian.
-- CRUD penambahan/restock stok.
-- Stok tersisa otomatis.
-- Progress balik modal dan target keuntungan.
-- Perbandingan target penjualan harian vs realisasi.
-- Rata-rata penjualan aktual.
-- Estimasi balik modal ikut mundur/maju mengikuti penjualan nyata.
-- Tetap bisa membuat tracking dari skenario lama lewat dropdown.
+### Kalender penjualan
+- Data penjualan sekarang dilihat lewat kalender bulanan.
+- Klik tanggal untuk melihat data hari tersebut.
+- Tiap tanggal menampilkan jumlah pcs dan omzet secara ringkas.
+- Tombol **Hari ini**, bulan sebelumnya, dan bulan berikutnya.
+- Tetap nyaman di layar HP kecil.
 
-### Tracking Cicilan
-- Saat **Simpan simulasi kredit**, tracking cicilan otomatis dibuat.
-- CRUD pembayaran cicilan.
-- Progress cicilan, total dibayar, sisa cicilan, dan jatuh tempo berikutnya.
-- Tanggal jatuh tempo bulanan bisa diubah.
-- Tetap bisa membuat tracking dari simulasi lama lewat dropdown.
+### Omzet aktual bisa di-adjust
+Saat mencatat penjualan, isi:
+- tanggal;
+- jumlah terjual (pcs);
+- **uang yang benar-benar didapat**;
+- catatan opsional.
 
-### Telegram / Apps Script
-Backend sekarang membaca tracking v27 dan dapat mengirim:
-- target penjualan harian belum tercapai;
+Kalau kolom uang dikosongkan, aplikasi otomatis memakai `pcs × harga jual`.
+Kalau ada diskon/promo/perbedaan harga, nominal uang dapat diubah manual dan seluruh tracking memakai nominal aktual tersebut.
+
+### CRUD lengkap
+Penjualan mendukung:
+- **Create** — tambah catatan penjualan;
+- **Read** — kalender + detail tanggal;
+- **Update** — edit pcs, omzet, tanggal, dan catatan;
+- **Delete** — hapus catatan penjualan.
+
+Restock dan pembayaran cicilan tetap punya CRUD seperti v27.0.0.
+
+### Perbandingan hari
+Pada tanggal yang dipilih, aplikasi menampilkan:
+- perbandingan dengan 1 hari sebelumnya;
+- perbandingan dengan 1 hari setelahnya;
+- selisih pcs;
+- persentase perubahan pcs;
+- selisih omzet;
+- persentase perubahan omzet.
+
+Jika hari pembanding belum punya data, aplikasi menampilkan **Belum ada data** agar tidak membuat kesimpulan palsu.
+
+### Chart, bukan full text
+Ada chart tren 7 hari dengan pilihan:
+- **Pcs**;
+- **Omzet**.
+
+Chart mengikuti tanggal yang sedang dipilih di kalender dan menggunakan Chart.js yang sudah ada di AutoBudgetin, jadi tidak menambah library online/billing.
+
+### Proyeksi memakai omzet aktual
+Data lama tetap kompatibel. Penjualan lama tanpa field omzet akan dihitung dari harga jual skenario.
+Data baru memakai omzet aktual, sehingga diskon/promo tidak membuat analisis terlihat lebih untung dari kenyataan.
+
+## Telegram v27.1.0
+Backend Apps Script sudah diperbarui.
+
+Telegram sekarang bisa mengirim notifikasi ketika:
+- penjualan baru dicatat;
+- catatan penjualan diedit;
+- catatan penjualan dihapus;
+- target harian belum tercapai;
 - proyeksi balik modal mundur;
 - stok hampir habis;
 - balik modal tercapai;
 - target keuntungan tercapai;
-- pengingat cicilan H-7, H-3, H-1, hari H;
-- peringatan terlambat H+1, H+3, H+7;
-- cicilan lunas.
+- pembayaran cicilan dicatat;
+- pembayaran cicilan diedit;
+- pembayaran cicilan dihapus;
+- cicilan mendekati jatuh tempo / terlambat / lunas.
 
-Notifikasi tetap memakai konfigurasi Telegram + Apps Script yang sudah ada.
+Notifikasi penjualan juga membawa **pcs + omzet aktual** dan perbandingan dengan hari sebelumnya jika tersedia.
 
 ## File patch
-Timpa file berikut di repo v26.1.0:
+Timpa file berikut:
 - `index.html`
 - `service-worker.js`
 - `v26-decision-lab.js`
 - `v24-5-automation.js`
 - `telegram-database-backend.gs`
 
-Tambahkan file baru:
+Tambahkan / timpa:
 - `v27-tracking.js`
 - `v27-tracking.css`
 
-## Penting untuk Telegram
-Karena `telegram-database-backend.gs` berubah, setelah menyalin kode Apps Script:
-1. Buka project Apps Script yang terhubung ke AutoBudgetin.
-2. Ganti isi backend dengan file patch `telegram-database-backend.gs`.
-3. **Deploy > Manage deployments > Edit > New version > Deploy**.
-4. URL Web App biasanya tetap sama jika deployment yang sama diperbarui.
-5. Jalankan **Tes Telegram** dari AutoBudgetin untuk memastikan backend aktif.
+## Setelah upload GitHub
+Karena cache PWA dinaikkan ke `v27.1.0`, browser akan mengambil JS/CSS tracking terbaru setelah service worker baru aktif. Jika tampilan lama masih tertahan, tutup tab AutoBudgetin lalu buka ulang sekali.
 
-## Data lama
-Patch tidak menghapus data v26.1.0. Tracking disimpan di localStorage baru:
-`agis_finance_v27_tracking`
+## Wajib untuk Telegram
+Karena `telegram-database-backend.gs` berubah:
+1. Buka Apps Script backend AutoBudgetin.
+2. Ganti isi script dengan `telegram-database-backend.gs` dari patch ini.
+3. Pilih **Deploy → Manage deployments → Edit → New version → Deploy**.
+4. Gunakan deployment yang sama supaya URL Web App tetap sama.
+5. Di AutoBudgetin tekan **Tes Telegram**.
 
-Backup/restore dan snapshot Google Sheets juga sudah memasukkan data tracking v27.
+Data lama v26.1.0 / v27.0.0 tidak dihapus. Tracking tetap memakai localStorage:
+`agis_finance_v27_tracking`.

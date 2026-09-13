@@ -1,5 +1,5 @@
 /**
- * Agis Finance v27.0.0 — Google Apps Script backend
+ * Agis Finance v27.1.0 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v27.0.0','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v27.1.0','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -46,7 +46,13 @@ function doGet(){return json_({ok:true,service:'Agis Finance Automation',time:ne
 function doPost(e){
   try{
     const body=JSON.parse(e.postData?.contents||'{}'); auth_(body.appKey);
-    if(body.action==='syncSnapshot'){saveSnapshot_(body.snapshot);checkSnapshot_(body.snapshot,false);return json_({ok:true,syncedAt:new Date().toISOString()});}
+    if(body.action==='syncSnapshot'){
+      const previous=latestSnapshot_();
+      checkV27CrudNotifications_(body.snapshot,previous);
+      saveSnapshot_(body.snapshot);
+      checkSnapshot_(body.snapshot,false);
+      return json_({ok:true,syncedAt:new Date().toISOString()});
+    }
     if(body.action==='testTelegram'){sendTelegram_('✅ '+(body.message||'Agis Finance backend aktif.'));return json_({ok:true});}
     if(body.action==='wipeDatabase'){wipeDatabase_();return json_({ok:true});}
     return json_({ok:false,error:'Action tidak dikenal.'});
@@ -119,31 +125,37 @@ function checkSnapshot_(snap,scheduled){
 }
 
 function checkV27Tracking_(snap,scheduled,today,now,tz){
-  const v27=snap.data?.v27||{}, hour=Number(Utilities.formatDate(now,tz,'H'));
-  (v27.businesses||[]).filter(x=>x.active!==false).forEach(b=>{
+  const v27=snap.data?.v27||{}, settings=v27.settings||{}, hour=Number(Utilities.formatDate(now,tz,'H'));
+  if(settings.notifyBusiness!==false)(v27.businesses||[]).filter(x=>x.active!==false).forEach(b=>{
     const sales=b.sales||[], adds=b.stockAdds||[];
     const sold=sales.reduce((sum,x)=>sum+(Number(x.qty)||0),0);
-    const todaySold=sales.filter(x=>String(x.date||'')===today).reduce((sum,x)=>sum+(Number(x.qty)||0),0);
+    const revenue=sales.reduce((sum,x)=>sum+saleRevenue_(x,b),0);
+    const todayData=salesDaily_(b,today), yesterday=salesDaily_(b,shiftDateKey_(today,-1));
     const added=adds.reduce((sum,x)=>sum+(Number(x.qty)||0),0);
     const stock=Math.max(0,(Number(b.initialStock)||0)+added-sold);
-    const margin=Math.max(0,(Number(b.salePrice)||0)-(Number(b.hpp)||0));
-    if(!(margin>0))return;
+    const plannedMargin=Math.max(0,(Number(b.salePrice)||0)-(Number(b.hpp)||0));
+    const avgPrice=sold>0?revenue/sold:(Number(b.salePrice)||0), margin=Math.max(0,avgPrice-(Number(b.hpp)||0));
+    if(!(plannedMargin>0||margin>0))return;
     const capital=Math.max(0,Number(b.capitalNeeded)||0), target=Math.max(0,Number(b.targetProfit)||0);
-    const bepUnits=Math.ceil(capital/margin), targetUnits=Math.ceil((capital+target)/margin);
-    const elapsed=Math.max(1,daysInclusive_(String(b.startDate||today),today));
-    const avg=sold/elapsed, planned=Math.max(0,Number(b.unitsPerDay)||0);
-    const remainingBep=Math.max(0,bepUnits-sold);
-    if(bepUnits>0&&sold>=bepUnits)notifyOnce_(`v27-bep:${b.id}`,`✅ Modal ${b.name||'usaha'} sudah kembali\nTotal terjual ${Math.round(sold)} unit\nOmzet Rp ${fmt_(sold*(Number(b.salePrice)||0))}\nSekarang penjualan berikutnya masuk fase keuntungan.`);
-    if(target>0&&targetUnits>0&&sold>=targetUnits)notifyOnce_(`v27-target:${b.id}`,`🎯 Target keuntungan ${b.name||'usaha'} tercapai\nTarget Rp ${fmt_(target)}\nTotal terjual ${Math.round(sold)} unit.`);
+    const actualContribution=margin*sold, bepReached=capital>0&&actualContribution>=capital, targetReached=target>0&&actualContribution>=capital+target;
+    const fallbackMargin=margin>0?margin:plannedMargin;
+    const remainingBepMoney=Math.max(0,capital-actualContribution), remainingBep=fallbackMargin>0?Math.ceil(remainingBepMoney/fallbackMargin):0;
+    const elapsed=Math.max(1,daysInclusive_(String(b.startDate||today),today)), avg=sold/elapsed, planned=Math.max(0,Number(b.unitsPerDay)||0);
+    const plannedBepUnits=plannedMargin>0?Math.ceil(capital/plannedMargin):0;
+    if(bepReached)notifyOnce_(`v27-bep:${b.id}`,`✅ Modal ${b.name||'usaha'} sudah kembali\nTotal terjual ${Math.round(sold)} unit\nOmzet aktual Rp ${fmt_(revenue)}\nSekarang penjualan berikutnya masuk fase keuntungan.`);
+    if(targetReached)notifyOnce_(`v27-target:${b.id}`,`🎯 Target keuntungan ${b.name||'usaha'} tercapai\nTarget Rp ${fmt_(target)}\nTotal terjual ${Math.round(sold)} unit\nOmzet aktual Rp ${fmt_(revenue)}.`);
     if(stock>0&&avg>0&&stock<=Math.max(2,Math.ceil(avg*2)))notifyOnce_(`v27-stock:${b.id}:${today}`,`📦 Stok ${b.name||'usaha'} hampir habis\nSisa ${Math.round(stock)} unit\nRata-rata penjualan ${avg.toFixed(1)} unit/hari\nPerkiraan stok cukup sekitar ${Math.max(1,Math.ceil(stock/avg))} hari.`);
-    if(planned>0&&avg>0&&bepUnits>0){
-      const plannedDays=Math.ceil(bepUnits/planned), actualDays=Math.ceil(bepUnits/avg), delay=Math.max(0,actualDays-plannedDays);
-      if(delay>=2)notifyOnce_(`v27-delay:${b.id}:${today}`,`⚠️ Proyeksi balik modal berubah — ${b.name||'Usaha'}\nTarget awal ${planned.toFixed(1)} unit/hari, rata-rata aktual ${avg.toFixed(1)} unit/hari\nPerkiraan balik modal mundur sekitar ${delay} hari\nMasih perlu ${Math.round(remainingBep)} unit untuk balik modal.`);
+    if(planned>0&&avg>0&&plannedBepUnits>0){
+      const plannedDays=Math.ceil(plannedBepUnits/planned), actualBepUnits=fallbackMargin>0?Math.ceil(capital/fallbackMargin):plannedBepUnits, actualDays=Math.ceil(actualBepUnits/avg), delay=Math.max(0,actualDays-plannedDays);
+      if(delay>=2)notifyOnce_(`v27-delay:${b.id}:${today}`,`⚠️ Proyeksi balik modal berubah — ${b.name||'Usaha'}\nTarget awal ${planned.toFixed(1)} unit/hari, rata-rata aktual ${avg.toFixed(1)} unit/hari\nPerkiraan balik modal mundur sekitar ${delay} hari\nMasih perlu sekitar ${Math.round(remainingBep)} unit untuk balik modal.`);
     }
-    if(scheduled&&hour===20&&planned>0&&todaySold<planned)notifyOnce_(`v27-daily-sales:${b.id}:${today}`,`📉 Target penjualan hari ini belum tercapai — ${b.name||'Usaha'}\nTerjual ${Math.round(todaySold)} / ${Math.round(planned)} unit\nKurang ${Math.max(0,Math.ceil(planned-todaySold))} unit dari target hari ini${avg>0?`\nRata-rata aktual ${avg.toFixed(1)} unit/hari`:''}.`);
+    if(scheduled&&hour===20&&planned>0&&todayData.qty<planned){
+      const compare=salesCompareText_(todayData,yesterday,'kemarin');
+      notifyOnce_(`v27-daily-sales:${b.id}:${today}`,`📉 Target penjualan hari ini belum tercapai — ${b.name||'Usaha'}\nTerjual ${Math.round(todayData.qty)} / ${Math.round(planned)} unit\nOmzet hari ini Rp ${fmt_(todayData.revenue)}\nKurang ${Math.max(0,Math.ceil(planned-todayData.qty))} unit dari target${compare?`\n${compare}`:''}${avg>0?`\nRata-rata aktual ${avg.toFixed(1)} unit/hari`:''}.`);
+    }
   });
 
-  (v27.credits||[]).filter(x=>x.active!==false).forEach(c=>{
+  if(settings.notifyCredit!==false)(v27.credits||[]).filter(x=>x.active!==false).forEach(c=>{
     const installment=Math.max(0,Number(c.installment)||0), months=Math.max(1,Number(c.months)||1);
     if(!(installment>0))return;
     const paid=(c.payments||[]).reduce((sum,x)=>sum+(Number(x.amount)||0),0), total=installment*months, remaining=Math.max(0,total-paid);
@@ -159,6 +171,41 @@ function checkV27Tracking_(snap,scheduled,today,now,tz){
     }
   });
 }
+
+function checkV27CrudNotifications_(snap,previous){
+  if(!previous?.data?.v27||!snap?.data?.v27)return;
+  const next=snap.data.v27||{}, prev=previous.data.v27||{}, settings=next.settings||{};
+  if(settings.notifyBusiness!==false){
+    const oldBiz={};(prev.businesses||[]).forEach(b=>oldBiz[String(b.id)]=b);
+    (next.businesses||[]).forEach(b=>{
+      const ob=oldBiz[String(b.id)]; if(!ob)return;
+      const oldSales={};(ob.sales||[]).forEach(x=>oldSales[String(x.id)]=x);
+      const newSales={};(b.sales||[]).forEach(x=>newSales[String(x.id)]=x);
+      (b.sales||[]).forEach(x=>{
+        const old=oldSales[String(x.id)], daily=salesDaily_(b,String(x.date||'')), prevDay=salesDaily_(b,shiftDateKey_(String(x.date||''),-1)), cmp=salesCompareText_(daily,prevDay,'1 hari sebelumnya');
+        if(!old){notifyOnce_(`v271-sale-create:${b.id}:${x.id}`,`🧾 Penjualan dicatat — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
+        else if(!sameSale_(old,x,b)){notifyOnce_(`v271-sale-update:${b.id}:${x.id}:${x.updatedAt||x.qty+':'+saleRevenue_(x,b)+':'+x.date}`,`✏️ Penjualan diperbarui — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\nMenjadi ${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
+      });
+      (ob.sales||[]).forEach(x=>{if(!newSales[String(x.id)])notifyOnce_(`v271-sale-delete:${b.id}:${x.id}:${x.updatedAt||x.createdAt||''}`,`🗑️ Data penjualan dihapus — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,ob))}`);});
+    });
+  }
+  if(settings.notifyCredit!==false){
+    const oldCredits={};(prev.credits||[]).forEach(c=>oldCredits[String(c.id)]=c);
+    (next.credits||[]).forEach(c=>{
+      const oc=oldCredits[String(c.id)];if(!oc)return;
+      const oldPay={};(oc.payments||[]).forEach(x=>oldPay[String(x.id)]=x), newPay={};(c.payments||[]).forEach(x=>newPay[String(x.id)]=x);
+      (c.payments||[]).forEach(x=>{const old=oldPay[String(x.id)];if(!old)notifyOnce_(`v271-pay-create:${c.id}:${x.id}`,`💳 Pembayaran cicilan dicatat — ${c.name||'Kredit'}\n${humanDate_(x.date||'')} · Rp ${fmt_(x.amount)}`);else if(!samePayment_(old,x))notifyOnce_(`v271-pay-update:${c.id}:${x.id}:${x.updatedAt||x.amount+':'+x.date}`,`✏️ Pembayaran cicilan diperbarui — ${c.name||'Kredit'}\n${humanDate_(x.date||'')} · Rp ${fmt_(x.amount)}`);});
+      (oc.payments||[]).forEach(x=>{if(!newPay[String(x.id)])notifyOnce_(`v271-pay-delete:${c.id}:${x.id}:${x.updatedAt||x.createdAt||''}`,`🗑️ Pembayaran cicilan dihapus — ${c.name||'Kredit'}\n${humanDate_(x.date||'')} · Rp ${fmt_(x.amount)}`);});
+    });
+  }
+}
+function sameSale_(a,b,biz){return String(a.date||'')===String(b.date||'')&&Number(a.qty||0)===Number(b.qty||0)&&Number(saleRevenue_(a,biz)||0)===Number(saleRevenue_(b,biz)||0)&&String(a.note||'')===String(b.note||'')}
+function samePayment_(a,b){return String(a.date||'')===String(b.date||'')&&Number(a.amount||0)===Number(b.amount||0)&&String(a.note||'')===String(b.note||'')}
+function saleRevenue_(sale,biz){if(sale&&Object.prototype.hasOwnProperty.call(sale,'revenue'))return Math.max(0,Number(sale.revenue)||0);return Math.max(0,(Number(sale?.qty)||0)*(Number(biz?.salePrice)||0))}
+function salesDaily_(biz,date){const rows=(biz?.sales||[]).filter(x=>String(x.date||'')===String(date||''));return {qty:rows.reduce((s,x)=>s+(Number(x.qty)||0),0),revenue:rows.reduce((s,x)=>s+saleRevenue_(x,biz),0)}}
+function salesCompareText_(current,other,label){if(!current||!other)return '';const dq=(Number(current.qty)||0)-(Number(other.qty)||0),dr=(Number(current.revenue)||0)-(Number(other.revenue)||0);if(!dq&&!dr)return `Sama dengan ${label}: ${Math.round(current.qty||0)} pcs · Rp ${fmt_(current.revenue||0)}`;return `vs ${label}: ${dq>=0?'+':'-'}${Math.abs(Math.round(dq))} pcs · ${dr>=0?'+':'-'}Rp ${fmt_(Math.abs(dr))}`}
+function shiftDateKey_(key,delta){const p=String(key||'').split('-').map(Number);if(p.length<3||!p[0])return key;const d=new Date(p[0],p[1]-1,p[2]+Number(delta||0));return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd')}
+
 function daysInclusive_(a,b){const da=new Date(a+'T00:00:00'),db=new Date(b+'T00:00:00');if(isNaN(da)||isNaN(db))return 1;return Math.max(1,Math.round((db-da)/86400000)+1)}
 function dayDiff_(from,to){const a=new Date(from+'T00:00:00'),b=new Date(to+'T00:00:00');return Math.round((b-a)/86400000)}
 function creditDueDate_(start,dueDay,offset){
