@@ -381,13 +381,17 @@
     const s=state(),r=calcBusiness(s.businessDraft);
     if(!s.businessDraft.name.trim()||!r.hpp||!num(s.businessDraft.salePrice))return Swal.fire('Belum lengkap','Isi nama bisnis, komponen HPP, dan harga jual.','warning');
     setState(x=>x.businesses=[{id:uid('biz'),savedAt:Date.now(),data:clone(x.businessDraft),summary:{net:r.net,capitalNeeded:r.capitalNeeded,marginPct:r.marginPct}},...x.businesses].slice(0,25));renderSaved();
-    Swal.fire({title:'Skenario bisnis disimpan',icon:'success',timer:1200,showConfirmButton:false});
+    const savedId=state().businesses[0]?.id;
+    Swal.fire({title:'Skenario bisnis disimpan',text:'Tracking penjualan dibuat otomatis.',icon:'success',timer:1200,showConfirmButton:false});
+    if(savedId&&typeof window.startBusinessTrackingV27==='function')setTimeout(()=>window.startBusinessTrackingV27(savedId,true),260);
   };
   window.saveCreditV26=()=>{
     const s=state(),r=calcCredit(s.creditDraft,s.profile);
     if(!s.creditDraft.name.trim()||!num(s.creditDraft.cashPrice)||!num(s.profile.salary))return Swal.fire('Belum lengkap','Isi nama barang, harga tunai, dan gaji di Profil Perhitungan.','warning');
     setState(x=>x.credits=[{id:uid('credit'),savedAt:Date.now(),data:clone(x.creditDraft),summary:{installment:r.installment,dsr:r.dsr,totalCredit:r.totalCredit}},...x.credits].slice(0,25));renderSaved();
-    Swal.fire({title:'Simulasi kredit disimpan',icon:'success',timer:1200,showConfirmButton:false});
+    const savedId=state().credits[0]?.id;
+    Swal.fire({title:'Simulasi kredit disimpan',text:'Tracking cicilan dibuat otomatis.',icon:'success',timer:1200,showConfirmButton:false});
+    if(savedId&&typeof window.startCreditTrackingV27==='function')setTimeout(()=>window.startCreditTrackingV27(savedId,true),260);
   };
   window.loadBusinessV26=id=>{const item=state().businesses.find(x=>x.id===id);if(!item)return;setState(s=>{s.businessDraft={...DEFAULTS.businessDraft,...item.data};s.activeTab='business';});refillDraft('business');switchTab('business');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
   window.loadCreditV26=id=>{const item=state().credits.find(x=>x.id===id);if(!item)return;setState(s=>{s.creditDraft={...DEFAULTS.creditDraft,...item.data};s.activeTab='credit';});refillDraft('credit');switchTab('credit');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};

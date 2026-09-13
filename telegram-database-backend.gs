@@ -1,5 +1,5 @@
 /**
- * Agis Finance v25.3.5 — Google Apps Script backend
+ * Agis Finance v27.0.0 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v25.3.5','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v27.0.0','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -94,6 +94,7 @@ function checkSnapshot_(snap,scheduled){
   if(Number(s.safeFloor)>0&&Number(s.available)<Number(s.safeFloor))notifyOnce_('floor:'+today,`⚠️ Safe Floor terlewati\nSaldo tersedia Rp ${fmt_(s.available)}\nSafe Floor Rp ${fmt_(s.safeFloor)}`);
   if(Number(s.score)<40)notifyOnce_('score:'+today,`🔴 Financial Score kritis: ${Math.round(Number(s.score)||0)}/100`);
   if(s.recovery&&Number(s.recovery.pct)>=100)notifyOnce_('recovery:'+(s.recovery.createdAt||s.recovery.startDate||s.recovery.name),`🎯 Recovery selesai\n${s.recovery.name||'Target'} sudah 100% pulih.`);
+  checkV27Tracking_(snap,scheduled,today,now,tz);
 
   const last=s.latestExpense;
   if(last&&last.id){
@@ -115,6 +116,55 @@ function checkSnapshot_(snap,scheduled){
       notifyOnce_('weekly:'+week,weeklyMessage_(snap));
     }
   }
+}
+
+function checkV27Tracking_(snap,scheduled,today,now,tz){
+  const v27=snap.data?.v27||{}, hour=Number(Utilities.formatDate(now,tz,'H'));
+  (v27.businesses||[]).filter(x=>x.active!==false).forEach(b=>{
+    const sales=b.sales||[], adds=b.stockAdds||[];
+    const sold=sales.reduce((sum,x)=>sum+(Number(x.qty)||0),0);
+    const todaySold=sales.filter(x=>String(x.date||'')===today).reduce((sum,x)=>sum+(Number(x.qty)||0),0);
+    const added=adds.reduce((sum,x)=>sum+(Number(x.qty)||0),0);
+    const stock=Math.max(0,(Number(b.initialStock)||0)+added-sold);
+    const margin=Math.max(0,(Number(b.salePrice)||0)-(Number(b.hpp)||0));
+    if(!(margin>0))return;
+    const capital=Math.max(0,Number(b.capitalNeeded)||0), target=Math.max(0,Number(b.targetProfit)||0);
+    const bepUnits=Math.ceil(capital/margin), targetUnits=Math.ceil((capital+target)/margin);
+    const elapsed=Math.max(1,daysInclusive_(String(b.startDate||today),today));
+    const avg=sold/elapsed, planned=Math.max(0,Number(b.unitsPerDay)||0);
+    const remainingBep=Math.max(0,bepUnits-sold);
+    if(bepUnits>0&&sold>=bepUnits)notifyOnce_(`v27-bep:${b.id}`,`✅ Modal ${b.name||'usaha'} sudah kembali\nTotal terjual ${Math.round(sold)} unit\nOmzet Rp ${fmt_(sold*(Number(b.salePrice)||0))}\nSekarang penjualan berikutnya masuk fase keuntungan.`);
+    if(target>0&&targetUnits>0&&sold>=targetUnits)notifyOnce_(`v27-target:${b.id}`,`🎯 Target keuntungan ${b.name||'usaha'} tercapai\nTarget Rp ${fmt_(target)}\nTotal terjual ${Math.round(sold)} unit.`);
+    if(stock>0&&avg>0&&stock<=Math.max(2,Math.ceil(avg*2)))notifyOnce_(`v27-stock:${b.id}:${today}`,`📦 Stok ${b.name||'usaha'} hampir habis\nSisa ${Math.round(stock)} unit\nRata-rata penjualan ${avg.toFixed(1)} unit/hari\nPerkiraan stok cukup sekitar ${Math.max(1,Math.ceil(stock/avg))} hari.`);
+    if(planned>0&&avg>0&&bepUnits>0){
+      const plannedDays=Math.ceil(bepUnits/planned), actualDays=Math.ceil(bepUnits/avg), delay=Math.max(0,actualDays-plannedDays);
+      if(delay>=2)notifyOnce_(`v27-delay:${b.id}:${today}`,`⚠️ Proyeksi balik modal berubah — ${b.name||'Usaha'}\nTarget awal ${planned.toFixed(1)} unit/hari, rata-rata aktual ${avg.toFixed(1)} unit/hari\nPerkiraan balik modal mundur sekitar ${delay} hari\nMasih perlu ${Math.round(remainingBep)} unit untuk balik modal.`);
+    }
+    if(scheduled&&hour===20&&planned>0&&todaySold<planned)notifyOnce_(`v27-daily-sales:${b.id}:${today}`,`📉 Target penjualan hari ini belum tercapai — ${b.name||'Usaha'}\nTerjual ${Math.round(todaySold)} / ${Math.round(planned)} unit\nKurang ${Math.max(0,Math.ceil(planned-todaySold))} unit dari target hari ini${avg>0?`\nRata-rata aktual ${avg.toFixed(1)} unit/hari`:''}.`);
+  });
+
+  (v27.credits||[]).filter(x=>x.active!==false).forEach(c=>{
+    const installment=Math.max(0,Number(c.installment)||0), months=Math.max(1,Number(c.months)||1);
+    if(!(installment>0))return;
+    const paid=(c.payments||[]).reduce((sum,x)=>sum+(Number(x.amount)||0),0), total=installment*months, remaining=Math.max(0,total-paid);
+    const paidCount=Math.min(months,Math.floor((paid+1)/installment));
+    if(remaining<=1){notifyOnce_(`v27-credit-paid:${c.id}`,`✅ Cicilan ${c.name||'barang'} lunas\nTotal cicilan yang tercatat Rp ${fmt_(paid)}\n${months} dari ${months} cicilan selesai.`);return;}
+    if(!scheduled)return;
+    const nextIndex=Math.min(months,paidCount+1), due=creditDueDate_(String(c.startDate||today),Number(c.dueDay)||1,nextIndex-1);
+    const diff=dayDiff_(today,due);
+    if([7,3,1,0,-1,-3,-7].includes(diff)){
+      const when=diff===0?'jatuh tempo hari ini':diff>0?`jatuh tempo ${diff} hari lagi`:`terlambat ${Math.abs(diff)} hari`;
+      const icon=diff<0?'🚨':diff===0?'🔴':'💳';
+      notifyOnce_(`v27-credit-due:${c.id}:${due}:${diff}`,`${icon} Cicilan ${c.name||'barang'} ${when}\nTagihan sekitar Rp ${fmt_(installment)}\nCicilan ke-${nextIndex} dari ${months}\nSisa total Rp ${fmt_(remaining)}.`);
+    }
+  });
+}
+function daysInclusive_(a,b){const da=new Date(a+'T00:00:00'),db=new Date(b+'T00:00:00');if(isNaN(da)||isNaN(db))return 1;return Math.max(1,Math.round((db-da)/86400000)+1)}
+function dayDiff_(from,to){const a=new Date(from+'T00:00:00'),b=new Date(to+'T00:00:00');return Math.round((b-a)/86400000)}
+function creditDueDate_(start,dueDay,offset){
+  const p=String(start||'').split('-').map(Number),base=new Date(p[0]||new Date().getFullYear(),(p[1]||1)-1,1);
+  const d=new Date(base.getFullYear(),base.getMonth()+Math.max(0,offset),1),cap=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  d.setDate(Math.min(Math.max(1,dueDay||1),cap));return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd');
 }
 
 function expenseMessage_(snap,last){
