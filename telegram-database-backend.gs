@@ -1,5 +1,5 @@
 /**
- * Agis Finance v27.1.0 — Google Apps Script backend
+ * Agis Finance v27.5.0 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v27.1.0','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v27.5.0','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -125,7 +125,7 @@ function checkSnapshot_(snap,scheduled){
 }
 
 function checkV27Tracking_(snap,scheduled,today,now,tz){
-  const v27=snap.data?.v27||{}, settings=v27.settings||{}, hour=Number(Utilities.formatDate(now,tz,'H'));
+  const v27=snap.data?.v27||{}, settings=v27.settings||{}, hour=Number(Utilities.formatDate(now,tz,'H')), dow=Utilities.formatDate(now,tz,'EEEE').toUpperCase(), week=Utilities.formatDate(now,tz,'YYYY-ww');
   if(settings.notifyBusiness!==false)(v27.businesses||[]).filter(x=>x.active!==false).forEach(b=>{
     const sales=b.sales||[], adds=b.stockAdds||[];
     const sold=sales.reduce((sum,x)=>sum+(Number(x.qty)||0),0);
@@ -153,7 +153,24 @@ function checkV27Tracking_(snap,scheduled,today,now,tz){
       const compare=salesCompareText_(todayData,yesterday,'kemarin');
       notifyOnce_(`v27-daily-sales:${b.id}:${today}`,`📉 Target penjualan hari ini belum tercapai — ${b.name||'Usaha'}\nTerjual ${Math.round(todayData.qty)} / ${Math.round(planned)} unit\nOmzet hari ini Rp ${fmt_(todayData.revenue)}\nKurang ${Math.max(0,Math.ceil(planned-todayData.qty))} unit dari target${compare?`\n${compare}`:''}${avg>0?`\nRata-rata aktual ${avg.toFixed(1)} unit/hari`:''}.`);
     }
+    if(scheduled&&settings.notifyWeeklyBusiness!==false&&dow==='SUNDAY'&&hour===20){
+      notifyOnce_(`v275-weekly-business:${b.id}:${week}`,businessWeeklyMessage_(b,today));
+    }
   });
+
+  if(settings.notifyCredit!==false){
+    const activeCredits=(v27.credits||[]).filter(x=>x.active!==false).filter(c=>{
+      const inst=Math.max(0,Number(c.installment)||0), months=Math.max(1,Number(c.months)||1), paid=(c.payments||[]).reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+      return inst>0 && paid<inst*months-1;
+    });
+    const obligations=activeCredits.reduce((sum,c)=>sum+(Number(c.installment)||0),0), available=Math.max(0,Number(snap.summary?.available)||0), after=available-obligations;
+    const month=String(today).slice(0,7), monthIncome=(snap.data?.incomes||[]).filter(x=>String(x.tanggal||'').startsWith(month)).reduce((sum,x)=>sum+(Number(x.nominal)||0),0), ratio=monthIncome>0?obligations/monthIncome*100:null;
+    if(activeCredits.length&&(after<0||(ratio!==null&&ratio>40)))notifyOnce_(`v275-credit-risk:${month}`,`🚨 Beban cicilan mulai berisiko
+Total target cicilan aktif Rp ${fmt_(obligations)}
+Saldo tersedia Rp ${fmt_(available)} → setelah cicilan sekitar Rp ${fmt_(after)}${ratio!==null?`
+Beban cicilan ${ratio.toFixed(0)}% dari pemasukan bulan ini`:''}
+Pertimbangkan tunda kredit baru atau tambah buffer sebelum jatuh tempo.`);
+  }
 
   if(settings.notifyCredit!==false)(v27.credits||[]).filter(x=>x.active!==false).forEach(c=>{
     const installment=Math.max(0,Number(c.installment)||0), months=Math.max(1,Number(c.months)||1);
@@ -179,12 +196,14 @@ function checkV27CrudNotifications_(snap,previous){
     const oldBiz={};(prev.businesses||[]).forEach(b=>oldBiz[String(b.id)]=b);
     (next.businesses||[]).forEach(b=>{
       const ob=oldBiz[String(b.id)]; if(!ob)return;
+      if(Number(ob.unitsPerDay||0)!==Number(b.unitsPerDay||0))notifyOnce_(`v275-target-adjust:${b.id}:${b.updatedAt||b.unitsPerDay}`,`🎯 Target penjualan diperbarui — ${b.name||'Usaha'}\n${Math.round(Number(ob.unitsPerDay)||0)} → ${Math.round(Number(b.unitsPerDay)||0)} pcs/hari\nRiwayat penjualan lama tetap dipertahankan.`);
       const oldSales={};(ob.sales||[]).forEach(x=>oldSales[String(x.id)]=x);
       const newSales={};(b.sales||[]).forEach(x=>newSales[String(x.id)]=x);
       (b.sales||[]).forEach(x=>{
         const old=oldSales[String(x.id)], daily=salesDaily_(b,String(x.date||'')), prevDay=salesDaily_(b,shiftDateKey_(String(x.date||''),-1)), cmp=salesCompareText_(daily,prevDay,'1 hari sebelumnya');
-        if(!old){notifyOnce_(`v271-sale-create:${b.id}:${x.id}`,`🧾 Penjualan dicatat — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
-        else if(!sameSale_(old,x,b)){notifyOnce_(`v271-sale-update:${b.id}:${x.id}:${x.updatedAt||x.qty+':'+saleRevenue_(x,b)+':'+x.date}`,`✏️ Penjualan diperbarui — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\nMenjadi ${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
+        const factor=x.reason?`\nFaktor: ${reasonLabel_(x.reason)}`:'', profit=saleRevenue_(x,b)-(Number(x.qty)||0)*(Number(b.hpp)||0);
+        if(!old){notifyOnce_(`v271-sale-create:${b.id}:${x.id}`,`🧾 Penjualan dicatat — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nLaba setelah biaya produk Rp ${fmt_(profit)}${factor}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
+        else if(!sameSale_(old,x,b)){notifyOnce_(`v271-sale-update:${b.id}:${x.id}:${x.updatedAt||x.qty+':'+saleRevenue_(x,b)+':'+x.date}`,`✏️ Penjualan diperbarui — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\nMenjadi ${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,b))}\nLaba setelah biaya produk Rp ${fmt_(profit)}${factor}\nTotal tanggal ini ${Math.round(daily.qty)} pcs · Rp ${fmt_(daily.revenue)}${cmp?`\n${cmp}`:''}`);}
       });
       (ob.sales||[]).forEach(x=>{if(!newSales[String(x.id)])notifyOnce_(`v271-sale-delete:${b.id}:${x.id}:${x.updatedAt||x.createdAt||''}`,`🗑️ Data penjualan dihapus — ${b.name||'Usaha'}\n${humanDate_(x.date||'')}\n${Math.round(Number(x.qty)||0)} pcs · Rp ${fmt_(saleRevenue_(x,ob))}`);});
     });
@@ -199,12 +218,27 @@ function checkV27CrudNotifications_(snap,previous){
     });
   }
 }
-function sameSale_(a,b,biz){return String(a.date||'')===String(b.date||'')&&Number(a.qty||0)===Number(b.qty||0)&&Number(saleRevenue_(a,biz)||0)===Number(saleRevenue_(b,biz)||0)&&String(a.note||'')===String(b.note||'')}
+function sameSale_(a,b,biz){return String(a.date||'')===String(b.date||'')&&Number(a.qty||0)===Number(b.qty||0)&&Number(saleRevenue_(a,biz)||0)===Number(saleRevenue_(b,biz)||0)&&String(a.reason||'')===String(b.reason||'')&&String(a.note||'')===String(b.note||'')}
 function samePayment_(a,b){return String(a.date||'')===String(b.date||'')&&Number(a.amount||0)===Number(b.amount||0)&&String(a.note||'')===String(b.note||'')}
 function saleRevenue_(sale,biz){if(sale&&Object.prototype.hasOwnProperty.call(sale,'revenue'))return Math.max(0,Number(sale.revenue)||0);return Math.max(0,(Number(sale?.qty)||0)*(Number(biz?.salePrice)||0))}
 function salesDaily_(biz,date){const rows=(biz?.sales||[]).filter(x=>String(x.date||'')===String(date||''));return {qty:rows.reduce((s,x)=>s+(Number(x.qty)||0),0),revenue:rows.reduce((s,x)=>s+saleRevenue_(x,biz),0)}}
 function salesCompareText_(current,other,label){if(!current||!other)return '';const dq=(Number(current.qty)||0)-(Number(other.qty)||0),dr=(Number(current.revenue)||0)-(Number(other.revenue)||0);if(!dq&&!dr)return `Sama dengan ${label}: ${Math.round(current.qty||0)} pcs · Rp ${fmt_(current.revenue||0)}`;return `vs ${label}: ${dq>=0?'+':'-'}${Math.abs(Math.round(dq))} pcs · ${dr>=0?'+':'-'}Rp ${fmt_(Math.abs(dr))}`}
 function shiftDateKey_(key,delta){const p=String(key||'').split('-').map(Number);if(p.length<3||!p[0])return key;const d=new Date(p[0],p[1]-1,p[2]+Number(delta||0));return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd')}
+
+function reasonLabel_(key){const m={normal:'Normal',ramai:'Ramai',promo:'Promo',hujan:'Hujan',libur:'Libur / event',stok:'Stok terbatas',lainnya:'Lainnya'};return m[String(key||'')]||String(key||'')}
+function businessReasonInsight_(b,end){
+  const start=shiftDateKey_(end,-29), map={};(b.sales||[]).filter(x=>String(x.date||'')>=start&&String(x.date||'')<=end).forEach(x=>{const d=String(x.date||'');if(!map[d])map[d]={qty:0,reasons:[]};map[d].qty+=Number(x.qty)||0;if(x.reason)map[d].reasons.push(String(x.reason));});
+  const days=Object.values(map);if(days.length<3)return '';const avg=days.reduce((s,d)=>s+d.qty,0)/days.length, counts={};days.filter(d=>d.qty>=avg).forEach(d=>[...new Set(d.reasons)].forEach(r=>counts[r]=(counts[r]||0)+1));const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];return top?reasonLabel_(top[0]):'';
+}
+function businessWeeklyMessage_(b,end){
+  const rows=Array.from({length:7},(_,i)=>salesDaily_(b,shiftDateKey_(end,i-6))), dates=Array.from({length:7},(_,i)=>shiftDateKey_(end,i-6));
+  const prev=Array.from({length:7},(_,i)=>salesDaily_(b,shiftDateKey_(end,i-13))), qty=rows.reduce((s,x)=>s+(Number(x.qty)||0),0), revenue=rows.reduce((s,x)=>s+(Number(x.revenue)||0),0), profit=revenue-qty*(Number(b.hpp)||0), planned=Math.max(0,Number(b.unitsPerDay)||0);
+  const recorded=rows.map((x,i)=>({...x,date:dates[i]})).filter(x=>x.qty>0||x.revenue>0), best=recorded.slice().sort((a,z)=>z.qty-a.qty||z.revenue-a.revenue)[0], worst=recorded.slice().sort((a,z)=>a.qty-z.qty||a.revenue-z.revenue)[0], hits=planned>0?rows.filter(x=>x.qty>=planned).length:0;
+  const allSales=b.sales||[], sold=allSales.reduce((s,x)=>s+(Number(x.qty)||0),0), allRevenue=allSales.reduce((s,x)=>s+saleRevenue_(x,b),0), avgPrice=sold>0?allRevenue/sold:(Number(b.salePrice)||0), margin=Math.max(0,avgPrice-(Number(b.hpp)||0)), capital=Math.max(0,Number(b.capitalNeeded)||0), contribution=margin*sold, remain=margin>0?Math.ceil(Math.max(0,capital-contribution)/margin):0;
+  const pace=qty/7, prevPace=prev.reduce((s,x)=>s+(Number(x.qty)||0),0)/7, currentDays=pace>0?Math.ceil(remain/pace):0, prevDays=prevPace>0?Math.ceil(remain/prevPace):0, delta=currentDays&&prevDays?currentDays-prevDays:0;
+  const factor=businessReasonInsight_(b,end), projection=delta<0?`Proyeksi BEP membaik sekitar ${Math.abs(delta)} hari vs 7 hari sebelumnya.`:delta>0?`Proyeksi BEP melambat sekitar ${delta} hari vs 7 hari sebelumnya.`:'Proyeksi BEP relatif stabil.';
+  return `📊 Ringkasan 7 hari — ${b.name||'Usaha'}\nTerjual ${Math.round(qty)} pcs · omzet Rp ${fmt_(revenue)}\nLaba setelah biaya produk Rp ${fmt_(profit)}${planned>0?`\nTarget tercapai ${hits}/7 hari`:''}${best?`\nTerbaik ${humanDate_(best.date)}: ${Math.round(best.qty)} pcs · Rp ${fmt_(best.revenue)}`:''}${worst?`\nTerendah tercatat ${humanDate_(worst.date)}: ${Math.round(worst.qty)} pcs · Rp ${fmt_(worst.revenue)}`:''}\n${projection}${factor?`\nFaktor yang sering muncul pada hari di atas rata-rata: ${factor}.`:''}`;
+}
 
 function daysInclusive_(a,b){const da=new Date(a+'T00:00:00'),db=new Date(b+'T00:00:00');if(isNaN(da)||isNaN(db))return 1;return Math.max(1,Math.round((db-da)/86400000)+1)}
 function dayDiff_(from,to){const a=new Date(from+'T00:00:00'),b=new Date(to+'T00:00:00');return Math.round((b-a)/86400000)}
@@ -317,7 +351,7 @@ function nextBillDate_(b,ref){
 function weeklyMessage_(snap){const rows=snap.data?.trans||[],now=new Date(),cut=new Date(now.getTime()-7*86400000);let total=0;const cats={};rows.forEach(x=>{const d=new Date((x.tanggal||'1970-01-01')+'T00:00:00');if(d>=cut){const n=Number(x.nominal)||0;total+=n;cats[x.kategori||'Lainnya']=(cats[x.kategori||'Lainnya']||0)+n}});const top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];return `📊 Weekly Review\n7 hari keluar Rp ${fmt_(total)}${top?`\nTerbesar: ${top[0]} Rp ${fmt_(top[1])}`:''}\nScore ${Math.round(Number(snap.summary?.score)||0)}/100 · Carry-over Rp ${fmt_(snap.summary?.carryOver||0)}`;}
 function notifyOnce_(id,msg){const p=PropertiesService.getScriptProperties();if(p.getProperty('N:'+id))return;sendTelegram_(msg);p.setProperty('N:'+id,new Date().toISOString());log_(id,msg)}
 function sendTelegram_(text){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const r=UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'post',contentType:'application/json',payload:JSON.stringify({chat_id:chat,text}),muteHttpExceptions:true});if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());}
-function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v25.3.5 backend aktif. Notifikasi transaksi, peringatan, tagihan, dan pengingat harian siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
+function testTelegramFromSheet(){sendTelegram_('✅ Agis Finance v27.5.0 backend aktif. Tracking penjualan, ringkasan mingguan, cicilan, dan notifikasi keuangan siap.');SpreadsheetApp.getUi().alert('Pesan tes dikirim.');}
 function log_(id,msg){const sh=SpreadsheetApp.getActive().getSheetByName(DB.logs);sh.appendRow([new Date(),id,msg]);}
 function wipeDatabase_(){ensureSheetsSafe_();[DB.snapshot,DB.expenses,DB.incomes,DB.transfers,DB.goals,DB.recurring,DB.budgets,DB.bills].forEach(n=>{const sh=SpreadsheetApp.getActive().getSheetByName(n);if(sh)sh.clearContents()});ensureHeaders_();}
 function fmt_(n){return Math.round(Number(n)||0).toLocaleString('id-ID');}
