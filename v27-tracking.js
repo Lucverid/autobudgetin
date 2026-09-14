@@ -173,8 +173,10 @@
   function inject() {
     const lab = document.getElementById('v26-decision-lab'); if (!lab) return;
     let card = document.getElementById('v27-tracking');
+    // IMPORTANT: jangan paksa memindahkan card yang sudah ada.
+    // Financial Plan punya observer/layout sendiri. Memindahkan node di setiap mutation
+    // dapat membuat dua observer saling memicu dan mengunci main thread browser.
     if (!card) { card = document.createElement('div'); card.id = 'v27-tracking'; card.className = 'card v27-card'; lab.insertAdjacentElement('afterend', card); }
-    else if (lab.nextElementSibling !== card) lab.insertAdjacentElement('afterend', card);
     render();
   }
   function render() {
@@ -274,8 +276,8 @@
   }
 
   window.switchTrackingV27 = tab => { setState(s => s.activeTab = tab === 'credit' ? 'credit' : 'business'); render(); };
-  window.startBusinessTrackingV27 = (id, focus = true) => createBusiness(id, focus);
-  window.startCreditTrackingV27 = (id, focus = true) => createCredit(id, focus);
+  window.startBusinessTrackingV27 = (id, focus = true) => { mountTrackingCardV2755(); return createBusiness(id, focus); };
+  window.startCreditTrackingV27 = (id, focus = true) => { mountTrackingCardV2755(); return createCredit(id, focus); };
   window.startPickedBusinessV27 = () => { const id = document.getElementById('v27-biz-source')?.value; if (id) createBusiness(id, true); };
   window.startPickedCreditV27 = () => { const id = document.getElementById('v27-credit-source')?.value; if (id) createCredit(id, true); };
   window.selectBusinessTrackingV27 = id => { setState(s => { s.activeBusinessId = id; s.activeTab = 'business'; s.selectedDates[id] = s.selectedDates[id] || today(); s.calendarMonths[id] = s.calendarMonths[id] || s.selectedDates[id].slice(0, 7); s.chartMetrics[id] = s.chartMetrics[id] || 'qty'; }); render(); };
@@ -318,8 +320,48 @@
   window.changeDueDayV27 = (id, v) => { setState(s => { const x = s.credits.find(z => z.id === id); if (x) x.dueDay = Math.max(1, Math.min(31, Number(v) || 1)); }); render(); };
   window.deleteCreditTrackingV27 = async id => { const r = await Swal.fire({ title: 'Hapus tracking cicilan?', text: 'Simulasi asli v26.1.0 tidak ikut dihapus.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus tracking', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { s.credits = s.credits.filter(x => x.id !== id); s.activeCreditId = s.credits[0]?.id || ''; }); render(); };
   window.getV27TrackingData = () => state();
-  window.refreshTrackingV27 = () => render();
 
-  function init() { inject(); setTimeout(inject, 400); setTimeout(inject, 1100); const host = document.getElementById('v2531-planning-host'); if (host) new MutationObserver(() => inject()).observe(host, { childList: true }); }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(init, 280), { once: true }); else setTimeout(init, 280);
+  // v27.5.5 STABILITY: jangan render modul Realisasi saat Home sedang boot.
+  // Modul baru dimount hanya saat user benar-benar membuka tab Realisasi / menjalankan tracking.
+  // Ini menjaga runtime Home/Riwayat/+ /Settings tetap sama ringannya dengan basis v27.4.
+  let trackingMountedV2755 = false;
+  function mountTrackingCardV2755() {
+    const lab = document.getElementById('v26-decision-lab');
+    if (!lab) return null;
+    let card = document.getElementById('v27-tracking');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'v27-tracking';
+      card.className = 'card v27-card';
+      card.innerHTML = '<div class="v27-empty small">Memuat Realisasi…</div>';
+      lab.insertAdjacentElement('afterend', card);
+    }
+    if (!trackingMountedV2755) {
+      trackingMountedV2755 = true;
+      // Beri event switcher selesai dulu sebelum render berat (calendar/chart/icon).
+      setTimeout(() => {
+        if (document.getElementById('v27-tracking')) render();
+      }, 80);
+    }
+    return card;
+  }
+
+  window.refreshTrackingV27 = () => {
+    mountTrackingCardV2755();
+    setTimeout(() => render(), 0);
+  };
+
+  function armLazyTrackingV2755() {
+    if (window.__v2755LazyTrackingArmed) return;
+    window.__v2755LazyTrackingArmed = true;
+    document.addEventListener('click', event => {
+      const tab = event.target.closest?.('[data-v273-feature="tracking"]');
+      if (tab) mountTrackingCardV2755();
+    }, true);
+  }
+
+  // Tidak ada inject(), render(), Chart, atau MutationObserver v27 saat startup.
+  // Hanya pasang listener ringan.
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', armLazyTrackingV2755, { once: true });
+  else armLazyTrackingV2755();
 })();

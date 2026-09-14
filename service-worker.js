@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agis-finance-v27-5-1-reliability-hotfix';
+const CACHE_NAME = 'agis-finance-v27-5-5-lazy-stability';
 const CACHE_PREFIX = 'agis-finance-';
 
 // Keep the shell explicit so GitHub Pages/PWA can work after the first online load.
@@ -13,8 +13,8 @@ const APP_SHELL = [
   './firebase-app.js',
   './firebase-firestore.js',
   './v24-4-features.css',
-  './v24-4-features.js', './v24-5-automation.js?v=27.5.1', './v24-5-automation.css', './v24-6-layout.css', './v25-features.js?v=27.5.1', './v25-features.css', './v25-1-mobile.js', './v25-1-mobile.css', './v25-2-clean-home.js', './v25-2-clean-home.css', './v25-3-health-pulse.js', './v25-3-health-pulse.css', './v25-3-1-quick-transaction.js', './v25-3-1-quick-transaction.css',
-  './v25-3-2-ui-polish.css', './v25-5-17-easter-egg.css', './v25-5-17-easter-egg.js', './cat-idle-strip.png', './cat-walk-strip.png', './cat-run-strip.png', './cat-sleep-strip.png', './cat-pet-strip.png', './mouse-run-strip.png', './v25-3-3-financial-plan.js?v=27.2.0', './v25-3-3-financial-plan.css', './v25-3-4-balance-wallet.css', './v25-3-5-balance-savings.css', './v25-3-6-health-balance.css', './v25-3-10-health-engine.js', './v25-3-10-health-engine.css', './v26-decision-lab.js?v=27.2.0', './v26-decision-lab.css', './v27-tracking.js?v=27.5.1', './v27-tracking.css?v=27.5.0',
+  './v24-4-features.js', './v24-5-automation.js?v=27.2.0', './v24-5-automation.css', './v24-6-layout.css', './v25-features.js', './v25-features.css', './v25-1-mobile.js', './v25-1-mobile.css', './v25-2-clean-home.js', './v25-2-clean-home.css', './v25-3-health-pulse.js', './v25-3-health-pulse.css', './v25-3-1-quick-transaction.js', './v25-3-1-quick-transaction.css',
+  './v25-3-2-ui-polish.css', './v25-5-17-easter-egg.css', './v25-5-17-easter-egg.js', './cat-idle-strip.png', './cat-walk-strip.png', './cat-run-strip.png', './cat-sleep-strip.png', './cat-pet-strip.png', './mouse-run-strip.png', './v25-3-3-financial-plan.js?v=27.2.0', './v25-3-3-financial-plan.css', './v25-3-4-balance-wallet.css', './v25-3-5-balance-savings.css', './v25-3-6-health-balance.css', './v25-3-10-health-engine.js', './v25-3-10-health-engine.css', './v26-decision-lab.js?v=27.2.0', './v26-decision-lab.css', './v27-tracking.js?v=27.5.5-lazy-stability', './v27-tracking.css?v=27.5.3-safe', './v27-safe-bridge.js?v=27.5.3-safe',
   './icon-192.png',
   './icon-512.png'
 ];
