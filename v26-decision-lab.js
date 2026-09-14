@@ -117,13 +117,176 @@
     ));
     let tone='warn',title='Lengkapi data kredit',reason='Isi harga barang, gaji, bunga, dan tenor untuk melihat kemampuan cicilan.';
     if(num(d.cashPrice)>0&&num(p.salary)>0){
-      if(num(d.downPayment)>cash){tone='bad';title='DP mengganggu uang aman';reason=`DP melebihi uang bebas saat ini sebesar ${rp(num(d.downPayment)-cash)}.`;}
+      if(num(d.downPayment)+num(d.adminFee)>cash){const upfront=num(d.downPayment)+num(d.adminFee);tone='bad';title='Biaya awal mengganggu uang aman';reason=`DP + admin melebihi uang bebas saat ini sebesar ${rp(upfront-cash)}.`;}
       else if(remaining<0){tone='bad';title='Cicilan tidak terjangkau';reason=`Kebutuhan bulanan akan defisit ${rp(Math.abs(remaining))}.`;}
       else if(dsr>35){tone='bad';title='Rasio utang terlalu tinggi';reason=`Total cicilan memakai ${dsr.toFixed(1)}% gaji; batas konservatif aplikasi adalah 35%.`;}
       else if(installment<=maxInstallment&&remaining>=buffer){tone='good';title='Cicilan relatif aman';reason='Cicilan berada dalam batas konservatif dan masih menyisakan buffer minimal 15% dari gaji.';}
       else {tone='warn';title='Bisa, tetapi ruangnya sempit';reason='Cicilan belum defisit, namun melebihi batas nyaman atau menyisakan buffer kurang dari 15% gaji.';}
     }
     return {principal,months,installment,totalCredit,financeCost,essentials,totalDebt,remaining,newRatio,dsr,cash,maxInstallment,tone,title,reason};
+  }
+
+
+  // v26.0.8 — Decision Coach. Give concrete next steps instead of only a verdict.
+  // Recommendations are deterministic from the user's own numbers; no hidden/random score.
+  const moneyStep=n=>n<10000?100:n<100000?500:1000;
+  const roundUpMoney=(v,step=0)=>{const n=Math.max(0,Number(v)||0),use=step||moneyStep(n);return n?Math.ceil(n/use)*use:0;};
+  const roundDownMoney=(v,step=0)=>{const n=Math.max(0,Number(v)||0),use=step||moneyStep(n);return n?Math.floor(n/use)*use:0;};
+  function paymentFactor(d,monthsOverride){
+    const months=Math.max(1,Math.round(num(monthsOverride??d.months)||1));
+    const annual=num(d.interest)/100;
+    if(d.method==='annuity'){
+      const r=annual/12;
+      return r>0?(r*Math.pow(1+r,months))/(Math.pow(1+r,months)-1):1/months;
+    }
+    return (1/months)+(annual/12);
+  }
+  function businessAdvice(d,r){
+    const price=num(d.salePrice),days=Math.max(1,Math.round(num(d.daysPerMonth)||1));
+    const unitsPerDay=Math.max(0,num(d.unitsPerDay)),fixed=num(d.fixedMonthly),capital=num(d.capitalAvailable);
+    const setup=num(d.setupCost),stock=Math.max(0,Math.round(num(d.initialStock)));
+    const target=Math.min(90,num(d.targetMargin));
+    const missing=[];
+    if(!r.hpp)missing.push('HPP per unit');
+    if(!price)missing.push('harga jual');
+    if(!unitsPerDay)missing.push('target unit/hari');
+    if(!days)missing.push('hari jual');
+    if(missing.length){
+      return {tone:'warn',title:'Lengkapi keputusan dulu',primary:`Belum bisa memberi saran final karena ${missing.join(', ')} belum terisi.`,actions:[
+        'Isi angka yang kosong; rekomendasi akan berubah otomatis saat kamu mengetik.',
+        'Gunakan HPP realistis, termasuk kemasan dan biaya operasional per unit.'
+      ]};
+    }
+    const currentUnits=Math.max(1,r.units);
+    const breakEvenPrice=r.hpp+(fixed/currentUnits);
+    const recommendedPrice=roundUpMoney(Math.max(r.suggestedPrice,breakEvenPrice,r.hpp+1));
+    const minUnitsMonth=r.marginUnit>0?Math.ceil(fixed/r.marginUnit):0;
+    const minUnitsDay=minUnitsMonth?Math.max(1,Math.ceil(minUnitsMonth/days)):0;
+    const affordableStock=r.hpp>0?Math.max(0,Math.floor((capital-setup-fixed)/r.hpp)):0;
+    const actions=[];
+
+    if(r.marginUnit<=0){
+      actions.push(`Naikkan harga jual ke sekitar ${rp(recommendedPrice)} atau turunkan HPP di bawah ${rp(price)}.`);
+      actions.push('Jangan tambah stok dulu sebelum setiap unit menghasilkan margin positif.');
+      if(target>0)actions.push(`Target margin kamu ${target}%; harga rekomendasi berdasarkan HPP saat ini sekitar ${rp(roundUpMoney(r.suggestedPrice))}.`);
+      return {tone:'bad',title:'Jangan dijalankan dengan angka sekarang',primary:`Setiap unit ${price<r.hpp?'rugi':'tidak menghasilkan margin'} karena HPP ${rp(r.hpp)} dan harga jual ${rp(price)}.`,actions};
+    }
+
+    if(r.net<=0){
+      actions.push(`Pada harga sekarang, minimal target penjualan perlu sekitar ${minUnitsDay||1} unit/hari agar biaya tetap tertutup.`);
+      actions.push(`Alternatifnya, dengan volume ${unitsPerDay} unit/hari, harga yang lebih sehat sekitar ${rp(recommendedPrice)}.`);
+      actions.push('Uji dua skenario itu sebelum mengeluarkan modal penuh.');
+      return {tone:'bad',title:'Revisi harga atau volume dulu',primary:`Margin per unit sudah positif ${rp(r.marginUnit)}, tetapi laba bulanan masih ${rp(r.net)} setelah biaya tetap.`,actions};
+    }
+
+    if(r.capitalGap<0){
+      const gap=Math.abs(r.capitalGap);
+      if(affordableStock>=1&&affordableStock<stock)actions.push(`Kalau tidak mau menambah modal, turunkan stok awal dari ${stock} menjadi maksimal sekitar ${affordableStock} unit.`);
+      else actions.push(`Tambahkan modal sekitar ${rp(gap)} atau potong biaya persiapan/stok sebesar jumlah yang sama.`);
+      actions.push('Lebih aman mulai kecil dan restock dari hasil penjualan daripada memaksakan modal awal.');
+      if(recommendedPrice>price)actions.push(`Harga ${rp(recommendedPrice)} akan memberi ruang margin lebih baik bila pasar masih menerima.`);
+      return {tone:'warn',title:'Usahanya untung, tapi modal terlalu ketat',primary:`Proyeksi laba positif ${rp(r.net)}/bulan, namun modal kurang ${rp(gap)} dari kebutuhan awal.`,actions};
+    }
+
+    if(r.marginPct+0.01<target){
+      const priceGap=Math.max(0,recommendedPrice-price);
+      actions.push(priceGap>0?`Naikkan harga sekitar ${rp(priceGap)} menjadi ±${rp(recommendedPrice)} untuk mendekati target margin.`:`Tekan HPP supaya margin mendekati target ${target}%.`);
+      actions.push(`Kalau harga pasar tidak bisa naik, cari penghematan HPP minimal sekitar ${rp(Math.max(0,r.hpp-(price*(1-target/100))))} per unit.`);
+      actions.push('Jangan mengejar omzet dengan diskon kalau margin akhirnya terlalu tipis.');
+      return {tone:'warn',title:'Layak, tapi margin belum sesuai target',primary:`Bisnis sudah menghasilkan laba, namun margin ${r.marginPct.toFixed(1)}% masih di bawah target ${target}%.`,actions};
+    }
+
+    if(r.payback>12){
+      const targetMonthly=r.capitalNeeded/12;
+      const extra=Math.max(0,targetMonthly-r.net);
+      const extraUnits=extra>0&&r.marginUnit>0?Math.ceil(extra/r.marginUnit/days):0;
+      actions.push(extraUnits>0?`Agar modal kembali sekitar 12 bulan, butuh tambahan kira-kira ${extraUnits} unit/hari dengan margin sekarang.`:'Kurangi biaya persiapan agar periode balik modal lebih pendek.');
+      actions.push('Pertimbangkan sewa/alat bekas untuk menekan modal awal jika kualitas tetap aman.');
+      actions.push('Mulai pilot kecil dulu; jangan langsung mengunci modal besar pada stok.');
+      return {tone:'warn',title:'Layak, tetapi balik modalnya lambat',primary:`Proyeksi balik modal sekitar ${r.payback.toFixed(1)} bulan. Usaha masih untung, tetapi modal akan tertahan cukup lama.`,actions};
+    }
+
+    const pilotDays=7;
+    const pilotUnits=Math.max(1,Math.ceil(unitsPerDay*pilotDays));
+    actions.push(`Uji pasar ${pilotDays} hari dengan sasaran ${unitsPerDay} unit/hari (maksimal sekitar ${pilotUnits} unit untuk target penuh).`);
+    actions.push('Catat penjualan aktual di Realisasi; tambah stok hanya kalau permintaan nyata mendekati target.');
+    actions.push(`Pertahankan harga minimal ${rp(Math.max(price,recommendedPrice))} bila tidak ada alasan pasar untuk menurunkannya.`);
+    return {tone:'good',title:'Layak diuji, jangan langsung all-in',primary:`Angka saat ini sehat: laba ±${rp(r.net)}/bulan, margin ${r.marginPct.toFixed(1)}%, dan modal mencukupi. Langkah terbaik berikutnya adalah validasi penjualan nyata.`,actions};
+  }
+
+  function creditAdvice(d,p,r){
+    const price=num(d.cashPrice),salary=num(p.salary),dp=num(d.downPayment),admin=num(d.adminFee);
+    const buffer=salary*.15;
+    const missing=[];
+    if(!price)missing.push('harga tunai');
+    if(!salary)missing.push('gaji/pendapatan');
+    if(!num(d.months))missing.push('tenor');
+    if(missing.length){
+      return {tone:'warn',title:'Lengkapi keputusan dulu',primary:`Belum bisa memberi saran final karena ${missing.join(', ')} belum terisi.`,actions:[
+        'Lengkapi profil penghasilan dan kebutuhan wajib agar cicilan dinilai dari uang yang benar-benar tersedia.',
+        'Masukkan bunga dan biaya admin sesuai penawaran kredit, bukan angka promosi saja.'
+      ]};
+    }
+    const factor=paymentFactor(d);
+    const maxPrincipal=r.maxInstallment>0&&factor>0?r.maxInstallment/factor:0;
+    const neededDp=Math.max(0,price-maxPrincipal);
+    const maxSafePrice=Math.max(0,(r.cash-admin)+maxPrincipal);
+    let saferTenor=0;
+    if(r.maxInstallment>0){
+      for(let m=Math.max(1,r.months);m<=120;m++){
+        const test={...d,months:m};
+        const inst=monthlyInstallment(test);
+        const debt=num(p.existingDebt)+inst;
+        const remain=salary-r.essentials-debt;
+        const dsr=salary>0?debt/salary*100:999;
+        if(inst<=r.maxInstallment&&remain>=buffer&&dsr<=35){saferTenor=m;break;}
+      }
+    }
+    const costPct=price>0?r.financeCost/price*100:0;
+    const actions=[];
+
+    const upfront=dp+admin;
+    if(upfront>r.cash){
+      const short=upfront-r.cash;
+      actions.push(`Tunda sampai uang bebas bertambah minimal ${rp(short)}, atau pilih biaya awal yang tidak mengambil dana aman.`);
+      if(maxSafePrice>0&&maxSafePrice<price)actions.push(`Dengan kondisi sekarang, kisaran harga barang yang lebih sesuai sekitar maksimal ${rp(roundDownMoney(maxSafePrice,1000))}.`);
+      actions.push('Jangan mengambil DP dari tabungan tujuan atau Safe Floor hanya supaya pengajuan lolos.');
+      return {tone:'bad',title:'Tunda kreditnya dulu',primary:`Biaya awal (DP + admin) ${rp(upfront)} lebih besar dari uang bebas ${rp(r.cash)}. Memaksakannya akan mengganggu cadangan yang sudah kamu lindungi.`,actions};
+    }
+
+    if(r.remaining<0||r.dsr>35){
+      if(neededDp>dp)actions.push(`Dengan tenor sekarang, DP yang dibutuhkan agar cicilan mendekati batas nyaman sekitar ${rp(roundUpMoney(neededDp,1000))}.`);
+      if(saferTenor&&saferTenor>r.months)actions.push(`Alternatif: tenor sekitar ${saferTenor} bulan menurunkan cicilan, tetapi total biaya kredit bisa bertambah.`);
+      if(maxSafePrice>0&&maxSafePrice<price)actions.push(`Pilihan yang lebih sehat adalah mencari barang di kisaran ≤ ${rp(roundDownMoney(maxSafePrice,1000))}.`);
+      actions.push('Prioritaskan menurunkan pokok utang; jangan menutup cicilan baru dengan utang lain.');
+      return {tone:'bad',title:'Jangan ambil kredit dengan skenario ini',primary:r.remaining<0?`Cashflow bulanan akan defisit ${rp(Math.abs(r.remaining))}.`:`Total cicilan mencapai ${r.dsr.toFixed(1)}% gaji, melewati batas konservatif 35%.`,actions};
+    }
+
+    if(r.installment>r.maxInstallment||r.remaining<buffer){
+      if(neededDp>dp)actions.push(`Naikkan DP ke sekitar ${rp(roundUpMoney(neededDp,1000))} supaya cicilan mendekati batas nyaman ${rp(r.maxInstallment)}/bulan.`);
+      if(saferTenor&&saferTenor>r.months)actions.push(`Kalau DP tidak bisa ditambah, tenor sekitar ${saferTenor} bulan lebih ringan; bandingkan total biaya sebelum memilih.`);
+      actions.push(`Usahakan tetap menyisakan minimal ${rp(buffer)} per bulan sebagai buffer setelah kebutuhan dan cicilan.`);
+      return {tone:'warn',title:'Bisa, tapi sebaiknya diperbaiki dulu',primary:`Cicilan ${rp(r.installment)}/bulan belum defisit, tetapi ruang aman bulanan terlalu tipis.`,actions};
+    }
+
+    if(costPct>=25){
+      actions.push(`Biaya kredit sekitar ${costPct.toFixed(1)}% dari harga tunai (${rp(r.financeCost)} ekstra). Bandingkan dengan menabung dulu atau cari promo bunga lebih rendah.`);
+      actions.push(`Jika tetap kredit, cicilan ${rp(r.installment)}/bulan masih masuk batas nyaman; jangan menambah utang baru selama tenor berjalan.`);
+      if(admin>0)actions.push(`Biaya admin awal ${rp(admin)} sudah ikut dihitung; pastikan tidak ada biaya tersembunyi lain.`);
+      return {tone:'warn',title:'Mampu bayar, tetapi kreditnya mahal',primary:`Cashflow masih aman, namun total biaya pembiayaan cukup besar dibanding harga tunai.`,actions};
+    }
+
+    actions.push(`Cicilan ${rp(r.installment)}/bulan berada di bawah batas nyaman ${rp(r.maxInstallment)} dan total rasio utang ${r.dsr.toFixed(1)}%.`);
+    actions.push(`Setelah semua kebutuhan, sisa uang diperkirakan ${rp(r.remaining)}; pertahankan buffer minimal ${rp(buffer)}.`);
+    if(r.financeCost>0)actions.push(`Kamu membayar ekstra ${rp(r.financeCost)} dibanding tunai. Kalau barang tidak mendesak, tetap bandingkan opsi menabung dulu.`);
+    else actions.push('Biaya pembiayaan tambahan sangat rendah; tetap cek denda keterlambatan dan biaya lain di kontrak.');
+    return {tone:'good',title:'Relatif aman kalau memang dibutuhkan',primary:'Skenario kredit ini masuk batas konservatif aplikasi. Keputusan terbaik tetap menjaga buffer dan tidak menambah cicilan lain selama tenor.',actions};
+  }
+
+  function adviceHtml(a){
+    if(!a)return '';
+    const actions=(a.actions||[]).filter(Boolean).slice(0,4);
+    return `<div class="v26-verdict ${a.tone}" style="margin-top:14px;padding-top:13px;border-top:1px solid var(--border)"><span class="v26-verdict-dot"></span><div><b>Saran terbaik · ${esc(a.title)}</b><p>${esc(a.primary)}</p></div></div>${actions.length?`<div class="v26-breakdown"><div><span><b style="color:var(--text)">Langkah yang disarankan</b></span></div>${actions.map((x,i)=>`<div><span>${i+1}. ${esc(x)}</span></div>`).join('')}</div>`:''}`;
   }
 
   function input(name,label,value,type='money',extra=''){
@@ -209,7 +372,7 @@
     }
     const s=state(),card=document.createElement('section');
     card.className='card v26-lab';card.id='v26-decision-lab';
-    card.innerHTML=`<div class="v26-head"><div><span class="v26-eyebrow">DECISION LAB</span><h3>Bisnis & kredit sebelum keluar uang</h3><p>Simulasikan keputusan dulu, simpan skenario yang layak, lalu lanjut ke Realisasi & Tracking di card yang sama.</p></div><div class="v26-head-icon"><i data-lucide="chart-no-axes-combined"></i></div></div><div class="v26-tabs" role="tablist"><button class="v26-tab" data-v26-tab="business" type="button"><i data-lucide="briefcase-business"></i> Analisis Bisnis</button><button class="v26-tab" data-v26-tab="credit" type="button"><i data-lucide="credit-card"></i> Simulasi Kredit</button></div>${businessPanel(s.businessDraft)}${creditPanel(s.creditDraft)}`;
+    card.innerHTML=`<div class="v26-head"><div><span class="v26-eyebrow">DECISION LAB</span><h3>Bisnis & kredit sebelum keluar uang</h3><p>Masukkan rencana, lalu Decision Coach memberi feedback dan angka yang sebaiknya diperbaiki sebelum keputusan dijalankan.</p></div><div class="v26-head-icon"><i data-lucide="chart-no-axes-combined"></i></div></div><div class="v26-tabs" role="tablist"><button class="v26-tab" data-v26-tab="business" type="button"><i data-lucide="briefcase-business"></i> Analisis Bisnis</button><button class="v26-tab" data-v26-tab="credit" type="button"><i data-lucide="credit-card"></i> Simulasi Kredit</button></div>${businessPanel(s.businessDraft)}${creditPanel(s.creditDraft)}`;
     if(anchor)host.insertBefore(card,anchor);else host.appendChild(card);
     bindLab();switchTab(s.activeTab||'business',false);renderResults();
     if(window.lucide?.createIcons)lucide.createIcons();
@@ -263,13 +426,15 @@
   function renderBusiness(){
     const s=state(),r=calcBusiness(s.businessDraft),el=document.getElementById('v26-business-result');if(!el)return;
     const gapTone=r.capitalGap>=0?'good':'bad';
-    el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>HPP / unit</small><b class="v26-money">${rp(r.hpp)}</b></div><div class="v26-metric"><small>Omzet / bulan</small><b class="v26-money">${rp(r.revenue)}</b></div><div class="v26-metric ${r.net>0?'good':'bad'}"><small>Laba bersih / bulan</small><b class="v26-money">${rp(r.net)}</b></div><div class="v26-metric ${gapTone}"><small>Selisih modal</small><b class="v26-money">${r.capitalGap>=0?'+ ': '- '}${rp(Math.abs(r.capitalGap))}</b></div><div class="v26-metric"><small>Modal minimum</small><b class="v26-money">${rp(r.capitalNeeded)}</b></div><div class="v26-metric"><small>Margin kotor</small><b>${r.marginPct.toFixed(1)}%</b></div><div class="v26-metric"><small>BEP operasional</small><b>${r.bepUnits?r.bepUnits+' unit':'—'}</b></div><div class="v26-metric"><small>Balik modal</small><b>${r.payback?`${r.payback.toFixed(1)} bulan`:'—'}</b></div></div><div class="v26-breakdown"><div><span>Harga rekomendasi sesuai target margin</span><b class="v26-money">${rp(r.suggestedPrice)}</b></div><div><span>Perkiraan BEP tercapai</span><b>${r.bepDays?`${r.bepDays.toFixed(1)} hari jual`:'Belum tercapai'}</b></div><div><span>Laba kotor sebelum biaya tetap</span><b class="v26-money">${rp(r.gross)}</b></div></div>`;
+    const advice=businessAdvice(s.businessDraft,r);
+    el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>HPP / unit</small><b class="v26-money">${rp(r.hpp)}</b></div><div class="v26-metric"><small>Omzet / bulan</small><b class="v26-money">${rp(r.revenue)}</b></div><div class="v26-metric ${r.net>0?'good':'bad'}"><small>Laba bersih / bulan</small><b class="v26-money">${rp(r.net)}</b></div><div class="v26-metric ${gapTone}"><small>Selisih modal</small><b class="v26-money">${r.capitalGap>=0?'+ ': '- '}${rp(Math.abs(r.capitalGap))}</b></div><div class="v26-metric"><small>Modal minimum</small><b class="v26-money">${rp(r.capitalNeeded)}</b></div><div class="v26-metric"><small>Margin kotor</small><b>${r.marginPct.toFixed(1)}%</b></div><div class="v26-metric"><small>BEP operasional</small><b>${r.bepUnits?r.bepUnits+' unit':'—'}</b></div><div class="v26-metric"><small>Balik modal</small><b>${r.payback?`${r.payback.toFixed(1)} bulan`:'—'}</b></div></div><div class="v26-breakdown"><div><span>Harga rekomendasi sesuai target margin</span><b class="v26-money">${rp(r.suggestedPrice)}</b></div><div><span>Perkiraan BEP tercapai</span><b>${r.bepDays?`${r.bepDays.toFixed(1)} hari jual`:'Belum tercapai'}</b></div><div><span>Laba kotor sebelum biaya tetap</span><b class="v26-money">${rp(r.gross)}</b></div></div>${adviceHtml(advice)}`;
   }
   function renderCredit(){
     const s=state(),r=calcCredit(s.creditDraft,s.profile),el=document.getElementById('v26-credit-result');if(!el)return;
     const pct=Math.min(100,r.dsr/35*100),progressTone=r.dsr>35?'bad':r.dsr>25?'warn':'';
     const strip=document.getElementById('v26-credit-profile-strip');if(strip)strip.innerHTML=`Memakai profil: gaji <b class="v26-money">${rp(s.profile.salary)}</b> · makan <b class="v26-money">${rp(s.profile.food)}</b> · bensin <b class="v26-money">${rp(s.profile.fuel)}</b>. <button class="mini-action primary" type="button" onclick="nav('settings')">Ubah di Settings</button>`;
-    el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>Cicilan / bulan</small><b class="v26-money">${rp(r.installment)}</b></div><div class="v26-metric ${r.remaining>=0?'good':'bad'}"><small>Sisa setelah semua</small><b class="v26-money">${rp(r.remaining)}</b></div><div class="v26-metric"><small>Total dibayar</small><b class="v26-money">${rp(r.totalCredit)}</b></div><div class="v26-metric"><small>Biaya kredit</small><b class="v26-money">${rp(r.financeCost)}</b></div><div class="v26-metric"><small>Pokok dibiayai</small><b class="v26-money">${rp(r.principal)}</b></div><div class="v26-metric"><small>Rasio cicilan baru</small><b>${r.newRatio.toFixed(1)}%</b></div><div class="v26-metric ${r.dsr>35?'bad':r.dsr>25?'warn':'good'}"><small>Total rasio utang</small><b>${r.dsr.toFixed(1)}%</b></div><div class="v26-metric"><small>Batas cicilan nyaman</small><b class="v26-money">${rp(r.maxInstallment)}</b></div></div><div class="v26-progress ${progressTone}"><span style="width:${pct}%"></span></div><div class="v26-breakdown"><div><span>Gaji bulanan</span><b class="v26-money">${rp(s.profile.salary)}</b></div><div><span>Makan + bensin + wajib + tabungan</span><b class="v26-money">${rp(r.essentials)}</b></div><div><span>Cicilan lama + cicilan baru</span><b class="v26-money">${rp(r.totalDebt)}</b></div><div><span>Uang bebas untuk DP saat ini</span><b class="v26-money">${rp(r.cash)}</b></div></div>`;
+    const advice=creditAdvice(s.creditDraft,s.profile,r);
+    el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>Cicilan / bulan</small><b class="v26-money">${rp(r.installment)}</b></div><div class="v26-metric ${r.remaining>=0?'good':'bad'}"><small>Sisa setelah semua</small><b class="v26-money">${rp(r.remaining)}</b></div><div class="v26-metric"><small>Total dibayar</small><b class="v26-money">${rp(r.totalCredit)}</b></div><div class="v26-metric"><small>Biaya kredit</small><b class="v26-money">${rp(r.financeCost)}</b></div><div class="v26-metric"><small>Pokok dibiayai</small><b class="v26-money">${rp(r.principal)}</b></div><div class="v26-metric"><small>Rasio cicilan baru</small><b>${r.newRatio.toFixed(1)}%</b></div><div class="v26-metric ${r.dsr>35?'bad':r.dsr>25?'warn':'good'}"><small>Total rasio utang</small><b>${r.dsr.toFixed(1)}%</b></div><div class="v26-metric"><small>Batas cicilan nyaman</small><b class="v26-money">${rp(r.maxInstallment)}</b></div></div><div class="v26-progress ${progressTone}"><span style="width:${pct}%"></span></div><div class="v26-breakdown"><div><span>Gaji bulanan</span><b class="v26-money">${rp(s.profile.salary)}</b></div><div><span>Makan + bensin + wajib + tabungan</span><b class="v26-money">${rp(r.essentials)}</b></div><div><span>Cicilan lama + cicilan baru</span><b class="v26-money">${rp(r.totalDebt)}</b></div><div><span>Uang bebas untuk DP saat ini</span><b class="v26-money">${rp(r.cash)}</b></div></div>${adviceHtml(advice)}`;
   }
   function renderSaved(){
     const s=state(),b=document.getElementById('v26-business-saved'),c=document.getElementById('v26-credit-saved');
@@ -322,6 +487,7 @@
   window.resetBusinessV26=()=>{setState(s=>s.businessDraft=clone(DEFAULTS.businessDraft));refillDraft('business');};
   window.resetCreditV26=()=>{setState(s=>s.creditDraft=clone(DEFAULTS.creditDraft));refillDraft('credit');};
   window.getV26DecisionData=()=>state();
+  window.getV26DecisionAdvice=()=>{const s=state();return {business:businessAdvice(s.businessDraft,calcBusiness(s.businessDraft)),credit:creditAdvice(s.creditDraft,s.profile,calcCredit(s.creditDraft,s.profile))};};
 
   function wrapFactoryReset(){
     const old=window.factoryResetV245;if(typeof old!=='function'||old.__v26)return;
