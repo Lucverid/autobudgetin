@@ -1,17 +1,32 @@
-# AutoBudgetin v27.5.4 — Service Worker Repair
+# AutoBudgetin v26.0.9 STABLE+ — Scenario Flow
 
-Masalah yang ditemukan di repo:
-- index.html sudah v27.5.4 SAFE
-- v27-tracking.js / v27-tracking.css / v27-safe-bridge.js sudah versi baru
-- tetapi service-worker.js masih versi lama v26.0.9
+Patch lanjutan dari v26.0.8.
 
-Upload/replace HANYA:
-1. service-worker.js
+## Yang berubah
 
-Jangan clear site data sebelum mengetes ulang, supaya data lokal yang masih ada tidak ikut hilang.
-Setelah GitHub Pages selesai deploy:
-1. Tutup semua tab/PWA AutoBudgetin.
-2. Buka URL web dari browser.
-3. Reload sekali.
-4. Tes Home, Riwayat, +, Planning, Settings.
-5. Kalau web normal, baru buka/install PWA lagi.
+### Decision Lab
+- Setelah skenario bisnis disimpan, form langsung dibersihkan untuk skenario baru.
+- Setelah simulasi kredit disimpan, form langsung dibersihkan.
+- Tekan skenario/simulasi tersimpan untuk memuat kembali datanya.
+- Saat skenario tersimpan dibuka, tombol berubah menjadi **Simpan perubahan**.
+- Menyimpan saat mode edit memperbarui skenario yang sama, tidak membuat duplikat.
+- ID skenario dipertahankan saat edit supaya referensi Realisasi tetap konsisten.
+- Perbaikan input Rupiah digits-only dari v26.0.7 tetap dipertahankan.
+
+### Realisasi & Tracking
+- Input uang sekarang memakai pemisah ribuan Indonesia secara langsung:
+  - Omzet aktual
+  - Biaya restock aktual
+  - Nominal pembayaran cicilan
+  - Target keuntungan bisnis
+- Contoh: `73000` tampil menjadi `73.000`, `1000000` menjadi `1.000.000`.
+- Perubahan dibuat sebagai add-on kecil `v26-tracking-money-format.js`; core tracking stabil tidak diubah.
+
+## Upload ke GitHub
+Timpa/upload 4 file berikut:
+1. `index.html`
+2. `service-worker.js`
+3. `v26-decision-lab.js`
+4. `v26-tracking-money-format.js`
+
+Apps Script tidak perlu redeploy.
