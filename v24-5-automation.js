@@ -34,26 +34,51 @@
   }
   function isAppsScriptUrl(url){try{const h=new URL(url,location.href).hostname.toLowerCase();return h==='script.google.com'||h.endsWith('.script.google.com')}catch{return false}}
   function appsScriptBridge(url,action,appKey,payload={}){
-    return new Promise((resolve,reject)=>{
-      const nonce=`agis_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,9)}`;
-      const frame=document.createElement('iframe');frame.name=`agis_backend_${nonce}`;frame.style.display='none';frame.setAttribute('aria-hidden','true');
-      const form=document.createElement('form');form.method='POST';form.action=url;form.target=frame.name;form.style.display='none';form.acceptCharset='UTF-8';
-      const fields={transport:'bridge',nonce,action,appKey,payload:JSON.stringify(payload||{})};
-      Object.entries(fields).forEach(([name,value])=>{const input=document.createElement('input');input.type='hidden';input.name=name;input.value=String(value??'');form.appendChild(input)});
-      let done=false;
-      const cleanup=()=>{if(done)return;done=true;clearTimeout(timer);window.removeEventListener('message',onMessage);form.remove();frame.remove();};
-      const onMessage=e=>{
-        const d=e.data;
-        if(!d||d.source!=='agis-finance-backend'||d.nonce!==nonce)return;
-        const h=(()=>{try{return new URL(e.origin).hostname.toLowerCase()}catch{return ''}})();
-        if(!(h==='script.google.com'||h.endsWith('.script.google.com')||h==='script.googleusercontent.com'||h.endsWith('.script.googleusercontent.com')))return;
-        cleanup();
-        if(d.ok)resolve(d);else reject(new Error(d.error||'Backend menolak request.'));
+    return new Promise(async (resolve,reject)=>{
+      const requestId=`agis_${Date.now().toString(36)}_${globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID().replace(/-/g,''):Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)}`;
+      const body=JSON.stringify({action,appKey,requestId,...(payload||{})});
+      const started=Date.now(), timeoutMs=18000;
+      let settled=false, pollTimer=null, activeScript=null;
+      const cleanup=()=>{
+        if(pollTimer)clearTimeout(pollTimer);
+        if(activeScript){try{activeScript.remove()}catch{}activeScript=null;}
       };
-      const timer=setTimeout(()=>{cleanup();reject(new Error('Apps Script tidak mengirim konfirmasi. Pastikan backend v26.0.4 sudah ditempel lalu Deploy → New version.'));},15000);
-      window.addEventListener('message',onMessage);
-      document.body.appendChild(frame);document.body.appendChild(form);
-      setTimeout(()=>{try{form.submit()}catch(err){cleanup();reject(err)}},0);
+      const finish=(err,data)=>{
+        if(settled)return;settled=true;cleanup();
+        if(err)reject(err);else resolve(data);
+      };
+      const poll=()=>{
+        if(settled)return;
+        if(Date.now()-started>timeoutMs)return finish(new Error('Backend tidak memberi receipt. Cek deployment Apps Script dan pastikan v26.0.5 sudah di-deploy sebagai New version.'));
+        const cb=`__agisReceipt_${Math.random().toString(36).slice(2,10)}`;
+        const script=document.createElement('script');activeScript=script;
+        let callbackHit=false;
+        window[cb]=data=>{
+          callbackHit=true;
+          try{delete window[cb]}catch{window[cb]=undefined}
+          try{script.remove()}catch{}activeScript=null;
+          if(!data||data.ready!==true){pollTimer=setTimeout(poll,550);return;}
+          if(data.ok)finish(null,data);else finish(new Error(data.error||'Backend menolak request.'));
+        };
+        script.onerror=()=>{
+          try{delete window[cb]}catch{window[cb]=undefined}
+          try{script.remove()}catch{}activeScript=null;
+          if(!callbackHit)pollTimer=setTimeout(poll,700);
+        };
+        const q=new URLSearchParams({action:'receipt',requestId,callback:cb,_:String(Date.now())});
+        script.src=`${url}${url.includes('?')?'&':'?'}${q.toString()}`;
+        document.head.appendChild(script);
+        setTimeout(()=>{
+          if(settled||callbackHit)return;
+          try{delete window[cb]}catch{window[cb]=undefined}
+          try{script.remove()}catch{}if(activeScript===script)activeScript=null;
+          pollTimer=setTimeout(poll,250);
+        },2200);
+      };
+      try{
+        await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=UTF-8'},body,cache:'no-store',credentials:'omit'});
+        pollTimer=setTimeout(poll,400);
+      }catch(err){finish(new Error(`Request ke Apps Script gagal: ${err?.message||err}`));}
     });
   }
   function smartSettings(){try{return JSON.parse(localStorage.getItem('agis_finance_smart_controls_v24_4')||'{}')}catch{return {}}}
@@ -141,7 +166,7 @@
     }catch(e){if(st)st.textContent=`Koneksi gagal · ${e.message}`;Swal.fire('Backend belum terhubung',e.message,'error')}
   };
   window.syncDatabaseV245=()=>syncNow(false);
-  window.testTelegramV245=async()=>{try{const res=await backend('testTelegram',{message:'✅ Agis Finance v26.0.4: Telegram + database terhubung.'});Swal.fire('Telegram terhubung',res.telegramMessage||'Backend mengonfirmasi pesan tes berhasil dikirim.','success')}catch(e){Swal.fire('Tes Telegram gagal',e.message,'error')}};
+  window.testTelegramV245=async()=>{try{const res=await backend('testTelegram',{message:'✅ Agis Finance v26.0.5: Telegram + database terhubung.'});Swal.fire('Telegram terhubung',res.telegramMessage||'Backend mengonfirmasi pesan tes berhasil dikirim.','success')}catch(e){Swal.fire('Tes Telegram gagal',e.message,'error')}};
   window.wipeAutomationDbV245=async()=>{const r=await Swal.fire({title:'Hapus database Google Sheets?',text:'Data di aplikasi/Firestore tidak ikut dihapus. Buat backup dulu kalau perlu.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus DB Sheets',cancelButtonText:'Batal'});if(!r.isConfirmed)return;try{await backend('wipeDatabase');Swal.fire('Database Sheets dibersihkan','Backend mengonfirmasi database Sheets sudah dibersihkan.','success')}catch(e){Swal.fire('Gagal',e.message,'error')}};
   function parseBackup(parsed){const d=parsed?.data||parsed;if(!d||!d.wallets||!Array.isArray(d.trans))throw new Error('Format backup tidak dikenali.');return {version:Number(parsed?.schemaVersion||parsed?.version||22),data:{wallets:d.wallets||{},goal:Number(d.goal)||0,limits:d.limits||{},trans:Array.isArray(d.trans)?d.trans:[],incomes:Array.isArray(d.incomes)?d.incomes:[],transfers:Array.isArray(d.transfers)?d.transfers:[],goals:Array.isArray(d.goals)?d.goals:[],recurring:Array.isArray(d.recurring)?d.recurring:[],audit:Array.isArray(d.audit)?d.audit:[],v25:d.v25||null,v26:d.v26&&typeof d.v26==='object'?d.v26:null,carryOver:d.carryOver&&typeof d.carryOver==='object'?d.carryOver:null,recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null}};}
   window.previewImportV245=async e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;try{const parsed=parseBackup(JSON.parse(await f.text()));sessionStorage.setItem(IMPORT_KEY,JSON.stringify(parsed));const d=parsed.data,rows=[...d.trans,...d.incomes,...d.transfers].sort((a,b)=>String(b.tanggal||'').localeCompare(String(a.tanggal||''))).slice(0,8);const p=document.getElementById('v245-preview');p.hidden=false;p.innerHTML=`<div class="v245-preview-head"><b>Preview backup v${parsed.version}</b><span>${d.trans.length+d.incomes.length+d.transfers.length} transaksi</span></div><div class="v245-grid"><div><small>Wallet</small><b>${rp(Object.values(d.wallets).reduce((s,n)=>s+(Number(n)||0),0))}</b></div><div><small>Pengeluaran</small><b>${d.trans.length}</b></div><div><small>Pemasukan</small><b>${d.incomes.length}</b></div><div><small>Goals</small><b>${d.goals.length}</b></div><div><small>Carry-over</small><b>${rp(d.carryOver?.balance||0)}</b></div></div><div class="v245-table">${rows.length?rows.map(x=>`<div><span>${esc(x.tanggal||'-')} · ${esc(x.kategori||x.type||'-')}</span><b>${rp(x.nominal||0)}</b></div>`).join(''):'<div class="mini-muted">Tidak ada transaksi untuk dipreview.</div>'}</div><button class="btn-primary" onclick="applyImportV245()">Terapkan Backup Ini</button>`;}catch(err){Swal.fire('Preview gagal',err.message,'error')}};
