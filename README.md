@@ -1,20 +1,24 @@
-# AutoBudgetin v26.0.8 STABLE+ — Decision Coach
+# AutoBudgetin v26.0.7 STABLE+ — Number Input Stability
 
-Patch dari v26.0.7 STABLE+.
+Patch ini dibuat di atas v26.0.6 STABLE+.
 
-## Yang baru
-- Decision Lab sekarang memberi **Saran terbaik** secara otomatis saat angka diubah.
-- Analisis bisnis memberi langkah konkret: harga rekomendasi, minimal unit/hari untuk menutup biaya tetap, opsi menurunkan stok awal jika modal kurang, evaluasi margin, kecepatan balik modal, dan saran uji pasar 7 hari.
-- Simulasi kredit memberi langkah konkret: keputusan tunda/revisi/aman, DP yang lebih sehat, tenor alternatif, kisaran harga barang yang lebih sesuai, buffer bulanan, total biaya kredit, serta pengecekan DP + admin terhadap uang bebas.
-- Feedback berubah real-time mengikuti input; bukan skor acak.
-- Perbaikan input Rupiah v26.0.7 tetap dipertahankan dan diuji regresi.
+Perubahan:
+- Memperbaiki input nominal di Decision Lab yang sebelumnya bisa berubah dari `1.000` + `0` menjadi `1`.
+- Semua field rupiah di Decision Lab sekarang memakai parser digits-only, sama dengan formatter nominal utama AutoBudgetin.
+- Profil Perhitungan (gaji, makan, bensin, cicilan, target tabungan) juga memakai jalur input rupiah yang sama.
+- Field non-rupiah seperti persen, tenor, unit/hari, hari/bulan tetap memakai parser angka/decimal normal.
+- PWA cache dibump ke v26.0.7 agar file Decision Lab baru langsung terambil.
 
-## File yang ditimpa di GitHub
-1. `index.html`
-2. `service-worker.js`
-3. `v26-decision-lab.js`
+## Aturan input untuk versi selanjutnya
+Semua field uang/rupiah wajib memakai **digits-only parsing** sebelum diformat (`10.000`, `100.000`, `1.000.000`, dst). Jangan pernah membaca separator titik Indonesia sebagai decimal saat event `input`.
 
-Apps Script **tidak perlu deploy ulang** untuk update ini.
+Nilai regresi yang wajib lolos untuk setiap fitur uang baru:
+`999`, `1.000`, `10.000`, `100.000`, `1.000.000`, `2.300.000`, `99.999.999`, `1.000.000.000`.
 
-## Catatan
-Feature Switcher v26.0.6, online retry, tracking, backup, dan automation tidak diubah oleh patch ini.
+## Upload ke GitHub
+Timpa 3 file berikut di root repo:
+- `index.html`
+- `service-worker.js`
+- `v26-decision-lab.js`
+
+Apps Script tidak perlu diubah/deploy ulang untuk patch ini.
