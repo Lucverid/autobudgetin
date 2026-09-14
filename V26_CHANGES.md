@@ -1,5 +1,15 @@
 # Agis Finance AI v26.0 — Decision Lab
 
+## v26.1.0 — Business target profit & nominal input fix
+
+- Memperbaiki bug input nominal yang dapat kembali menjadi 1 digit setelah angka melewati 4 digit. Formatter uang sekarang membaca digit mentah dan menjaga posisi kursor saat pemisah ribuan ditambahkan.
+- Menambahkan **Target keuntungan / bulan** pada Analisis Bisnis.
+- Menghitung harga minimum agar target keuntungan tercapai pada volume penjualan yang dipilih.
+- Menampilkan harga praktis yang disarankan berdasarkan nilai tertinggi antara target margin dan target keuntungan.
+- Jika harga jual dipertahankan, aplikasi menghitung kebutuhan unit per hari dan per bulan untuk mencapai target keuntungan.
+- Estimasi **balik modal** dan **balik modal + target keuntungan** kini ditampilkan dalam hari jual, minggu, dan bulan.
+- Cache PWA dinaikkan ke v26.1.0 agar perbaikan langsung terambil setelah deploy.
+
 ## v26.0.1 — Planning stability fix
 
 - Urutan kartu disepakati: Budget/Bills → What-if → Decision Lab → Yearly Report.
