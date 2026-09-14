@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v27.5.4 Integrated</title>
+    <title>Agis Finance AI - v26.0.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -265,8 +265,6 @@
     <link rel="stylesheet" href="./v25-3-10-health-engine.css">
     <link rel="stylesheet" href="./v25-5-17-easter-egg.css">
     <link rel="stylesheet" href="./v26-decision-lab.css">
-    <link rel="stylesheet" href="./v27-tracking.css?v=27.5.4">
-    <link rel="stylesheet" href="./v26-feature-switcher.css?v=27.5.4">
 </head>
 <body>
 
@@ -1530,7 +1528,6 @@
             audit:Array.isArray(d.audit)?d.audit.map(cleanBackupRecord):[],
             v25:d.v25&&typeof d.v25==='object'?d.v25:null,
             v26:d.v26&&typeof d.v26==='object'?d.v26:null,
-            v27:d.v27&&typeof d.v27==='object'?d.v27:null,
             carryOver:d.carryOver&&typeof d.carryOver==='object'?d.carryOver:null,
             recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null
         }};
@@ -1541,27 +1538,25 @@
         const recoveryTarget = typeof readRecoveryTarget === 'function' ? readRecoveryTarget() : null;
         const v25 = typeof window.getV25SnapshotData === 'function' ? window.getV25SnapshotData() : (()=>{try{return JSON.parse(localStorage.getItem('agis_finance_v25_planning')||'null')}catch{return null}})();
         const v26 = typeof window.getV26DecisionData === 'function' ? window.getV26DecisionData() : null;
-        const v27 = typeof window.getV27TrackingData === 'function' ? window.getV27TrackingData() : (()=>{try{return JSON.parse(localStorage.getItem('agis_finance_v27_tracking')||'null')}catch{return null}})();
-        const payload={app:'Agis Finance',schemaVersion:27,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord),v25,v26,v27,carryOver,recoveryTarget}};
-        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_v27_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
-        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v27 · Decision Lab + Realisasi ikut'); renderHealth();
+        const payload={app:'Agis Finance',schemaVersion:26,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord),v25,v26,carryOver,recoveryTarget}};
+        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_v26_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v26 · Decision Lab ikut'); renderHealth();
     };
 
     window.restoreBackupFile = async (event) => {
         const file=event.target.files?.[0]; event.target.value=''; if(!file)return;
         try{
             const raw=await file.text(); const parsed=JSON.parse(raw); const migrated=migrateBackupPayload(parsed); const d=migrated.data;
-            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dipulihkan termasuk Planning/Decision Lab/Realisasi lalu data utama digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v25 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
             store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit;
             if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}));}catch{}}
             if(d.v26){try{localStorage.setItem('agis_finance_v26_decision_lab',JSON.stringify(d.v26));}catch{}}
-            if(d.v27){try{localStorage.setItem('agis_finance_v27_tracking',JSON.stringify(d.v27));}catch{}}
             if(d.carryOver){try{writeCarryOverState({month:String(d.carryOver.month||''),balance:Math.max(0,Number(d.carryOver.balance)||0),lastDate:String(d.carryOver.lastDate||''),dailyBase:Math.max(0,Number(d.carryOver.dailyBase)||0),history:d.carryOver.history&&typeof d.carryOver.history==='object'?d.carryOver.history:{}});}catch(err){console.warn('Carry-over restore gagal:',err)}}
             if(d.recoveryTarget){try{localStorage.setItem(RECOVERY_TARGET_KEY,JSON.stringify(d.recoveryTarget));}catch{}}
             store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
             const now=Date.now(); enqueueSync({opId:`restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now}); enqueueSync({opId:`restore-goal-total:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now}); Object.entries(store.limits).forEach(([category,amount])=>enqueueSync({opId:`restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));
             store.trans.forEach(t=>{if(t.id)enqueueSync({opId:`restore-expense:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.incomes.forEach(t=>{if(t.id)enqueueSync({opId:`restore-income:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.transfers.forEach(t=>{if(t.id)enqueueSync({opId:`restore-transfer:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.goals.forEach(g=>enqueueSync({opId:`restore-goal-item:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:cleanBackupRecord(g),createdAt:now,force:true})); store.recurring.forEach(r=>enqueueSync({opId:`restore-recurring:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:cleanBackupRecord(r),createdAt:now,force:true}));
-            auditEvent('Restore backup',`Schema v${migrated.version} → v27`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, Budget Tersimpan, Decision Lab, dan Realisasi sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
+            auditEvent('Restore backup',`Schema v${migrated.version} → v25`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, Budget Tersimpan, dan data planning sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
         }catch(err){Swal.fire('Restore gagal',err.message||'File backup rusak.','error');}
     };
 
@@ -2404,7 +2399,6 @@
         valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
     }
 </script>
-<script>window.__v2754CanonicalBackup = window.exportBackup;</script>
 <script src="./v24-4-features.js"></script>
 <script src="./v24-5-automation.js"></script>
 <script src="./v25-features.js"></script>
@@ -2416,9 +2410,5 @@
 <script src="./v25-3-10-health-engine.js"></script>
 <script src="./v25-5-17-easter-egg.js"></script>
 <script src="./v26-decision-lab.js?v=26.0.1"></script>
-<script src="./v27-tracking.js?v=27.5.4"></script>
-<script src="./v26-feature-switcher.js?v=27.5.4"></script>
-<script src="./v27-safe-bridge.js?v=27.5.4"></script>
-<!-- v27.5.4 Integrated: stable uploaded core + Realisasi intelligence + milestone completion -->
 </body>
 </html>
