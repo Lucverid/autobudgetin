@@ -187,8 +187,8 @@ test('patched scripts bypass old cache URLs and are precached for offline use', 
   const shell = vm.runInNewContext(read('service-worker.js') + '\n({CACHE_NAME, APP_SHELL});', {
     self: { addEventListener() {} }
   });
-  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-4-nominal-fix');
-  for (const [file, version] of [['v25-3-3-financial-plan.js','26.0.1'], ['v26-decision-lab.js','26.0.4']]) {
+  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-5-decision-coach');
+  for (const [file, version] of [['v25-3-3-financial-plan.js','26.0.1'], ['v26-decision-lab.js','26.0.5']]) {
     const url = './' + file + '?v=' + version;
     assert.ok(html.includes('src="' + url + '"'), 'versioned HTML reference: ' + file);
     assert.ok(shell.APP_SHELL.includes(url), 'offline cache reference: ' + file);

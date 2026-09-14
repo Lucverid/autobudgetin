@@ -40,8 +40,8 @@ test('typing the fifth digit after 1.000 formats to 10.005 instead of collapsing
 test('fixed Decision Lab asset is cache-busted and precached for offline use', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
-  assert.ok(html.includes('./v26-decision-lab.js?v=26.0.4'));
+  assert.ok(html.includes('./v26-decision-lab.js?v=26.0.5'));
   const shell = Function('self', sw + '\nreturn {CACHE_NAME, APP_SHELL};')({ addEventListener() {} });
-  assert.ok(shell.APP_SHELL.includes('./v26-decision-lab.js?v=26.0.4'));
-  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-4-nominal-fix');
+  assert.ok(shell.APP_SHELL.includes('./v26-decision-lab.js?v=26.0.5'));
+  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-5-decision-coach');
 });
