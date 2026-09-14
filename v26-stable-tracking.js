@@ -50,8 +50,13 @@
       if(!Array.isArray(b.targetAdjustments)) b.targetAdjustments=[];
       if(!Object.prototype.hasOwnProperty.call(b,'originalUnitsPerDay')) b.originalUnitsPerDay=num(b.unitsPerDay);
       if(!Object.prototype.hasOwnProperty.call(b,'targetProfit')) b.targetProfit=0;
+      if(!b.milestones||typeof b.milestones!=='object') b.milestones={};
+      if(!b.milestones.dailyTargetDates||typeof b.milestones.dailyTargetDates!=='object') b.milestones.dailyTargetDates={};
     });
-    s.credits.forEach(c=>{ if(!Array.isArray(c.payments)) c.payments=[]; });
+    s.credits.forEach(c=>{
+      if(!Array.isArray(c.payments)) c.payments=[];
+      if(!c.milestones||typeof c.milestones!=='object') c.milestones={};
+    });
     return s;
   }
   function persistTracking(s){
@@ -108,6 +113,72 @@
     if(!active.length){status='Belum ada cicilan aktif';tone='neutral';note='Mulai pantau cicilan untuk melihat indikator keamanan.';}
     return {status,tone,note,available,obligations,after,ratio};
   }
+  function trimDailyMilestones(map,keep=60){const keys=Object.keys(map||{}).sort();while(keys.length>keep)delete map[keys.shift()];}
+  function businessMilestoneCard(b,st){
+    const planned=num(b.unitsPerDay),todayHit=planned>0&&st.currentDay.qty>=planned;
+    if(st.targetProfit>0&&st.targetPct>=100)return `<div class="v26st-milestone ultimate"><i data-lucide="trophy"></i><div><small>MILESTONE TERCAPAI</small><b>🏆 Target keuntungan tercapai</b><span>Target ${rp(st.targetProfit)} sudah tercapai. Sisihkan dana restock dan tentukan berapa laba yang mau ditabung atau diputar lagi.</span></div></div>`;
+    if(st.capital>0&&st.bepPct>=100)return `<div class="v26st-milestone bep"><i data-lucide="sparkles"></i><div><small>MILESTONE TERCAPAI</small><b>🎉 Balik modal tercapai</b><span>Modal berjalan sudah tertutup. Fokus berikutnya: jaga margin, stok, dan konsistensi penjualan.</span></div></div>`;
+    if(todayHit)return `<div class="v26st-milestone daily"><i data-lucide="target"></i><div><small>TARGET HARI INI</small><b>🎯 Target ${planned} pcs tercapai</b><span>Pertahankan ritmenya. Kalau konsisten beberapa hari, target adaptif bisa dinaikkan bertahap.</span></div></div>`;
+    return '';
+  }
+  function creditCompletionCard(c,st){
+    if(!st.lunas)return '';
+    return `<div class="v26st-milestone credit"><i data-lucide="party-popper"></i><div><small>SELESAI</small><b>🎉 ${esc(c.name||'Cicilan')} sudah lunas</b><span>Pembayaran baru dikunci untuk mencegah kelebihan input. Nominal cicilan ${rp(st.installment)}/bulan bisa dialihkan ke tabungan atau target berikutnya.</span></div></div>`;
+  }
+  function syncBusinessMilestones(id,dates=[],allowReset=true,seedOnly=false){
+    const dateList=[...new Set((Array.isArray(dates)?dates:[dates]).filter(Boolean))],events=[];let info=null;
+    setTracking(s=>{
+      const b=bizById(s,id);if(!b)return;
+      if(!b.milestones||typeof b.milestones!=='object')b.milestones={};
+      if(!b.milestones.dailyTargetDates||typeof b.milestones.dailyTargetDates!=='object')b.milestones.dailyTargetDates={};
+      const m=b.milestones,planned=num(b.unitsPerDay);
+      dateList.forEach(date=>{
+        const hit=planned>0&&dailyStats(b,date).qty>=planned;
+        if(hit&&!m.dailyTargetDates[date]){m.dailyTargetDates[date]=Date.now();addEvent(s,'milestone_daily',{businessId:id,businessName:b.name,date,target:planned});if(!seedOnly)events.push({type:'daily',date});}
+        else if(!hit&&allowReset&&m.dailyTargetDates[date])delete m.dailyTargetDates[date];
+      });
+      trimDailyMilestones(m.dailyTargetDates);
+      const st=businessStats(b),bepHit=st.capital>0&&st.bepPct>=100,profitHit=st.targetProfit>0&&st.targetPct>=100;
+      if(bepHit&&!m.bepReachedAt){m.bepReachedAt=Date.now();addEvent(s,'milestone_bep',{businessId:id,businessName:b.name});if(!seedOnly)events.push({type:'bep'});}
+      else if(!bepHit&&allowReset&&m.bepReachedAt)delete m.bepReachedAt;
+      if(profitHit&&!m.targetProfitReachedAt){m.targetProfitReachedAt=Date.now();addEvent(s,'milestone_profit',{businessId:id,businessName:b.name,targetProfit:st.targetProfit});if(!seedOnly)events.push({type:'profit'});}
+      else if(!profitHit&&allowReset&&m.targetProfitReachedAt)delete m.targetProfitReachedAt;
+      info={name:b.name||'Usaha',planned,st};
+    });
+    return {events,info};
+  }
+  function syncCreditMilestone(id,allowReset=true,seedOnly=false){
+    let result={newlyPaid:false,info:null};
+    setTracking(s=>{
+      const c=creditById(s,id);if(!c)return;
+      if(!c.milestones||typeof c.milestones!=='object')c.milestones={};
+      const st=creditStats(c),paid=st.lunas;
+      if(paid&&!c.milestones.paidAt){c.milestones.paidAt=Date.now();addEvent(s,'milestone_credit_paid',{creditId:id,creditName:c.name});result.newlyPaid=!seedOnly;}
+      else if(!paid&&allowReset&&c.milestones.paidAt)delete c.milestones.paidAt;
+      result.info={name:c.name||'Cicilan',st};
+    });
+    return result;
+  }
+  function showBusinessMilestonePopup(result){
+    if(!result?.events?.length||!result.info)return;
+    const hasProfit=result.events.some(x=>x.type==='profit'),hasBep=result.events.some(x=>x.type==='bep'),daily=result.events.find(x=>x.type==='daily');
+    const title=hasProfit?'🏆 Target keuntungan tercapai!':hasBep?'🎉 Balik modal tercapai!':'🎯 Target penjualan tercapai!';
+    const lines=[];
+    if(daily)lines.push(`<p><b>Target ${result.info.planned} pcs tercapai${daily.date?` pada ${esc(humanDate(daily.date))}`:''}.</b><br><span>Pertahankan ritme beberapa hari sebelum menaikkan target.</span></p>`);
+    if(hasBep)lines.push('<p><b>Modal berjalan sudah kembali.</b><br><span>Mulai pisahkan dana restock dari uang bebas.</span></p>');
+    if(hasProfit)lines.push(`<p><b>Target keuntungan ${rp(result.info.st.targetProfit)} sudah tercapai.</b><br><span>Pertimbangkan mengunci sebagian laba sebagai tabungan atau modal cadangan.</span></p>`);
+    Swal.fire({icon:'success',title,html:`<div class="v26st-swal-copy">${lines.join('')}</div>`,confirmButtonText:'Mantap!'});
+  }
+  function showCreditPaidPopup(result){
+    if(!result?.newlyPaid||!result.info)return;
+    Swal.fire({icon:'success',title:'🎉 Cicilan lunas!',html:`<div class="v26st-swal-copy"><p><b>${esc(result.info.name)} sudah selesai dibayar.</b></p><p>Pembayaran baru dikunci supaya tidak terjadi kelebihan catat. Riwayat tetap bisa diedit atau dihapus.</p><p>Nominal sekitar <b>${rp(result.info.st.installment)}/bulan</b> bisa dialihkan ke tabungan atau target berikutnya.</p></div>`,confirmButtonText:'Sip!'});
+  }
+  function seedExistingMilestones(){
+    const s=trackingState();
+    s.businesses.forEach(b=>syncBusinessMilestones(b.id,(b.sales||[]).map(x=>x.date),false,true));
+    s.credits.forEach(c=>syncCreditMilestone(c.id,false,true));
+  }
+
   function adaptiveTarget(b){
     const dates=[...new Set((b.sales||[]).map(x=>x.date).filter(Boolean))].sort().reverse().slice(0,7).sort(), rows=dates.map(d=>dailyStats(b,d)), current=num(b.unitsPerDay);
     if(rows.length<3)return {ready:false,rows,current,avg:0,suggested:current,meaningful:false};
@@ -164,6 +235,7 @@
     const st=businessStats(b),selected=s.selectedDates[b.id]||today(),month=s.calendarMonths[b.id]||selected.slice(0,7),d=dailyStats(b,selected),prev=dailyStats(b,shiftDate(selected,-1)),next=dailyStats(b,shiftDate(selected,1)),adaptive=adaptiveTarget(b),week=weeklyStats(b),reason=reasonInsight(b),metric=s.chartMetrics[b.id]||'qty';
     return `${picker}<div class="v26st-switcher">${s.businesses.map(x=>`<button class="${x.id===b.id?'active':''}" onclick="selectStableBusiness('${esc(x.id)}')">${esc(x.name)}</button>`).join('')}</div>
       <div class="v26st-kpis"><div><small>Hari ini</small><b>${st.currentDay.qty} / ${st.planned} pcs</b><span>${st.currentDay.qty>=st.planned?'Target tercapai':`Kurang ${Math.max(0,st.planned-st.currentDay.qty)} pcs`}</span></div><div><small>Profit hari ini</small><b>${rp(st.currentDay.profit)}</b><span>Omzet ${rp(st.currentDay.revenue)}</span></div><div><small>Sisa stok</small><b>${st.stock} unit</b><span>Restock ${st.restockCost?rp(st.restockCost):'belum ada'}</span></div><div><small>Balik modal</small><b>${st.bepPct.toFixed(0)}%</b><span>${st.remainingBep?`${st.remainingBep} unit lagi`:'Sudah tercapai'}</span></div></div>
+      ${businessMilestoneCard(b,st)}
       <div class="v26st-target-card"><div><small>TARGET KEUNTUNGAN</small><b>${st.targetProfit?rp(st.targetProfit):'Belum diatur'}</b><span>${st.targetProfit?`Dengan pace aktual: ${paceText(st.projectedTargetDays)} · saran harga di volume target ${rp(st.targetPrice)}`:'Atur target profit supaya aplikasi bisa menghitung kapan target tercapai.'}</span></div><button onclick="setStableBusinessTarget('${esc(b.id)}')">Atur target</button></div>
       ${adaptive.ready?`<div class="v26st-adaptive ${adaptive.meaningful?'active':''}"><div><small>TARGET ADAPTIF</small><b>${adaptive.meaningful?`Saran ${adaptive.suggested} pcs/hari`:'Target sekarang masih masuk akal'}</b><span>Rata-rata ${adaptive.rows.length} hari tercatat ${adaptive.avg.toFixed(1)} pcs/hari.</span></div>${adaptive.meaningful?`<button onclick="applyStableAdaptive('${esc(b.id)}',${adaptive.suggested})">Pakai saran</button>`:''}</div>`:'<div class="v26st-adaptive"><div><small>TARGET ADAPTIF</small><b>Butuh minimal 3 hari data</b><span>Hari 0 pcs tetap boleh dicatat supaya rata-rata jujur.</span></div></div>'}
       ${renderCalendar(b,month,selected)}
@@ -182,7 +254,7 @@
   function renderCredit(s){
     const saved=decisionState().credits||[],c=creditById(s,s.activeCreditId)||s.credits[0],safe=creditSafety(s);const picker=`<div class="v26st-picker"><select id="v26st-credit-source"><option value="">Pilih simulasi kredit tersimpan…</option>${saved.map(x=>`<option value="${esc(x.id)}">${esc(x.data?.name||'Kredit')}</option>`).join('')}</select><button onclick="startStableCredit()">Mulai pantau</button></div>`;
     if(!c)return `${picker}<div class="v26st-safety ${safe.tone}"><b>${safe.status}</b><span>${safe.note}</span></div><div class="v26st-empty"><b>Belum ada cicilan yang dipantau</b><span>Simpan simulasi kredit lalu mulai tracking.</span></div>`;
-    const st=creditStats(c);return `${picker}<div class="v26st-switcher">${s.credits.map(x=>`<button class="${x.id===c.id?'active':''}" onclick="selectStableCredit('${esc(x.id)}')">${esc(x.name)}</button>`).join('')}</div><div class="v26st-safety ${safe.tone}"><div><small>KEAMANAN CICILAN</small><b>${safe.status}</b><span>${safe.note}${safe.ratio!==null?` · total cicilan ${safe.ratio.toFixed(0)}% pemasukan bulan ini`:''}</span></div></div><div class="v26st-kpis"><div><small>Sudah dibayar</small><b>${rp(st.paid)}</b><span>${st.paidInstallments}/${st.months} cicilan</span></div><div><small>Sisa</small><b>${rp(st.remaining)}</b><span>${(100-st.pct).toFixed(0)}% tersisa</span></div><div><small>Bulanan</small><b>${rp(st.installment)}</b><span>Target pembayaran</span></div><div><small>Jatuh tempo</small><b>${st.lunas?'Lunas':humanDate(st.nextDue)}</b><span>${st.lunas?'Selesai':`Cicilan ke-${st.nextIndex}`}</span></div></div><div class="v26st-progress"><span style="width:${st.pct}%"></span></div><label class="v26st-due">Tanggal jatuh tempo tiap bulan <input type="number" min="1" max="31" value="${num(c.dueDay)||1}" onchange="changeStableDue('${esc(c.id)}',this.value)"></label><div class="v26st-actions"><button onclick="addStablePayment('${esc(c.id)}')"><i data-lucide="badge-check"></i> Catat pembayaran</button><button class="danger" onclick="deleteStableCredit('${esc(c.id)}')"><i data-lucide="trash-2"></i></button></div><div class="v26st-rows">${(c.payments||[]).length?[...c.payments].sort((a,z)=>String(z.date).localeCompare(String(a.date))).map(x=>`<div class="v26st-row"><div><b>${humanDate(x.date)}</b><span>${esc(x.note||'Cicilan')}</span></div><strong>${rp(x.amount)}</strong><button onclick="editStablePayment('${esc(c.id)}','${esc(x.id)}')"><i data-lucide="pencil"></i></button><button onclick="deleteStablePayment('${esc(c.id)}','${esc(x.id)}')"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26st-empty small">Belum ada pembayaran.</div>'}</div>`;
+    const st=creditStats(c);return `${picker}<div class="v26st-switcher">${s.credits.map(x=>`<button class="${x.id===c.id?'active':''}" onclick="selectStableCredit('${esc(x.id)}')">${esc(x.name)}</button>`).join('')}</div><div class="v26st-safety ${safe.tone}"><div><small>KEAMANAN CICILAN</small><b>${safe.status}</b><span>${safe.note}${safe.ratio!==null?` · total cicilan ${safe.ratio.toFixed(0)}% pemasukan bulan ini`:''}</span></div></div><div class="v26st-kpis"><div><small>Sudah dibayar</small><b>${rp(st.paid)}</b><span>${st.paidInstallments}/${st.months} cicilan</span></div><div><small>Sisa</small><b>${rp(st.remaining)}</b><span>${(100-st.pct).toFixed(0)}% tersisa</span></div><div><small>Bulanan</small><b>${rp(st.installment)}</b><span>Target pembayaran</span></div><div><small>Jatuh tempo</small><b>${st.lunas?'Lunas':humanDate(st.nextDue)}</b><span>${st.lunas?'Selesai':`Cicilan ke-${st.nextIndex}`}</span></div></div><div class="v26st-progress"><span style="width:${st.pct}%"></span></div>${creditCompletionCard(c,st)}${st.lunas?'':`<label class="v26st-due">Tanggal jatuh tempo tiap bulan <input type="number" min="1" max="31" value="${num(c.dueDay)||1}" onchange="changeStableDue('${esc(c.id)}',this.value)"></label>`}<div class="v26st-actions">${st.lunas?`<button class="v26st-paid-lock" disabled><i data-lucide="badge-check"></i> Lunas · pembayaran dikunci</button>`:`<button onclick="addStablePayment('${esc(c.id)}')"><i data-lucide="badge-check"></i> Catat pembayaran</button>`}<button class="danger" onclick="deleteStableCredit('${esc(c.id)}')"><i data-lucide="trash-2"></i></button></div><div class="v26st-rows">${(c.payments||[]).length?[...c.payments].sort((a,z)=>String(z.date).localeCompare(String(a.date))).map(x=>`<div class="v26st-row"><div><b>${humanDate(x.date)}</b><span>${esc(x.note||'Cicilan')}</span></div><strong>${rp(x.amount)}</strong><button onclick="editStablePayment('${esc(c.id)}','${esc(x.id)}')"><i data-lucide="pencil"></i></button><button onclick="deleteStablePayment('${esc(c.id)}','${esc(x.id)}')"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26st-empty small">Belum ada pembayaran.</div>'}</div>`;
   }
 
   function drawChart(){
@@ -205,23 +277,73 @@
   window.shiftStableMonth=(id,delta)=>{setTracking(s=>{const cur=s.calendarMonths[id]||today().slice(0,7),next=shiftMonth(cur,Number(delta)||0);s.calendarMonths[id]=next;if(!(s.selectedDates[id]||'').startsWith(next))s.selectedDates[id]=`${next}-01`;});render();};
   window.todayStableDate=id=>{setTracking(s=>{s.selectedDates[id]=today();s.calendarMonths[id]=today().slice(0,7);});render();};
   window.setStableMetric=(id,metric)=>{setTracking(s=>{s.chartMetrics[id]=['qty','revenue','profit'].includes(metric)?metric:'qty';});render();};
-  window.setStableBusinessTarget=async id=>{const s=trackingState(),b=bizById(s,id);if(!b)return;const r=await Swal.fire({title:'Atur target bisnis',html:`<div class="v26st-modal"><label>Target keuntungan<input id="st-profit" type="number" min="0" inputmode="numeric" value="${num(b.targetProfit)}"></label><label>Target penjualan / hari<input id="st-day" type="number" min="1" step="1" value="${num(b.unitsPerDay)||1}"></label></div>`,showCancelButton:true,confirmButtonText:'Simpan',cancelButtonText:'Batal',preConfirm:()=>({profit:moneyNum(document.getElementById('st-profit').value),day:Math.max(1,Math.round(Number(document.getElementById('st-day').value)||1))})});if(!r.isConfirmed)return;setTracking(x=>{const z=bizById(x,id);z.targetProfit=r.value.profit;z.unitsPerDay=r.value.day;z.targetAdjustments.push({at:Date.now(),from:num(b.unitsPerDay),to:r.value.day,source:'manual'});addEvent(x,'target_change',{businessId:id,businessName:z.name,targetProfit:z.targetProfit,unitsPerDay:z.unitsPerDay});});render();};
-  window.applyStableAdaptive=(id,target)=>{setTracking(s=>{const b=bizById(s,id);if(!b)return;const from=num(b.unitsPerDay);b.unitsPerDay=Math.max(1,Math.round(Number(target)||1));b.targetAdjustments.push({at:Date.now(),from,to:b.unitsPerDay,source:'adaptive'});addEvent(s,'target_change',{businessId:id,businessName:b.name,targetProfit:num(b.targetProfit),unitsPerDay:b.unitsPerDay,from});});render();};
-  window.addStableSale=async(id,date)=>{const b=bizById(trackingState(),id);if(!b)return;const v=await askSale('Catat penjualan',b,{},date);if(!v)return;setTracking(s=>{const x=bizById(s,id),row={id:uid('sale'),...v,createdAt:Date.now(),updatedAt:Date.now()};x.sales.push(row);s.selectedDates[id]=v.date;s.calendarMonths[id]=v.date.slice(0,7);addEvent(s,'sale_add',{businessId:id,businessName:x.name,row,profit:v.revenue-v.qty*num(x.hpp)});});render();};
-  window.editStableSale=async(id,eid)=>{const s=trackingState(),b=bizById(s,id),row=b?.sales.find(x=>x.id===eid);if(!row)return;const v=await askSale('Edit penjualan',b,row,row.date);if(!v)return;setTracking(x=>{const biz=bizById(x,id),r=biz.sales.find(z=>z.id===eid);Object.assign(r,v,{updatedAt:Date.now()});x.selectedDates[id]=v.date;x.calendarMonths[id]=v.date.slice(0,7);addEvent(x,'sale_edit',{businessId:id,businessName:biz.name,row:clone(r),profit:v.revenue-v.qty*num(biz.hpp)});});render();};
-  window.deleteStableSale=async(id,eid)=>{const s=trackingState(),b=bizById(s,id),row=b?.sales.find(x=>x.id===eid);if(!row)return;const r=await Swal.fire({title:'Hapus penjualan?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setTracking(x=>{const biz=bizById(x,id);biz.sales=biz.sales.filter(z=>z.id!==eid);addEvent(x,'sale_delete',{businessId:id,businessName:biz.name,row:clone(row)});});render();};
-  window.addStableStock=async id=>{const b=bizById(trackingState(),id);if(!b)return;const v=await askStock('Tambah stok',b);if(!v)return;setTracking(s=>{const x=bizById(s,id),row={id:uid('stock'),...v,createdAt:Date.now(),updatedAt:Date.now()};x.stockAdds.push(row);addEvent(s,'stock_add',{businessId:id,businessName:x.name,row});});render();};
-  window.editStableStock=async(id,eid)=>{const s=trackingState(),b=bizById(s,id),row=b?.stockAdds.find(x=>x.id===eid);if(!row)return;const v=await askStock('Edit restock',b,row);if(!v)return;setTracking(x=>{const biz=bizById(x,id),r=biz.stockAdds.find(z=>z.id===eid);Object.assign(r,v,{updatedAt:Date.now()});addEvent(x,'stock_edit',{businessId:id,businessName:biz.name,row:clone(r)});});render();};
-  window.deleteStableStock=async(id,eid)=>{const s=trackingState(),b=bizById(s,id),row=b?.stockAdds.find(x=>x.id===eid);if(!row)return;const r=await Swal.fire({title:'Hapus restock?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setTracking(x=>{const biz=bizById(x,id);biz.stockAdds=biz.stockAdds.filter(z=>z.id!==eid);addEvent(x,'stock_delete',{businessId:id,businessName:biz.name,row:clone(row)});});render();};
-  window.deleteStableBusiness=async id=>{const r=await Swal.fire({title:'Hapus tracking bisnis?',text:'Skenario asli tetap aman.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setTracking(s=>{const b=bizById(s,id);s.businesses=s.businesses.filter(x=>x.id!==id);delete s.selectedDates[id];delete s.calendarMonths[id];delete s.chartMetrics[id];s.activeBusinessId=s.businesses[0]?.id||'';if(b)addEvent(s,'business_delete',{businessId:id,businessName:b.name});});render();};
-  window.addStablePayment=async id=>{const c=creditById(trackingState(),id);if(!c)return;const v=await askPayment('Catat pembayaran',c);if(!v)return;setTracking(s=>{const x=creditById(s,id),row={id:uid('pay'),...v,createdAt:Date.now(),updatedAt:Date.now()};x.payments.push(row);addEvent(s,'payment_add',{creditId:id,creditName:x.name,row});});render();};
-  window.editStablePayment=async(id,eid)=>{const s=trackingState(),c=creditById(s,id),row=c?.payments.find(x=>x.id===eid);if(!row)return;const v=await askPayment('Edit pembayaran',c,row);if(!v)return;setTracking(x=>{const cr=creditById(x,id),r=cr.payments.find(z=>z.id===eid);Object.assign(r,v,{updatedAt:Date.now()});addEvent(x,'payment_edit',{creditId:id,creditName:cr.name,row:clone(r)});});render();};
-  window.deleteStablePayment=async(id,eid)=>{const s=trackingState(),c=creditById(s,id),row=c?.payments.find(x=>x.id===eid);if(!row)return;const r=await Swal.fire({title:'Hapus pembayaran?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setTracking(x=>{const cr=creditById(x,id);cr.payments=cr.payments.filter(z=>z.id!==eid);addEvent(x,'payment_delete',{creditId:id,creditName:cr.name,row:clone(row)});});render();};
+  window.setStableBusinessTarget=async id=>{
+    const s=trackingState(),b=bizById(s,id);if(!b)return;
+    const r=await Swal.fire({title:'Atur target bisnis',html:`<div class="v26st-modal"><label>Target keuntungan<input id="st-profit" type="number" min="0" inputmode="numeric" value="${num(b.targetProfit)}"></label><label>Target penjualan / hari<input id="st-day" type="number" min="1" step="1" value="${num(b.unitsPerDay)||1}"></label></div>`,showCancelButton:true,confirmButtonText:'Simpan',cancelButtonText:'Batal',preConfirm:()=>({profit:moneyNum(document.getElementById('st-profit').value),day:Math.max(1,Math.round(Number(document.getElementById('st-day').value)||1))})});if(!r.isConfirmed)return;
+    setTracking(x=>{const z=bizById(x,id);const from=num(z.unitsPerDay);z.targetProfit=r.value.profit;z.unitsPerDay=r.value.day;z.targetAdjustments.push({at:Date.now(),from,to:r.value.day,source:'manual'});addEvent(x,'target_change',{businessId:id,businessName:z.name,targetProfit:z.targetProfit,unitsPerDay:z.unitsPerDay});});
+    syncBusinessMilestones(id,[today()],true,true);render();
+  };
+  window.applyStableAdaptive=(id,target)=>{
+    setTracking(s=>{const b=bizById(s,id);if(!b)return;const from=num(b.unitsPerDay);b.unitsPerDay=Math.max(1,Math.round(Number(target)||1));b.targetAdjustments.push({at:Date.now(),from,to:b.unitsPerDay,source:'adaptive'});addEvent(s,'target_change',{businessId:id,businessName:b.name,targetProfit:num(b.targetProfit),unitsPerDay:b.unitsPerDay,from});});
+    syncBusinessMilestones(id,[today()],true,true);render();
+  };
+  window.addStableSale=async(id,date)=>{
+    const b=bizById(trackingState(),id);if(!b)return;const v=await askSale('Catat penjualan',b,{},date);if(!v)return;
+    setTracking(s=>{const x=bizById(s,id),row={id:uid('sale'),...v,createdAt:Date.now(),updatedAt:Date.now()};x.sales.push(row);s.selectedDates[id]=v.date;s.calendarMonths[id]=v.date.slice(0,7);addEvent(s,'sale_add',{businessId:id,businessName:x.name,row,profit:v.revenue-v.qty*num(x.hpp)});});
+    const milestone=syncBusinessMilestones(id,[v.date],true,false);render();showBusinessMilestonePopup(milestone);
+  };
+  window.editStableSale=async(id,eid)=>{
+    const s=trackingState(),b=bizById(s,id),row=b?.sales.find(x=>x.id===eid);if(!row)return;const oldDate=row.date;const v=await askSale('Edit penjualan',b,row,row.date);if(!v)return;
+    setTracking(x=>{const biz=bizById(x,id),r=biz.sales.find(z=>z.id===eid);Object.assign(r,v,{updatedAt:Date.now()});x.selectedDates[id]=v.date;x.calendarMonths[id]=v.date.slice(0,7);addEvent(x,'sale_edit',{businessId:id,businessName:biz.name,row:clone(r),profit:v.revenue-v.qty*num(biz.hpp)});});
+    const milestone=syncBusinessMilestones(id,[oldDate,v.date],true,false);render();showBusinessMilestonePopup(milestone);
+  };
+  window.deleteStableSale=async(id,eid)=>{
+    const s=trackingState(),b=bizById(s,id),row=b?.sales.find(x=>x.id===eid);if(!row)return;const r=await Swal.fire({title:'Hapus penjualan?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;
+    setTracking(x=>{const biz=bizById(x,id);biz.sales=biz.sales.filter(z=>z.id!==eid);addEvent(x,'sale_delete',{businessId:id,businessName:biz.name,row:clone(row)});});
+    syncBusinessMilestones(id,[row.date],true,true);render();
+  };
+  window.addStableStock=async id=>{
+    const b=bizById(trackingState(),id);if(!b)return;const v=await askStock('Tambah stok',b);if(!v)return;
+    setTracking(s=>{const x=bizById(s,id),row={id:uid('stock'),...v,createdAt:Date.now(),updatedAt:Date.now()};x.stockAdds.push(row);addEvent(s,'stock_add',{businessId:id,businessName:x.name,row});});
+    syncBusinessMilestones(id,[],true,true);render();
+  };
+  window.editStableStock=async(id,eid)=>{
+    const s=trackingState(),b=bizById(s,id),row=b?.stockAdds.find(x=>x.id===eid);if(!row)return;const v=await askStock('Edit restock',b,row);if(!v)return;
+    setTracking(x=>{const biz=bizById(x,id),r=biz.stockAdds.find(z=>z.id===eid);Object.assign(r,v,{updatedAt:Date.now()});addEvent(x,'stock_edit',{businessId:id,businessName:biz.name,row:clone(r)});});
+    syncBusinessMilestones(id,[],true,true);render();
+  };
+  window.deleteStableStock=async(id,eid)=>{
+    const s=trackingState(),b=bizById(s,id),row=b?.stockAdds.find(x=>x.id===eid);if(!row)return;const r=await Swal.fire({title:'Hapus restock?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;
+    setTracking(x=>{const biz=bizById(x,id);biz.stockAdds=biz.stockAdds.filter(z=>z.id!==eid);addEvent(x,'stock_delete',{businessId:id,businessName:biz.name,row:clone(row)});});
+    syncBusinessMilestones(id,[],true,true);render();
+  };
+  window.deleteStableBusiness=async id=>{
+    const r=await Swal.fire({title:'Hapus tracking bisnis?',text:'Skenario asli tetap aman.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;
+    setTracking(s=>{const b=bizById(s,id);s.businesses=s.businesses.filter(x=>x.id!==id);delete s.selectedDates[id];delete s.calendarMonths[id];delete s.chartMetrics[id];s.activeBusinessId=s.businesses[0]?.id||'';if(b)addEvent(s,'business_delete',{businessId:id,businessName:b.name});});render();
+  };
+  window.addStablePayment=async id=>{
+    const c=creditById(trackingState(),id);if(!c)return;const before=creditStats(c);if(before.lunas)return Swal.fire('Cicilan sudah lunas 🎉','Pembayaran baru dikunci. Riwayat tetap bisa diedit atau dihapus.','success');
+    const v=await askPayment('Catat pembayaran',c);if(!v)return;
+    const amount=moneyNum(v.amount),maxAllowed=Math.max(1,Math.ceil(before.remaining));if(amount>maxAllowed)return Swal.fire('Nominal terlalu besar',`Sisa cicilan hanya ${rp(before.remaining)}. Maksimum pembayaran terakhir ${rp(maxAllowed)}.`,'warning');
+    setTracking(s=>{const x=creditById(s,id),row={id:uid('pay'),...v,amount,createdAt:Date.now(),updatedAt:Date.now()};x.payments.push(row);addEvent(s,'payment_add',{creditId:id,creditName:x.name,row});});
+    const milestone=syncCreditMilestone(id,true,false);render();showCreditPaidPopup(milestone);
+  };
+  window.editStablePayment=async(id,eid)=>{
+    const s=trackingState(),c=creditById(s,id),row=c?.payments.find(x=>x.id===eid);if(!row)return;const v=await askPayment('Edit pembayaran',c,row);if(!v)return;
+    const amount=moneyNum(v.amount),st=creditStats(c),otherPaid=Math.max(0,st.paid-num(row.amount)),maxAllowed=Math.max(1,Math.ceil(st.total-otherPaid));if(amount>maxAllowed)return Swal.fire('Nominal terlalu besar',`Dengan pembayaran lain yang sudah ada, catatan ini maksimal ${rp(maxAllowed)}.`,'warning');
+    setTracking(x=>{const cr=creditById(x,id),r=cr.payments.find(z=>z.id===eid);Object.assign(r,v,{amount,updatedAt:Date.now()});addEvent(x,'payment_edit',{creditId:id,creditName:cr.name,row:clone(r)});});
+    const milestone=syncCreditMilestone(id,true,false);render();showCreditPaidPopup(milestone);
+  };
+  window.deleteStablePayment=async(id,eid)=>{
+    const s=trackingState(),c=creditById(s,id),row=c?.payments.find(x=>x.id===eid);if(!row)return;const r=await Swal.fire({title:'Hapus pembayaran?',text:'Kalau cicilan jadi belum lunas, input pembayaran akan terbuka kembali otomatis.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;
+    setTracking(x=>{const cr=creditById(x,id);cr.payments=cr.payments.filter(z=>z.id!==eid);addEvent(x,'payment_delete',{creditId:id,creditName:cr.name,row:clone(row)});});
+    syncCreditMilestone(id,true,true);render();
+  };
   window.changeStableDue=(id,v)=>{setTracking(s=>{const c=creditById(s,id);if(c)c.dueDay=Math.max(1,Math.min(31,Number(v)||1));});};
   window.deleteStableCredit=async id=>{const r=await Swal.fire({title:'Hapus tracking cicilan?',text:'Simulasi asli tetap aman.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setTracking(s=>{const c=creditById(s,id);s.credits=s.credits.filter(x=>x.id!==id);s.activeCreditId=s.credits[0]?.id||'';if(c)addEvent(s,'credit_delete',{creditId:id,creditName:c.name});});render();};
   window.getStableTrackingData=()=>trackingState();
   window.refreshStableTracking=()=>{if(document.getElementById('v26-stable-tracking')?.open)render();};
 
-  function boot(){wrapNav();ensureMount();}
+  function boot(){seedExistingMilestones();wrapNav();ensureMount();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,100),{once:true});else setTimeout(boot,100);
 })();
