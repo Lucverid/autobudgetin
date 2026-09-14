@@ -173,8 +173,10 @@
   function inject() {
     const lab = document.getElementById('v26-decision-lab'); if (!lab) return;
     let card = document.getElementById('v27-tracking');
+    // IMPORTANT: jangan paksa memindahkan card yang sudah ada.
+    // Financial Plan punya observer/layout sendiri. Memindahkan node di setiap mutation
+    // dapat membuat dua observer saling memicu dan mengunci main thread browser.
     if (!card) { card = document.createElement('div'); card.id = 'v27-tracking'; card.className = 'card v27-card'; lab.insertAdjacentElement('afterend', card); }
-    else if (lab.nextElementSibling !== card) lab.insertAdjacentElement('afterend', card);
     render();
   }
   function render() {
@@ -320,6 +322,18 @@
   window.getV27TrackingData = () => state();
   window.refreshTrackingV27 = () => render();
 
-  function init() { inject(); setTimeout(inject, 400); setTimeout(inject, 1100); const host = document.getElementById('v2531-planning-host'); if (host) new MutationObserver(() => inject()).observe(host, { childList: true }); }
+  function init() {
+    inject();
+    setTimeout(inject, 400);
+    setTimeout(inject, 1100);
+    const host = document.getElementById('v2531-planning-host');
+    if (host) {
+      // Observer hanya bertugas memulihkan card jika host Planning di-render ulang.
+      // Jangan render/memindahkan card untuk setiap perubahan child lain.
+      new MutationObserver(() => {
+        if (!document.getElementById('v27-tracking')) inject();
+      }).observe(host, { childList: true });
+    }
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(init, 280), { once: true }); else setTimeout(init, 280);
 })();

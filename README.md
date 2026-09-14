@@ -1,13 +1,16 @@
-# AutoBudgetin v27.5.2 — Emergency Recovery Hotfix
+# AutoBudgetin v27.5.4 SAFE — Freeze Hotfix
 
-Hotfix untuk regresi setelah v27.5.1:
-- mencegah cloud kosong menimpa state lokal yang masih berisi data;
-- menyimpan last-good local snapshot sebelum overwrite;
-- jika snapshot utama kosong, mencoba recovery copy/legacy snapshot;
-- memperkeras bottom navigation di mobile;
-- mencegah feature-sheet transparan menangkap tap saat tidak dibuka;
-- bump cache PWA dan cache-buster asset penting ke v27.5.2.
+Base: v27.5.3 SAFE (core tetap v27.4.0 stable).
 
-Upload hanya `index.html` dan `service-worker.js`. Backend Telegram tidak berubah, jadi Apps Script tidak perlu deploy ulang.
+Perbaikan:
+- Menghapus pemindahan paksa `#v27-tracking` setiap MutationObserver aktif.
+- Observer tracking sekarang hanya reinject jika card tracking benar-benar hilang.
+- Mencegah loop antar observer Financial Plan yang bisa mengunci main thread dan memunculkan "Halaman Tidak Merespons".
+- Bump asset query + Service Worker cache supaya browser tidak memakai JS lama.
 
-PENTING: jangan Clear site data / Hapus data situs sebelum mencoba hotfix ini, karena recovery membaca localStorage lama.
+Upload/replace ke root repo:
+1. `index.html`
+2. `service-worker.js`
+3. `v27-tracking.js`
+
+Tidak perlu ubah Apps Script Telegram, `v27-safe-bridge.js`, CSS, atau file core v27.4 lainnya.
