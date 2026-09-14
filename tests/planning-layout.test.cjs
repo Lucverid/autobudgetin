@@ -184,18 +184,46 @@ test('removing and reinserting the lab settles without creating duplicate cards'
 
 test('patched scripts bypass old cache URLs and are precached for offline use', () => {
   const html = read('index.html');
-  const shell = vm.runInNewContext(read('service-worker.js') + '\n({CACHE_NAME, APP_SHELL});', {
+  const shell = vm.runInNewContext(read('service-worker.js') + '\n({CACHE_PREFIX, CACHE_NAME, APP_SHELL});', {
     self: { addEventListener() {} }
   });
-  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-1-planning-fix');
-  for (const file of ['v25-3-3-financial-plan.js', 'v26-decision-lab.js']) {
-    const url = './' + file + '?v=26.0.1';
-    assert.ok(html.includes('src="' + url + '"'), 'versioned HTML reference: ' + file);
-    assert.ok(shell.APP_SHELL.includes(url), 'offline cache reference: ' + file);
+  assert.equal(shell.CACHE_PREFIX, 'agis-finance-');
+  assert.equal(shell.CACHE_NAME, 'agis-finance-v27-5-4-recovery-r1');
+  for (const url of [
+    './v25-3-3-financial-plan.js?v=26.0.1',
+    './v26-decision-lab.js?v=26.0.1',
+    './v27-tracking.js?v=27.5.4-recovery',
+    './v27-safe-bridge.js?v=27.5.4-recovery'
+  ]) {
+    assert.ok(html.includes('src="' + url + '"'), 'versioned HTML reference: ' + url);
+    assert.ok(shell.APP_SHELL.includes(url), 'offline cache reference: ' + url);
   }
   for (const match of html.matchAll(/(?:src|href)="(\.\/[^\"]+)"/g)) {
     assert.ok(fs.existsSync(path.join(ROOT, match[1].split('?')[0])), 'asset exists: ' + match[1]);
     assert.ok(shell.APP_SHELL.includes(match[1]), 'HTML asset is precached: ' + match[1]);
   }
   for (const url of shell.APP_SHELL) assert.ok(fs.existsSync(path.join(ROOT, url.split('?')[0])), url);
+});
+
+test('service worker activation keeps unrelated origin caches intact', async () => {
+  const listeners = {};
+  const deleted = [];
+  let activation;
+  const sandbox = {
+    self: {
+      addEventListener(type, handler) { listeners[type] = handler; },
+      skipWaiting() {},
+      clients: { claim: async () => {} },
+      location: { origin: 'https://example.test' }
+    },
+    caches: {
+      async keys() { return ['other-project-cache', 'agis-finance-old-build', 'agis-finance-v27-5-4-recovery-r1']; },
+      async delete(key) { deleted.push(key); return true; }
+    },
+    URL, Promise
+  };
+  vm.runInNewContext(read('service-worker.js'), sandbox, { filename: 'service-worker.js' });
+  listeners.activate({ waitUntil(promise) { activation = promise; } });
+  await activation;
+  assert.deepEqual([...deleted], ['agis-finance-old-build']);
 });
