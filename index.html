@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v27.5.2</title>
+    <title>Agis Finance AI - v27.5.3 SAFE</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -265,8 +265,8 @@
     <link rel="stylesheet" href="./v25-3-10-health-engine.css">
     <link rel="stylesheet" href="./v25-5-17-easter-egg.css">
     <link rel="stylesheet" href="./v26-decision-lab.css">
-    <link rel="stylesheet" href="./v27-tracking.css?v=27.5.2">
-    <style id="v2731-feature-switcher-inline-style">
+    <link rel="stylesheet" href="./v27-tracking.css?v=27.5.3-safe">
+    <style id="v2731-feature-switcher-inline">
 /* v27.3 — compact Financial Plan feature switcher */
 #planning .v273-feature-switcher{
   width:100%;
@@ -299,8 +299,6 @@
 .v273-sheet{position:relative;width:min(680px,100%);max-height:min(78vh,720px);overflow:auto;border:1px solid var(--border);border-radius:26px 26px 20px 20px;background:var(--card-bg,#111827);box-shadow:0 -18px 55px rgba(0,0,0,.35);padding:10px 16px 18px;transform:translateY(24px);opacity:0;transition:transform .2s ease,opacity .18s ease;pointer-events:auto}
 .v273-sheet-wrap.open .v273-sheet-backdrop{opacity:1}
 .v273-sheet-wrap.open .v273-sheet{transform:none;opacity:1}
-.v273-sheet-wrap:not(.open) .v273-sheet-backdrop,.v273-sheet-wrap:not(.open) .v273-sheet{pointer-events:none!important}
-.nav-bar,.calc-toggle{pointer-events:auto!important}
 .v273-sheet-grab{width:46px;height:5px;border-radius:999px;background:rgba(148,163,184,.34);margin:0 auto 12px}
 .v273-sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
 .v273-sheet-head>div{display:grid;gap:3px}
@@ -724,7 +722,6 @@ body.v273-sheet-open{overflow:hidden}
     let syncInProgress = false;
     let lastSyncError = '';
     const LOCAL_SNAPSHOT_KEY = 'agis_finance_snapshot_v24';
-    const RECOVERY_SNAPSHOT_KEY = 'agis_finance_snapshot_v24_recovery_v2752';
     const LEGACY_SNAPSHOT_KEYS = ['agis_finance_snapshot_v23', 'agis_finance_snapshot_v22', 'agis_finance_snapshot_v21', 'agis_finance_snapshot_v20_1'];
     const OUTBOX_KEY = 'agis_finance_outbox_v21';
     const PIN_KEY = 'agis_finance_pin_v23';
@@ -748,28 +745,6 @@ body.v273-sheet-open{overflow:hidden}
             Bank: Number(wallets.Bank) || 0,
             "E-Wallet": Number(wallets["E-Wallet"]) || 0
         };
-    }
-
-    function snapshotHasMeaningfulData(data = {}) {
-        const wallets = normalizeWallets(data.wallets || {});
-        const walletValue = Object.values(wallets).some(v => Math.abs(Number(v) || 0) > 0);
-        const listValue = ['trans','incomes','transfers','goals','recurring','audit'].some(k => Array.isArray(data[k]) && data[k].length > 0);
-        const limitValue = data.limits && typeof data.limits === 'object' && Object.values(data.limits).some(v => Math.abs(Number(v) || 0) > 0);
-        return walletValue || listValue || limitValue || Math.abs(Number(data.goal) || 0) > 0;
-    }
-
-    function safeParseSnapshot(raw) {
-        if (!raw) return null;
-        try { const value = JSON.parse(raw); return value && typeof value === 'object' ? value : null; }
-        catch { return null; }
-    }
-
-    function shouldKeepLocalList(incoming, current) {
-        return Array.isArray(incoming) && incoming.length === 0 && Array.isArray(current) && current.length > 0;
-    }
-
-    function walletHasValue(wallets = {}) {
-        return Object.values(normalizeWallets(wallets)).some(v => Math.abs(Number(v) || 0) > 0);
     }
 
     function auditEvent(action, detail = '', meta = {}) {
@@ -868,11 +843,6 @@ body.v273-sheet-open{overflow:hidden}
     // Tujuannya: setelah reload tanpa internet, saldo terakhir langsung tersedia dan tidak kembali ke Rp 0.
     function persistLocalSnapshot() {
         try {
-            // Simpan satu salinan terakhir yang masih berisi data sebelum snapshot utama ditimpa.
-            // Ini mencegah respons cloud kosong menghapus satu-satunya state lokal yang valid.
-            const previousRaw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
-            const previous = safeParseSnapshot(previousRaw);
-            if (previousRaw && snapshotHasMeaningfulData(previous)) localStorage.setItem(RECOVERY_SNAPSHOT_KEY, previousRaw);
             localSnapshotSavedAt = Date.now();
             localStorage.setItem(LOCAL_SNAPSHOT_KEY, JSON.stringify({
                 wallets: normalizeWallets(store.wallets),
@@ -894,21 +864,15 @@ body.v273-sheet-open{overflow:hidden}
 
     function restoreLocalSnapshot() {
         try {
-            const currentRaw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
-            const current = safeParseSnapshot(currentRaw);
-            let cached = current;
-            let source = 'current';
-            // Kalau snapshot utama mendadak kosong, coba recovery copy lalu snapshot legacy.
-            if (!snapshotHasMeaningfulData(current)) {
-                const candidates = [
-                    { source:'recovery', value:safeParseSnapshot(localStorage.getItem(RECOVERY_SNAPSHOT_KEY)) },
-                    ...LEGACY_SNAPSHOT_KEYS.map(key => ({ source:key, value:safeParseSnapshot(localStorage.getItem(key)) }))
-                ].filter(x => snapshotHasMeaningfulData(x.value));
-                candidates.sort((a,b) => Number(b.value?.savedAt || 0) - Number(a.value?.savedAt || 0));
-                if (candidates.length) { cached = candidates[0].value; source = candidates[0].source; }
+            let raw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
+            if (!raw) {
+                for (const key of LEGACY_SNAPSHOT_KEYS) {
+                    raw = localStorage.getItem(key);
+                    if (raw) break;
+                }
             }
-            if (!cached) return false;
-            if (source !== 'current') console.warn(`[v27.5.2] Snapshot utama kosong; memulihkan data dari ${source}.`);
+            if (!raw) return false;
+            const cached = JSON.parse(raw);
             store.wallets = normalizeWallets(cached.wallets);
             store.goal = Number(cached.goal) || 0;
             store.limits = cached.limits && typeof cached.limits === 'object' ? cached.limits : {};
@@ -1030,29 +994,14 @@ body.v273-sheet-open{overflow:hidden}
                 db.collection('goals').get({ source: 'server' }),
                 db.collection('recurring').get({ source: 'server' })
             ]);
-            if (walletSnap.exists) {
-                const incomingWallets = normalizeWallets(walletSnap.data());
-                if (!(walletHasValue(store.wallets) && !walletHasValue(incomingWallets))) store.wallets = incomingWallets;
-                else console.warn('[v27.5.2] Wallet cloud kosong diabaikan untuk melindungi saldo lokal.');
-            }
-            if (goalSnap.exists) {
-                const incomingGoal = Number(goalSnap.data().amount) || 0;
-                if (!(Number(store.goal) > 0 && incomingGoal === 0)) store.goal = incomingGoal;
-            }
-            if (limitsSnap.exists) {
-                const {updatedAt,deviceId,...limitData}=limitsSnap.data()||{};
-                if (!(Object.keys(store.limits||{}).length && !Object.keys(limitData).length)) store.limits=limitData;
-            }
-            const incomingTrans = expenseSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            const incomingIncomes = incomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            const incomingTransfers = transferSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            const incomingGoals = goalsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            const incomingRecurring = recurringSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            if (!shouldKeepLocalList(incomingTrans, store.trans)) store.trans = incomingTrans;
-            if (!shouldKeepLocalList(incomingIncomes, store.incomes)) store.incomes = incomingIncomes;
-            if (!shouldKeepLocalList(incomingTransfers, store.transfers)) store.transfers = incomingTransfers;
-            if (!shouldKeepLocalList(incomingGoals, store.goals)) store.goals = incomingGoals;
-            if (!shouldKeepLocalList(incomingRecurring, store.recurring)) store.recurring = incomingRecurring;
+            if (walletSnap.exists) store.wallets = normalizeWallets(walletSnap.data());
+            if (goalSnap.exists) store.goal = Number(goalSnap.data().amount) || 0;
+            if (limitsSnap.exists) { const {updatedAt,deviceId,...limitData}=limitsSnap.data()||{}; store.limits=limitData; }
+            store.trans = expenseSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.incomes = incomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.transfers = transferSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.goals = goalsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            store.recurring = recurringSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             if (store.goals.length) recomputeReservedGoal(false);
             persistLocalSnapshot();
             renderAll();
@@ -1283,12 +1232,10 @@ body.v273-sheet-open{overflow:hidden}
     setTimeout(hideSplash, 4000);
 
     window.nav = (id, el) => {
-        const target = document.getElementById(id);
-        if (!target) { console.warn('[nav] Halaman tidak ditemukan:', id); return false; }
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         const navItems = [...document.querySelectorAll('.nav-item')];
         navItems.forEach(n => n.classList.remove('active'));
-        target.classList.add('active');
+        document.getElementById(id).classList.add('active');
 
         if (el) {
             el.classList.add('active');
@@ -1308,20 +1255,7 @@ body.v273-sheet-open{overflow:hidden}
                 transactionDate.dataset.autoDate = today;
             }
         }
-        return true;
     };
-
-    // Fallback navigasi untuk browser mobile jika inline onclick tertahan oleh state UI lama.
-    if (!window.__v2752NavGuard) {
-        window.__v2752NavGuard = true;
-        document.addEventListener('click', (event) => {
-            const item = event.target.closest?.('.nav-item[aria-label]');
-            if (!item) return;
-            const map = { Home:'home', Riwayat:'history', 'Catat transaksi':'add', Planning:'planning', Pengaturan:'settings' };
-            const id = map[item.getAttribute('aria-label')];
-            if (id && !document.getElementById(id)?.classList.contains('active')) window.nav(id, item);
-        }, true);
-    }
 
     window.togglePrivacy = () => {
         const isBlur = document.body.classList.toggle('blur-active');
@@ -1688,7 +1622,7 @@ body.v273-sheet-open{overflow:hidden}
         const file=event.target.files?.[0]; event.target.value=''; if(!file)return;
         try{
             const raw=await file.text(); const parsed=JSON.parse(raw); const migrated=migrateBackupPayload(parsed); const d=migrated.data;
-            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v27 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v25 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
             store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit;
             if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}));}catch{}}
             if(d.v26){try{localStorage.setItem('agis_finance_v26_decision_lab',JSON.stringify(d.v26));}catch{}}
@@ -2404,11 +2338,8 @@ body.v273-sheet-open{overflow:hidden}
         db.collection('config').doc('wallets').onSnapshot({ includeMetadataChanges: true }, (s) => {
             // Jangan timpa saldo optimistik selama masih ada transaksi di durable outbox.
             if(s.exists && readOutbox().length === 0) {
-                const incoming = normalizeWallets(s.data());
-                if (!(walletHasValue(store.wallets) && !walletHasValue(incoming))) {
-                    store.wallets = incoming;
-                    persistLocalSnapshot();
-                } else console.warn('[v27.5.2] Wallet cloud kosong diabaikan untuk melindungi saldo lokal.');
+                store.wallets = normalizeWallets(s.data());
+                persistLocalSnapshot();
             }
             renderAll();
         }, err => console.warn('Wallet listener:', err));
@@ -2416,10 +2347,7 @@ body.v273-sheet-open{overflow:hidden}
         db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
             if(s.exists && readOutbox().length === 0) {
                 if ((store.goals || []).length) recomputeReservedGoal(false);
-                else {
-                    const incomingGoal = Number(s.data().amount) || 0;
-                    if (!(Number(store.goal) > 0 && incomingGoal === 0)) store.goal = incomingGoal;
-                }
+                else store.goal = Number(s.data().amount) || 0;
                 persistLocalSnapshot();
                 migrateLegacyGoal();
             }
@@ -2428,8 +2356,7 @@ body.v273-sheet-open{overflow:hidden}
 
         db.collection('config').doc('limits').onSnapshot({ includeMetadataChanges: true }, (s) => {
             if(s.exists && readOutbox().length === 0) {
-                const raw=s.data()||{}; const {updatedAt,deviceId,...limitData}=raw;
-                if (!(Object.keys(store.limits||{}).length && !Object.keys(limitData).length)) store.limits=limitData;
+                const raw=s.data()||{}; const {updatedAt,deviceId,...limitData}=raw; store.limits=limitData;
                 persistLocalSnapshot();
             }
             renderAll();
@@ -2438,35 +2365,35 @@ body.v273-sheet-open{overflow:hidden}
         db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
             const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.trans.length > 0;
-            if (!emptyUnprimedOfflineCache) { if (!(readOutbox().length === 0 && shouldKeepLocalList(incoming, store.trans))) { store.trans = readOutbox().length ? mergePendingCollection(incoming, 'expense') : incoming; persistLocalSnapshot(); } }
+            if (!emptyUnprimedOfflineCache) { store.trans = readOutbox().length ? mergePendingCollection(incoming, 'expense') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Expense listener:', err));
 
         db.collection('pemasukan').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
             const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.incomes.length > 0;
-            if (!emptyUnprimedOfflineCache) { if (!(readOutbox().length === 0 && shouldKeepLocalList(incoming, store.incomes))) { store.incomes = readOutbox().length ? mergePendingCollection(incoming, 'income') : incoming; persistLocalSnapshot(); } }
+            if (!emptyUnprimedOfflineCache) { store.incomes = readOutbox().length ? mergePendingCollection(incoming, 'income') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Income listener:', err));
 
         db.collection('transfer').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
             const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.transfers.length > 0;
-            if (!emptyUnprimedOfflineCache) { if (!(readOutbox().length === 0 && shouldKeepLocalList(incoming, store.transfers))) { store.transfers = readOutbox().length ? mergePendingCollection(incoming, 'transfer') : incoming; persistLocalSnapshot(); } }
+            if (!emptyUnprimedOfflineCache) { store.transfers = readOutbox().length ? mergePendingCollection(incoming, 'transfer') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Transfer listener:', err));
 
         db.collection('goals').onSnapshot({ includeMetadataChanges: true }, (snap) => {
             const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
             const emptyUnprimedOfflineCache=!navigator.onLine&&snap.metadata.fromCache&&incoming.length===0&&(store.goals||[]).length>0;
-            if(!emptyUnprimedOfflineCache){if (!(readOutbox().length===0&&shouldKeepLocalList(incoming,store.goals))){store.goals=readOutbox().length?mergePendingCollection(incoming,'goalItem'):incoming;if(store.goals.length)recomputeReservedGoal(false);else migrateLegacyGoal();persistLocalSnapshot();}}
+            if(!emptyUnprimedOfflineCache){store.goals=readOutbox().length?mergePendingCollection(incoming,'goalItem'):incoming;if(store.goals.length)recomputeReservedGoal(false);else migrateLegacyGoal();persistLocalSnapshot();}
             renderAll();
         },err=>console.warn('Goals listener:',err));
 
         db.collection('recurring').onSnapshot({ includeMetadataChanges: true }, (snap) => {
             const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
             const emptyUnprimedOfflineCache=!navigator.onLine&&snap.metadata.fromCache&&incoming.length===0&&(store.recurring||[]).length>0;
-            if(!emptyUnprimedOfflineCache){if (!(readOutbox().length===0&&shouldKeepLocalList(incoming,store.recurring))){store.recurring=readOutbox().length?mergePendingCollection(incoming,'recurring'):incoming;persistLocalSnapshot();}}
+            if(!emptyUnprimedOfflineCache){store.recurring=readOutbox().length?mergePendingCollection(incoming,'recurring'):incoming;persistLocalSnapshot();}
             renderAll(); processRecurringTransactions();
         },err=>console.warn('Recurring listener:',err));
     }
@@ -2548,9 +2475,10 @@ body.v273-sheet-open{overflow:hidden}
         valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
     }
 </script>
+<script>window.__v2753CanonicalBackup = window.exportBackup;</script>
 <script src="./v24-4-features.js"></script>
-<script src="./v24-5-automation.js?v=27.5.2"></script>
-<script src="./v25-features.js?v=27.5.2"></script>
+<script src="./v24-5-automation.js?v=27.2.0"></script>
+<script src="./v25-features.js"></script>
 <script src="./v25-1-mobile.js"></script>
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
@@ -2559,8 +2487,9 @@ body.v273-sheet-open{overflow:hidden}
 <script src="./v25-3-10-health-engine.js"></script>
 <script src="./v25-5-17-easter-egg.js"></script>
 <script src="./v26-decision-lab.js?v=27.2.0"></script>
-<script src="./v27-tracking.js?v=27.5.2"></script>
-<script id="v2731-feature-switcher-inline-script">
+<script src="./v27-tracking.js?v=27.5.3-safe"></script>
+<script src="./v27-safe-bridge.js?v=27.5.3-safe"></script>
+<script id="v2731-feature-switcher-inline">
 (() => {
   'use strict';
 
@@ -2759,10 +2688,6 @@ body.v273-sheet-open{overflow:hidden}
   }
 
   function init(){
-    // Jangan biarkan sheet transparan lama menangkap tap setelah update PWA.
-    document.body.classList.remove('v273-sheet-open');
-    const staleSheet=document.getElementById('v273-feature-sheet');
-    if(staleSheet&&!staleSheet.classList.contains('open')){staleSheet.hidden=true;staleSheet.setAttribute('aria-hidden','true');}
     ensureSheet();
     applyVisibility();
     focusActiveTab(false);
@@ -2781,6 +2706,6 @@ body.v273-sheet-open{overflow:hidden}
   else init();
 })();
 </script>
-<!-- AutoBudgetin v27.5.2: emergency UI + local-data recovery guard -->
+<!-- AutoBudgetin v27.5.3 SAFE: v27.4.0 stable shell + isolated v27 intelligence/tracking module -->
 </body>
 </html>
