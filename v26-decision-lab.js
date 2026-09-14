@@ -11,7 +11,7 @@
       salePrice:0,unitsPerDay:10,daysPerMonth:26,targetMargin:30
     },
     creditDraft:{name:'',cashPrice:0,downPayment:0,adminFee:0,interest:0,months:12,method:'flat'},
-    businesses:[],credits:[],editingBusinessId:'',editingCreditId:''
+    businesses:[],credits:[]
   };
 
   const clone=v=>JSON.parse(JSON.stringify(v));
@@ -327,7 +327,7 @@
         </div>
       </div>
       <div id="v26-business-result" class="v26-result"></div>
-      <div class="v26-actions"><button id="v26-business-save" class="btn-primary" type="button" onclick="saveBusinessV26()"><i data-lucide="bookmark-plus"></i> Simpan skenario</button><button class="btn-small" type="button" onclick="resetBusinessV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
+      <div class="v26-actions"><button class="btn-primary" type="button" onclick="saveBusinessV26()"><i data-lucide="bookmark-plus"></i> Simpan skenario</button><button class="btn-small" type="button" onclick="resetBusinessV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
       <div class="v26-saved"><div class="v26-saved-head">Skenario bisnis tersimpan</div><div id="v26-business-saved" class="v26-saved-list"></div></div>
     </div>`;}
 
@@ -348,7 +348,7 @@
       </div>
       <div id="v26-credit-profile-strip" class="v26-helper"></div>
       <div id="v26-credit-result" class="v26-result"></div>
-      <div class="v26-actions"><button id="v26-credit-save" class="btn-primary" type="button" onclick="saveCreditV26()"><i data-lucide="bookmark-plus"></i> Simpan simulasi</button><button class="btn-small" type="button" onclick="resetCreditV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
+      <div class="v26-actions"><button class="btn-primary" type="button" onclick="saveCreditV26()"><i data-lucide="bookmark-plus"></i> Simpan simulasi</button><button class="btn-small" type="button" onclick="resetCreditV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
       <div class="v26-saved"><div class="v26-saved-head">Simulasi kredit tersimpan</div><div id="v26-credit-saved" class="v26-saved-list"></div></div>
     </div>`;}
   function creditInput(name,label,value,type='money',extra=''){
@@ -440,7 +440,6 @@
     const s=state(),b=document.getElementById('v26-business-saved'),c=document.getElementById('v26-credit-saved');
     if(b)b.innerHTML=s.businesses.length?s.businesses.map(x=>`<div class="v26-saved-item"><button type="button" onclick="loadBusinessV26('${esc(x.id)}')"><b>${esc(x.data.name||'Bisnis tanpa nama')}</b><small>${rp(x.summary.net)} laba/bln · modal ${rp(x.summary.capitalNeeded)}</small></button><button class="v26-delete" type="button" onclick="deleteBusinessV26('${esc(x.id)}')" aria-label="Hapus"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26-empty">Belum ada skenario bisnis tersimpan.</div>';
     if(c)c.innerHTML=s.credits.length?s.credits.map(x=>`<div class="v26-saved-item"><button type="button" onclick="loadCreditV26('${esc(x.id)}')"><b>${esc(x.data.name||'Kredit tanpa nama')}</b><small>${rp(x.summary.installment)}/bln · DSR ${Number(x.summary.dsr||0).toFixed(1)}%</small></button><button class="v26-delete" type="button" onclick="deleteCreditV26('${esc(x.id)}')" aria-label="Hapus"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26-empty">Belum ada simulasi kredit tersimpan.</div>';
-    updateSaveMode();
     if(window.lucide?.createIcons)lucide.createIcons();
   }
   function renderProfileSummary(){
@@ -448,15 +447,7 @@
     const essentials=num(p.food)+num(p.fuel)+num(p.otherEssential)+num(p.existingDebt)+num(p.savingTarget);
     el.innerHTML=`Total komitmen dasar <b class="v26-money">${rp(essentials)}</b> · ruang sebelum cicilan baru <b class="v26-money">${rp(num(p.salary)-essentials)}</b>.`;
   }
-  function updateSaveMode(){
-    const s=state(),b=document.getElementById('v26-business-save'),c=document.getElementById('v26-credit-save');
-    if(b)b.innerHTML=s.editingBusinessId?'<i data-lucide="save"></i> Simpan perubahan':'<i data-lucide="bookmark-plus"></i> Simpan skenario';
-    if(c)c.innerHTML=s.editingCreditId?'<i data-lucide="save"></i> Simpan perubahan':'<i data-lucide="bookmark-plus"></i> Simpan simulasi';
-    if(window.lucide?.createIcons)lucide.createIcons();
-  }
-  function freshBusinessDraft(){return {...clone(DEFAULTS.businessDraft),name:'',capitalAvailable:0,setupCost:0,fixedMonthly:0,initialStock:0,material:0,packaging:0,labor:0,operational:0,otherUnit:0,salePrice:0,unitsPerDay:0};}
-  function freshCreditDraft(){return {...clone(DEFAULTS.creditDraft),name:'',cashPrice:0,downPayment:0,adminFee:0,interest:0};}
-  function renderResults(){renderBusiness();renderCredit();renderSaved();renderProfileSummary();updateSaveMode();}
+  function renderResults(){renderBusiness();renderCredit();renderSaved();renderProfileSummary();}
   function refillDraft(kind){
     const s=state(),data=kind==='business'?s.businessDraft:s.creditDraft;
     const attr=kind==='business'?'data-v26-field':'data-v26-credit';
@@ -480,37 +471,21 @@
   window.saveBusinessV26=()=>{
     const s=state(),r=calcBusiness(s.businessDraft);
     if(!s.businessDraft.name.trim()||!r.hpp||!num(s.businessDraft.salePrice))return Swal.fire('Belum lengkap','Isi nama bisnis, komponen HPP, dan harga jual.','warning');
-    const editingId=s.editingBusinessId||'';
-    setState(x=>{
-      const entry={id:editingId||uid('biz'),savedAt:Date.now(),data:clone(x.businessDraft),summary:{net:r.net,capitalNeeded:r.capitalNeeded,marginPct:r.marginPct}};
-      if(editingId){const i=x.businesses.findIndex(v=>v.id===editingId);if(i>=0)x.businesses[i]=entry;else x.businesses.unshift(entry);}
-      else x.businesses.unshift(entry);
-      x.businesses=x.businesses.slice(0,25);
-      x.businessDraft=freshBusinessDraft();x.editingBusinessId='';
-    });
-    refillDraft('business');
-    Swal.fire({title:editingId?'Perubahan skenario disimpan':'Skenario bisnis disimpan',text:'Form dikosongkan. Tekan skenario tersimpan untuk melihat atau mengedit lagi.',icon:'success',timer:1700,showConfirmButton:false});
+    setState(x=>x.businesses=[{id:uid('biz'),savedAt:Date.now(),data:clone(x.businessDraft),summary:{net:r.net,capitalNeeded:r.capitalNeeded,marginPct:r.marginPct}},...x.businesses].slice(0,25));renderSaved();
+    Swal.fire({title:'Skenario bisnis disimpan',icon:'success',timer:1200,showConfirmButton:false});
   };
   window.saveCreditV26=()=>{
     const s=state(),r=calcCredit(s.creditDraft,s.profile);
     if(!s.creditDraft.name.trim()||!num(s.creditDraft.cashPrice)||!num(s.profile.salary))return Swal.fire('Belum lengkap','Isi nama barang, harga tunai, dan gaji di Profil Perhitungan.','warning');
-    const editingId=s.editingCreditId||'';
-    setState(x=>{
-      const entry={id:editingId||uid('credit'),savedAt:Date.now(),data:clone(x.creditDraft),summary:{installment:r.installment,dsr:r.dsr,totalCredit:r.totalCredit}};
-      if(editingId){const i=x.credits.findIndex(v=>v.id===editingId);if(i>=0)x.credits[i]=entry;else x.credits.unshift(entry);}
-      else x.credits.unshift(entry);
-      x.credits=x.credits.slice(0,25);
-      x.creditDraft=freshCreditDraft();x.editingCreditId='';
-    });
-    refillDraft('credit');
-    Swal.fire({title:editingId?'Perubahan simulasi disimpan':'Simulasi kredit disimpan',text:'Form dikosongkan. Tekan simulasi tersimpan untuk melihat atau mengedit lagi.',icon:'success',timer:1700,showConfirmButton:false});
+    setState(x=>x.credits=[{id:uid('credit'),savedAt:Date.now(),data:clone(x.creditDraft),summary:{installment:r.installment,dsr:r.dsr,totalCredit:r.totalCredit}},...x.credits].slice(0,25));renderSaved();
+    Swal.fire({title:'Simulasi kredit disimpan',icon:'success',timer:1200,showConfirmButton:false});
   };
-  window.loadBusinessV26=id=>{const item=state().businesses.find(x=>x.id===id);if(!item)return;setState(s=>{s.businessDraft={...DEFAULTS.businessDraft,...item.data};s.editingBusinessId=id;s.activeTab='business';});refillDraft('business');switchTab('business');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
-  window.loadCreditV26=id=>{const item=state().credits.find(x=>x.id===id);if(!item)return;setState(s=>{s.creditDraft={...DEFAULTS.creditDraft,...item.data};s.editingCreditId=id;s.activeTab='credit';});refillDraft('credit');switchTab('credit');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
-  window.deleteBusinessV26=async id=>{const r=await Swal.fire({title:'Hapus skenario?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;let cleared=false;setState(s=>{s.businesses=s.businesses.filter(x=>x.id!==id);if(s.editingBusinessId===id){s.editingBusinessId='';s.businessDraft=freshBusinessDraft();cleared=true;}});if(cleared)refillDraft('business');else renderSaved();};
-  window.deleteCreditV26=async id=>{const r=await Swal.fire({title:'Hapus simulasi?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;let cleared=false;setState(s=>{s.credits=s.credits.filter(x=>x.id!==id);if(s.editingCreditId===id){s.editingCreditId='';s.creditDraft=freshCreditDraft();cleared=true;}});if(cleared)refillDraft('credit');else renderSaved();};
-  window.resetBusinessV26=()=>{setState(s=>{s.businessDraft=freshBusinessDraft();s.editingBusinessId='';});refillDraft('business');};
-  window.resetCreditV26=()=>{setState(s=>{s.creditDraft=freshCreditDraft();s.editingCreditId='';});refillDraft('credit');};
+  window.loadBusinessV26=id=>{const item=state().businesses.find(x=>x.id===id);if(!item)return;setState(s=>{s.businessDraft={...DEFAULTS.businessDraft,...item.data};s.activeTab='business';});refillDraft('business');switchTab('business');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
+  window.loadCreditV26=id=>{const item=state().credits.find(x=>x.id===id);if(!item)return;setState(s=>{s.creditDraft={...DEFAULTS.creditDraft,...item.data};s.activeTab='credit';});refillDraft('credit');switchTab('credit');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
+  window.deleteBusinessV26=async id=>{const r=await Swal.fire({title:'Hapus skenario?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setState(s=>s.businesses=s.businesses.filter(x=>x.id!==id));renderSaved();};
+  window.deleteCreditV26=async id=>{const r=await Swal.fire({title:'Hapus simulasi?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setState(s=>s.credits=s.credits.filter(x=>x.id!==id));renderSaved();};
+  window.resetBusinessV26=()=>{setState(s=>s.businessDraft=clone(DEFAULTS.businessDraft));refillDraft('business');};
+  window.resetCreditV26=()=>{setState(s=>s.creditDraft=clone(DEFAULTS.creditDraft));refillDraft('credit');};
   window.getV26DecisionData=()=>state();
   window.getV26DecisionAdvice=()=>{const s=state();return {business:businessAdvice(s.businessDraft,calcBusiness(s.businessDraft)),credit:creditAdvice(s.creditDraft,s.profile,calcCredit(s.creditDraft,s.profile))};};
 

@@ -1,32 +1,20 @@
-# AutoBudgetin v26.0.9 STABLE+ — Scenario Flow
+# AutoBudgetin v26.0.8 STABLE+ — Decision Coach
 
-Patch lanjutan dari v26.0.8.
+Patch dari v26.0.7 STABLE+.
 
-## Yang berubah
+## Yang baru
+- Decision Lab sekarang memberi **Saran terbaik** secara otomatis saat angka diubah.
+- Analisis bisnis memberi langkah konkret: harga rekomendasi, minimal unit/hari untuk menutup biaya tetap, opsi menurunkan stok awal jika modal kurang, evaluasi margin, kecepatan balik modal, dan saran uji pasar 7 hari.
+- Simulasi kredit memberi langkah konkret: keputusan tunda/revisi/aman, DP yang lebih sehat, tenor alternatif, kisaran harga barang yang lebih sesuai, buffer bulanan, total biaya kredit, serta pengecekan DP + admin terhadap uang bebas.
+- Feedback berubah real-time mengikuti input; bukan skor acak.
+- Perbaikan input Rupiah v26.0.7 tetap dipertahankan dan diuji regresi.
 
-### Decision Lab
-- Setelah skenario bisnis disimpan, form langsung dibersihkan untuk skenario baru.
-- Setelah simulasi kredit disimpan, form langsung dibersihkan.
-- Tekan skenario/simulasi tersimpan untuk memuat kembali datanya.
-- Saat skenario tersimpan dibuka, tombol berubah menjadi **Simpan perubahan**.
-- Menyimpan saat mode edit memperbarui skenario yang sama, tidak membuat duplikat.
-- ID skenario dipertahankan saat edit supaya referensi Realisasi tetap konsisten.
-- Perbaikan input Rupiah digits-only dari v26.0.7 tetap dipertahankan.
-
-### Realisasi & Tracking
-- Input uang sekarang memakai pemisah ribuan Indonesia secara langsung:
-  - Omzet aktual
-  - Biaya restock aktual
-  - Nominal pembayaran cicilan
-  - Target keuntungan bisnis
-- Contoh: `73000` tampil menjadi `73.000`, `1000000` menjadi `1.000.000`.
-- Perubahan dibuat sebagai add-on kecil `v26-tracking-money-format.js`; core tracking stabil tidak diubah.
-
-## Upload ke GitHub
-Timpa/upload 4 file berikut:
+## File yang ditimpa di GitHub
 1. `index.html`
 2. `service-worker.js`
 3. `v26-decision-lab.js`
-4. `v26-tracking-money-format.js`
 
-Apps Script tidak perlu redeploy.
+Apps Script **tidak perlu deploy ulang** untuk update ini.
+
+## Catatan
+Feature Switcher v26.0.6, online retry, tracking, backup, dan automation tidak diubah oleh patch ini.
