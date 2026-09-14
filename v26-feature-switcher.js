@@ -1,64 +1,211 @@
 (() => {
   'use strict';
 
-  const KEY='agis_finance_feature_switcher_v26';
-  const FEATURES=[
-    {id:'decision',label:'Decision Lab',icon:'flask-conical',desc:'Analisis bisnis & kredit sebelum keluar uang.'},
-    {id:'tracking',label:'Realisasi',icon:'activity',desc:'Pantau penjualan, stok, profit, target, dan cicilan.'},
-    {id:'whatif',label:'What-if',icon:'wand-sparkles',desc:'Coba skenario pengeluaran sebelum dilakukan.'},
-    {id:'report',label:'Laporan',icon:'chart-column',desc:'Lihat ringkasan perjalanan keuangan tahunan.'}
+  const STORAGE_KEY = 'agis_finance_feature_switcher_v26';
+  const FEATURES = [
+    { id: 'decision', label: 'Decision Lab', icon: 'flask-conical', desc: 'Analisis bisnis dan kredit sebelum uang keluar.' },
+    { id: 'tracking', label: 'Realisasi', icon: 'activity', desc: 'Pantau penjualan, profit, stok, target, dan cicilan.' },
+    { id: 'whatif', label: 'What-if', icon: 'wand-sparkles', desc: 'Uji dampak pengeluaran sebelum benar-benar dicatat.' },
+    { id: 'report', label: 'Laporan', icon: 'chart-column', desc: 'Lihat ringkasan perjalanan keuangan tahunan.' }
   ];
-  let active='decision', attempts=0, observer=null, applying=false, navWrapped=false;
-  try{const saved=localStorage.getItem(KEY);if(FEATURES.some(x=>x.id===saved))active=saved}catch{}
 
-  const qs=(s,r=document)=>r.querySelector(s);
-  function saveActive(id){active=id;try{localStorage.setItem(KEY,id)}catch{}}
-  function host(){return document.getElementById('v2531-planning-host')}
-  function nodes(){return{
-    budget:document.getElementById('v25-planning-card'),
-    lab:document.getElementById('v26-decision-lab'),
-    tracking:document.getElementById('v27-tracking'),
-    whatif:document.getElementById('v244-simulator-card'),
-    report:document.querySelector('#v2531-planning-host .v25-year-card')||document.querySelector('.v25-year-card')
-  }}
-  function makeSwitcher(){
-    const h=host();if(!h)return null;
-    let bar=document.getElementById('v26-feature-switcher');if(bar)return bar;
-    bar=document.createElement('section');bar.id='v26-feature-switcher';bar.className='v26fs-wrap';
-    bar.innerHTML=`<div class="v26fs-head"><div><span>FITUR</span><b id="v26fs-current">Pilih yang dibutuhkan</b></div><button type="button" class="v26fs-all" onclick="openFeatureSheetV26()"><i data-lucide="layout-grid"></i><span>Semua</span></button></div><div class="v26fs-tabs" role="tablist" aria-label="Fitur Planning">${FEATURES.map(f=>`<button type="button" role="tab" data-v26fs="${f.id}" onclick="selectFeatureV26('${f.id}')"><i data-lucide="${f.icon}"></i><span>${f.label}</span></button>`).join('')}</div>`;
-    h.insertBefore(bar,h.firstChild);window.lucide?.createIcons?.();return bar;
+  let active = 'decision';
+  let applying = false;
+  let observer = null;
+  let labObserver = null;
+  let navWrapped = false;
+  let retries = 0;
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (FEATURES.some(item => item.id === saved)) active = saved;
+  } catch (_) {}
+
+  function host() { return document.getElementById('v2531-planning-host'); }
+  function feature(id) { return FEATURES.find(item => item.id === id) || FEATURES[0]; }
+  function nodes() {
+    const h = host();
+    return {
+      host: h,
+      budget: document.getElementById('v25-planning-card'),
+      lab: document.getElementById('v26-decision-lab'),
+      tracking: document.getElementById('v26-stable-tracking'),
+      whatif: document.getElementById('v244-simulator-card'),
+      report: h?.querySelector('.v25-year-card') || document.querySelector('.v25-year-card')
+    };
   }
-  function makeSheet(){
-    if(document.getElementById('v26fs-sheet'))return;
-    const overlay=document.createElement('div');overlay.id='v26fs-sheet';overlay.className='v26fs-sheet';overlay.hidden=true;
-    overlay.innerHTML=`<button class="v26fs-backdrop" aria-label="Tutup" onclick="closeFeatureSheetV26()"></button><div class="v26fs-sheet-card" role="dialog" aria-modal="true" aria-label="Semua fitur"><div class="v26fs-sheet-handle"></div><div class="v26fs-sheet-title"><div><span>SEMUA FITUR</span><b>Pilih satu untuk dibuka</b></div><button type="button" onclick="closeFeatureSheetV26()"><i data-lucide="x"></i></button></div><div class="v26fs-sheet-list">${FEATURES.map(f=>`<button type="button" onclick="selectFeatureV26('${f.id}');closeFeatureSheetV26()"><span class="v26fs-sheet-icon"><i data-lucide="${f.icon}"></i></span><span><b>${f.label}</b><small>${f.desc}</small></span><i data-lucide="chevron-right"></i></button>`).join('')}</div></div>`;
-    document.body.appendChild(overlay);window.lucide?.createIcons?.();
+
+  function save(id) {
+    active = id;
+    try { localStorage.setItem(STORAGE_KEY, id); } catch (_) {}
   }
-  function setVisible(el,visible){if(!el)return;el.classList.toggle('v26fs-hidden',!visible);el.setAttribute('aria-hidden',visible?'false':'true')}
-  function apply(id,scroll=true){
-    if(applying)return;if(!FEATURES.some(x=>x.id===id))id='decision';applying=true;
-    try{
-      saveActive(id);const n=nodes();
-      setVisible(n.lab,id==='decision');setVisible(n.tracking,id==='tracking');setVisible(n.whatif,id==='whatif');setVisible(n.report,id==='report');
-      document.querySelectorAll('[data-v26fs]').forEach(btn=>{const on=btn.dataset.v26fs===id;btn.classList.toggle('active',on);btn.setAttribute('aria-selected',on?'true':'false');if(on&&scroll)btn.scrollIntoView?.({behavior:'smooth',block:'nearest',inline:'center'})});
-      const cur=document.getElementById('v26fs-current'),f=FEATURES.find(x=>x.id===id);if(cur&&f)cur.textContent=f.label;
-      if(id==='tracking'){window.refreshTrackingV27?.();if(!n.tracking)setTimeout(()=>{arrange();apply('tracking',false)},260)}
-      window.lucide?.createIcons?.();
-      requestAnimationFrame?.(()=>{try{window.dispatchEvent(new Event('resize'))}catch{}});
-    }finally{applying=false}
+
+  function buildSwitcher() {
+    const h = host();
+    if (!h) return null;
+    let bar = document.getElementById('v26-feature-switcher');
+    if (!bar) {
+      bar = document.createElement('section');
+      bar.id = 'v26-feature-switcher';
+      bar.className = 'v26fs-wrap';
+      bar.setAttribute('aria-label', 'Pilih fitur planning');
+      bar.innerHTML = `
+        <div class="v26fs-heading">
+          <div class="v26fs-copy">
+            <span class="v26fs-kicker">PLANNING TOOLS</span>
+            <b id="v26fs-current">${feature(active).label}</b>
+            <small id="v26fs-description">${feature(active).desc}</small>
+          </div>
+          <span class="v26fs-active-icon" aria-hidden="true"><i id="v26fs-active-lucide" data-lucide="${feature(active).icon}"></i></span>
+        </div>
+        <div class="v26fs-tabs" role="tablist" aria-label="Fitur planning">
+          ${FEATURES.map(item => `<button type="button" role="tab" data-v26fs="${item.id}" aria-selected="false" onclick="selectFeatureV26('${item.id}')"><i data-lucide="${item.icon}" aria-hidden="true"></i><span>${item.label}</span></button>`).join('')}
+        </div>`;
+    }
+
+    const budget = document.getElementById('v25-planning-card');
+    if (budget && budget.parentElement === h && bar.previousElementSibling !== budget) {
+      h.insertBefore(bar, budget.nextElementSibling);
+    } else if (!bar.parentElement) {
+      h.insertBefore(bar, h.firstChild || null);
+    }
+    window.lucide?.createIcons?.();
+    return bar;
   }
-  function arrange(){
-    const h=host();if(!h)return false;const n=nodes();
-    if(n.budget&&n.budget.parentElement!==h)h.insertBefore(n.budget,h.firstChild);
-    const bar=makeSwitcher();if(n.budget&&bar&&bar.previousElementSibling!==n.budget)h.insertBefore(bar,n.budget.nextSibling);
-    if(n.report&&n.report.parentElement!==h)h.appendChild(n.report);
-    qs('.v2531-planning-loading',h)?.remove();makeSheet();apply(active,false);return !!(n.lab&&n.whatif);
+
+  function setVisible(el, visible) {
+    if (!el) return;
+    el.classList.toggle('v26fs-hidden', !visible);
+    el.setAttribute('aria-hidden', visible ? 'false' : 'true');
   }
-  function installObserver(){const h=host();if(!h||observer)return;observer=new MutationObserver(()=>{if(!applying)setTimeout(()=>apply(active,false),0)});observer.observe(h,{childList:true,subtree:false})}
-  window.selectFeatureV26=id=>apply(id,true);
-  window.openFeatureSheetV26=()=>{const el=document.getElementById('v26fs-sheet');if(!el)return;el.hidden=false;document.body.classList.add('v26fs-sheet-open')};
-  window.closeFeatureSheetV26=()=>{const el=document.getElementById('v26fs-sheet');if(!el)return;el.hidden=true;document.body.classList.remove('v26fs-sheet-open')};
-  function wrapNav(){if(navWrapped||typeof window.nav!=='function')return;const orig=window.nav;window.nav=function(id,el){const out=orig.apply(this,arguments);if(id==='planning')setTimeout(()=>{arrange();apply(active,false)},90);return out};navWrapped=true}
-  function boot(){wrapNav();const ok=arrange();installObserver();if(!ok&&attempts++<16)setTimeout(boot,220)}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,120),{once:true});else setTimeout(boot,120);
+
+  function updateSwitcher(id, shouldScroll) {
+    const item = feature(id);
+    const current = document.getElementById('v26fs-current');
+    const description = document.getElementById('v26fs-description');
+    if (current) current.textContent = item.label;
+    if (description) description.textContent = item.desc;
+
+    const iconWrap = document.querySelector('.v26fs-active-icon');
+    if (iconWrap) iconWrap.innerHTML = `<i data-lucide="${item.icon}" aria-hidden="true"></i>`;
+
+    document.querySelectorAll('[data-v26fs]').forEach(button => {
+      const on = button.dataset.v26fs === id;
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-selected', on ? 'true' : 'false');
+      button.tabIndex = on ? 0 : -1;
+      if (on && shouldScroll) button.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    });
+    window.lucide?.createIcons?.();
+  }
+
+  function apply(id, shouldScroll = false) {
+    if (applying) return;
+    if (!FEATURES.some(item => item.id === id)) id = 'decision';
+    applying = true;
+    try {
+      save(id);
+      buildSwitcher();
+      const n = nodes();
+      if (!n.host) return;
+
+      // Realisasi tetap memakai modul Stable+ yang sama. Saat dipilih, Decision
+      // Lab hanya bertindak sebagai host sehingga state/database tidak berubah.
+      if (n.lab) n.lab.classList.toggle('v26fs-tracking-mode', id === 'tracking');
+
+      if (id === 'decision') {
+        if (n.tracking) n.tracking.open = false;
+        setVisible(n.lab, true);
+        setVisible(n.tracking, false);
+        setVisible(n.whatif, false);
+        setVisible(n.report, false);
+      } else if (id === 'tracking') {
+        setVisible(n.lab, true);
+        setVisible(n.tracking, true);
+        setVisible(n.whatif, false);
+        setVisible(n.report, false);
+        if (n.tracking) {
+          n.tracking.open = true;
+          window.refreshStableTracking?.();
+        }
+      } else if (id === 'whatif') {
+        if (n.tracking) n.tracking.open = false;
+        setVisible(n.lab, false);
+        setVisible(n.tracking, false);
+        setVisible(n.whatif, true);
+        setVisible(n.report, false);
+      } else {
+        if (n.tracking) n.tracking.open = false;
+        setVisible(n.lab, false);
+        setVisible(n.tracking, false);
+        setVisible(n.whatif, false);
+        setVisible(n.report, true);
+      }
+
+      updateSwitcher(id, shouldScroll);
+      requestAnimationFrame?.(() => {
+        try { window.dispatchEvent(new Event('resize')); } catch (_) {}
+      });
+    } finally {
+      applying = false;
+    }
+  }
+
+  function arrange() {
+    const h = host();
+    if (!h) return false;
+    buildSwitcher();
+    apply(active, false);
+    h.querySelector('.v2531-planning-loading')?.remove();
+    return Boolean(document.getElementById('v26-decision-lab') && document.getElementById('v244-simulator-card'));
+  }
+
+  function installObserver() {
+    const h = host();
+    if (h && !observer) {
+      observer = new MutationObserver(() => {
+        if (applying) return;
+        setTimeout(() => arrange(), 0);
+      });
+      observer.observe(h, { childList: true, subtree: false });
+    }
+    const lab = document.getElementById('v26-decision-lab');
+    if (lab && !labObserver) {
+      labObserver = new MutationObserver(() => {
+        if (applying) return;
+        setTimeout(() => apply(active, false), 0);
+      });
+      // Direct children only: catches the late Stable+ tracking mount without
+      // reacting to every metric/result render inside Decision Lab.
+      labObserver.observe(lab, { childList: true, subtree: false });
+    }
+  }
+
+  function wrapNav() {
+    if (navWrapped || typeof window.nav !== 'function') return;
+    const original = window.nav;
+    window.nav = function(id, el) {
+      const result = original.apply(this, arguments);
+      if (id === 'planning') setTimeout(() => arrange(), 80);
+      return result;
+    };
+    navWrapped = true;
+  }
+
+  window.selectFeatureV26 = id => apply(id, true);
+  window.getActivePlanningFeatureV26 = () => active;
+
+  function boot() {
+    wrapNav();
+    const ready = arrange();
+    installObserver();
+    const trackingReady = Boolean(document.getElementById('v26-stable-tracking'));
+    if ((!ready || !trackingReady) && retries++ < 18) setTimeout(boot, 220);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 180), { once: true });
+  } else {
+    setTimeout(boot, 180);
+  }
 })();
