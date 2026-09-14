@@ -2,7 +2,7 @@
   'use strict';
   const KEY='agis_finance_automation_v24_5';
   const IMPORT_KEY='agis_finance_import_preview_v24_5';
-  let syncTimer=null,reconnectTimer=null,reconnectBusy=false;
+  let syncTimer=null;
   const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}};
   const write=v=>localStorage.setItem(KEY,JSON.stringify(v));
   const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
@@ -11,76 +11,6 @@
   const totalWallet=()=>Object.values(store?.wallets||{}).reduce((s,v)=>s+(Number(v)||0),0);
   function settings(){return {backendUrl:'',appKey:'',autoSync:true,...read()};}
   function persistSettings(p){const n={...settings(),...p};write(n);return n;}
-  function normalizeBackendUrl(raw){
-    const text=String(raw||'').trim();
-    if(!text)return '';
-    const marker='https://script.google.com/macros/s/';
-    const starts=[];let at=text.indexOf(marker);
-    while(at!==-1){starts.push(at);at=text.indexOf(marker,at+marker.length);}
-    for(let i=starts.length-1;i>=0;i--){
-      const part=text.slice(starts[i]);
-      const m=part.match(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\b/);
-      if(m)return m[0];
-    }
-    let u;
-    try{u=new URL(text,location.href);}catch{throw new Error('URL backend tidak valid. Tempel satu URL Web App Apps Script yang berakhir /exec.');}
-    const host=u.hostname.toLowerCase();
-    if(host==='script.googleusercontent.com'||host.endsWith('.script.googleusercontent.com'))throw new Error('Gunakan URL Web App asli dari Apps Script yang berakhir /exec, bukan URL redirect googleusercontent.');
-    if(host==='script.google.com'||host.endsWith('.script.google.com')){
-      if(!/^\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.pathname))throw new Error('URL Apps Script belum benar. Gunakan Web app URL yang berakhir /exec.');
-      return `${u.origin}${u.pathname}`;
-    }
-    return u.href;
-  }
-  function isAppsScriptUrl(url){try{const h=new URL(url,location.href).hostname.toLowerCase();return h==='script.google.com'||h.endsWith('.script.google.com')}catch{return false}}
-  function appsScriptBridge(url,action,appKey,payload={}){
-    return new Promise(async (resolve,reject)=>{
-      const requestId=`agis_${Date.now().toString(36)}_${globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID().replace(/-/g,''):Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)}`;
-      const body=JSON.stringify({action,appKey,requestId,...(payload||{})});
-      const started=Date.now(), timeoutMs=18000;
-      let settled=false, pollTimer=null, activeScript=null;
-      const cleanup=()=>{
-        if(pollTimer)clearTimeout(pollTimer);
-        if(activeScript){try{activeScript.remove()}catch{}activeScript=null;}
-      };
-      const finish=(err,data)=>{
-        if(settled)return;settled=true;cleanup();
-        if(err)reject(err);else resolve(data);
-      };
-      const poll=()=>{
-        if(settled)return;
-        if(Date.now()-started>timeoutMs)return finish(new Error('Backend tidak memberi receipt. Cek deployment Apps Script dan pastikan v26.0.5 sudah di-deploy sebagai New version.'));
-        const cb=`__agisReceipt_${Math.random().toString(36).slice(2,10)}`;
-        const script=document.createElement('script');activeScript=script;
-        let callbackHit=false;
-        window[cb]=data=>{
-          callbackHit=true;
-          try{delete window[cb]}catch{window[cb]=undefined}
-          try{script.remove()}catch{}activeScript=null;
-          if(!data||data.ready!==true){pollTimer=setTimeout(poll,550);return;}
-          if(data.ok)finish(null,data);else finish(new Error(data.error||'Backend menolak request.'));
-        };
-        script.onerror=()=>{
-          try{delete window[cb]}catch{window[cb]=undefined}
-          try{script.remove()}catch{}activeScript=null;
-          if(!callbackHit)pollTimer=setTimeout(poll,700);
-        };
-        const q=new URLSearchParams({action:'receipt',requestId,callback:cb,_:String(Date.now())});
-        script.src=`${url}${url.includes('?')?'&':'?'}${q.toString()}`;
-        document.head.appendChild(script);
-        setTimeout(()=>{
-          if(settled||callbackHit)return;
-          try{delete window[cb]}catch{window[cb]=undefined}
-          try{script.remove()}catch{}if(activeScript===script)activeScript=null;
-          pollTimer=setTimeout(poll,250);
-        },2200);
-      };
-      try{
-        await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=UTF-8'},body,cache:'no-store',credentials:'omit'});
-        pollTimer=setTimeout(poll,400);
-      }catch(err){finish(new Error(`Request ke Apps Script gagal: ${err?.message||err}`));}
-    });
-  }
   function smartSettings(){try{return JSON.parse(localStorage.getItem('agis_finance_smart_controls_v24_4')||'{}')}catch{return {}}}
   function carryState(){try{return typeof readCarryOverState==='function'?readCarryOverState():{balance:0}}catch{return {balance:0}}}
   function recovery(){try{const t=typeof readRecoveryTarget==='function'?readRecoveryTarget():null;const p=t&&typeof recoveryProgress==='function'?recoveryProgress(t):null;return t?{...t,pct:Number(p?.pct)||0}:null}catch{return null}}
@@ -101,105 +31,26 @@
   function snapshot(){
     const s=smartSettings(), ctx=spendingContext(); let score=calcScoreFallback();
     const scoreEl=document.getElementById('v244-score'); if(scoreEl&&Number(scoreEl.textContent)>=0)score=Number(scoreEl.textContent);
-    return {schemaVersion:26,syncedAt:new Date().toISOString(),deviceId:typeof DEVICE_ID!=='undefined'?DEVICE_ID:'web',summary:{date:ctx.today,walletTotal:totalWallet(),reservedSavings:Number(store?.goal)||0,available:ctx.available,safeFloor:ctx.floor,score,carryOver:Number(carryState().balance)||0,recovery:recovery(),latestExpense:latestExpense(),dailySafe:Math.floor(ctx.dailySafe),todayExpense:Math.floor(ctx.todayExpense),monthExpense:Math.floor(ctx.monthExpense),remainingDays:ctx.remainingDays},data:{wallets:store?.wallets||{},goal:Number(store?.goal)||0,limits:store?.limits||{},trans:(store?.trans||[]).map(x=>({...x,pendingSync:undefined})),incomes:(store?.incomes||[]).map(x=>({...x,pendingSync:undefined})),transfers:(store?.transfers||[]).map(x=>({...x,pendingSync:undefined})),goals:(store?.goals||[]).map(x=>({...x,pendingSync:undefined})),recurring:(store?.recurring||[]).map(x=>({...x,pendingSync:undefined})),audit:(store?.audit||[]).map(x=>({...x,pendingSync:undefined})),v25:(typeof window.getV25SnapshotData==='function'?window.getV25SnapshotData():null),v26:(typeof window.getV26DecisionData==='function'?window.getV26DecisionData():null),carryOver:carryState(),recoveryTarget:(typeof readRecoveryTarget==='function'?readRecoveryTarget():null)}};
+    return {schemaVersion:27,syncedAt:new Date().toISOString(),deviceId:typeof DEVICE_ID!=='undefined'?DEVICE_ID:'web',summary:{date:ctx.today,walletTotal:totalWallet(),reservedSavings:Number(store?.goal)||0,available:ctx.available,safeFloor:ctx.floor,score,carryOver:Number(carryState().balance)||0,recovery:recovery(),latestExpense:latestExpense(),dailySafe:Math.floor(ctx.dailySafe),todayExpense:Math.floor(ctx.todayExpense),monthExpense:Math.floor(ctx.monthExpense),remainingDays:ctx.remainingDays},data:{wallets:store?.wallets||{},goal:Number(store?.goal)||0,limits:store?.limits||{},trans:(store?.trans||[]).map(x=>({...x,pendingSync:undefined})),incomes:(store?.incomes||[]).map(x=>({...x,pendingSync:undefined})),transfers:(store?.transfers||[]).map(x=>({...x,pendingSync:undefined})),goals:(store?.goals||[]).map(x=>({...x,pendingSync:undefined})),recurring:(store?.recurring||[]).map(x=>({...x,pendingSync:undefined})),audit:(store?.audit||[]).map(x=>({...x,pendingSync:undefined})),v25:(typeof window.getV25SnapshotData==='function'?window.getV25SnapshotData():null),v26:(typeof window.getV26DecisionData==='function'?window.getV26DecisionData():null),v27:(typeof window.getV27TrackingData==='function'?window.getV27TrackingData():null),carryOver:carryState(),recoveryTarget:(typeof readRecoveryTarget==='function'?readRecoveryTarget():null)}};
   }
-  async function backend(action,payload={}){
-    const c=settings();
-    const backendUrl=normalizeBackendUrl(c.backendUrl||'');
-    if(!backendUrl)throw new Error('Backend URL belum diisi.');
-    if(!String(c.appKey||'').trim())throw new Error('App Key belum diisi.');
-    if(isAppsScriptUrl(backendUrl))return appsScriptBridge(backendUrl,action,String(c.appKey||'').trim(),payload);
-    const r=await fetch(backendUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,appKey:c.appKey||'',...payload})});
-    const text=await r.text();let out;
-    try{out=JSON.parse(text)}catch{throw new Error('Respons backend tidak valid. Pastikan Apps Script sudah Deploy sebagai Web app.')}
-    if(!out.ok)throw new Error(out.error||'Backend menolak request.');
-    return out;
-  }
-  async function syncNow(silent=false){
-    const st=document.getElementById('v245-sync-status');
-    try{
-      if(st)st.textContent='Menyinkronkan database…';
-      await backend('syncSnapshot',{snapshot:snapshot()});
-      const now=Date.now();localStorage.setItem('agis_finance_last_backend_sync',String(now));
-      const t=new Date(now).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
-      if(st)st.textContent=`Database tersinkron ✓ · ${t}`;
-      if(!silent)Swal.fire('Database tersinkron','Apps Script mengonfirmasi snapshot terbaru sudah diterima.','success');
-      return true;
-    }catch(e){
-      if(st)st.textContent=`Sync gagal · ${e.message}`;
-      if(!silent)Swal.fire('Sync database gagal',e.message,'error');
-      return false;
-    }
-  }
+  async function backend(action,payload={}){const c=settings();if(!c.backendUrl)throw new Error('Backend URL belum diisi.');const r=await fetch(c.backendUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,appKey:c.appKey||'',...payload})});const text=await r.text();let out;try{out=JSON.parse(text)}catch{throw new Error('Respons backend tidak valid. Pastikan Apps Script sudah Deploy sebagai Web app.')}if(!out.ok)throw new Error(out.error||'Backend menolak request.');return out;}
+  async function syncNow(silent=false){const st=document.getElementById('v245-sync-status');try{if(st)st.textContent='Menyinkronkan database…';await backend('syncSnapshot',{snapshot:snapshot()});localStorage.setItem('agis_finance_last_backend_sync',String(Date.now()));if(st)st.textContent=`Database tersinkron · ${new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`;if(!silent)Swal.fire('Database tersinkron','Google Sheets sudah menerima snapshot terbaru.','success');}catch(e){if(st)st.textContent=`Sync gagal · ${e.message}`;if(!silent)Swal.fire('Sync database gagal',e.message,'error');}}
   function scheduleSync(){if(!settings().autoSync||!settings().backendUrl)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(true),1800);}
-  function inject(){
-    const page=document.getElementById('settings');if(!page||document.getElementById('v245-auto-card'))return;
-    const legacy=document.getElementById('v244-telegram-card');if(legacy)legacy.style.display='none';
-    const card=document.createElement('div');card.className='card v245-card';card.id='v245-auto-card';
-    card.innerHTML=`<div class="v245-head"><div><div class="section-title"><i data-lucide="bot"></i> Automation & Database</div><div class="mini-muted">Notif Telegram + mirror Google Sheets. Status di bawah hanya hijau setelah backend benar-benar mengonfirmasi.</div></div><span class="v245-free">NO BILLING</span></div><div class="v245-fields"><div><label>Apps Script Web App URL</label><input id="v245-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec"><small class="mini-muted">Tempel satu URL /exec. Kalau kepaste dua kali, aplikasi akan membersihkannya otomatis.</small></div><div><label>App Key</label><input id="v245-key" type="password" autocomplete="off" placeholder="Kunci yang sama dengan Apps Script"></div></div><label class="v245-toggle"><input id="v245-autosync" type="checkbox"> <span>Auto-sync database setelah data berubah</span></label><div class="v245-actions"><button class="btn-primary" onclick="saveAutomationV245()">Simpan & Cek</button><button class="btn-small" onclick="syncDatabaseV245()">Sync sekarang</button><button class="btn-small" onclick="testTelegramV245()">Tes Telegram</button></div><div id="v245-sync-status" class="v245-status">Belum terhubung.</div>`;
+  function inject(){const page=document.getElementById('settings');if(!page||document.getElementById('v245-auto-card'))return;const legacy=document.getElementById('v244-telegram-card');if(legacy)legacy.style.display='none';const card=document.createElement('div');card.className='card v245-card';card.id='v245-auto-card';card.innerHTML=`<div class="v245-head"><div><div class="section-title"><i data-lucide="bot"></i> Automation & Database</div><div class="mini-muted">Notif Telegram tetap jalan walau aplikasi ditutup. Database otomatis dicerminkan ke Google Sheets.</div></div><span class="v245-free">NO BILLING</span></div><div class="v245-fields"><div><label>Apps Script Web App URL</label><input id="v245-url" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div><div><label>App Key</label><input id="v245-key" type="password" placeholder="Kunci yang sama dengan Apps Script"></div></div><label class="v245-toggle"><input id="v245-autosync" type="checkbox"> <span>Auto-sync database setelah data berubah</span></label><div class="v245-actions"><button class="btn-primary" onclick="saveAutomationV245()">Simpan</button><button class="btn-small" onclick="syncDatabaseV245()">Sync sekarang</button><button class="btn-small" onclick="testTelegramV245()">Tes Telegram</button></div><div id="v245-sync-status" class="v245-status">Belum terhubung.</div>`;
     const backup=[...page.querySelectorAll('.card')].find(c=>c.textContent.includes('Backup & Restore'));page.insertBefore(card,backup||null);
     if(backup&&!document.getElementById('v245-db-tools')){const tools=document.createElement('div');tools.id='v245-db-tools';tools.className='v245-db-tools';tools.innerHTML=`<div class="v245-divider"></div><div class="section-title" style="margin-bottom:8px"><i data-lucide="database"></i> Database & Reset</div><div class="mini-muted">Khusus pengelolaan database cloud dan reset. Backup/import ada di bagian Backup & Restore di atas.</div><div class="v245-actions"><button class="btn-small danger" onclick="wipeAutomationDbV245()">Hapus DB Sheets</button><button class="btn-small danger" onclick="factoryResetV245()">Reset Semua Data</button></div>`;backup.appendChild(tools);}
     loadUI();if(window.lucide?.createIcons)lucide.createIcons();
   }
-  function loadUI(){
-    let c=settings(),repaired=false;const u=document.getElementById('v245-url'),k=document.getElementById('v245-key'),a=document.getElementById('v245-autosync'),st=document.getElementById('v245-sync-status');
-    let shown=c.backendUrl||'';
-    if(shown){try{const clean=normalizeBackendUrl(shown);if(clean&&clean!==shown){persistSettings({backendUrl:clean});shown=clean;c=settings();repaired=true;}}catch{}}
-    if(u){u.value=shown;if(!u.dataset.v2604){u.dataset.v2604='1';u.addEventListener('paste',e=>{const text=e.clipboardData?.getData('text')||'';if(text.includes('script.google.com/macros/s/')){e.preventDefault();u.value=text.trim();}});u.addEventListener('blur',()=>{try{const clean=normalizeBackendUrl(u.value);if(clean)u.value=clean}catch{}});}}
-    if(k)k.value=c.appKey||'';if(a)a.checked=c.autoSync!==false;
-    const last=Number(localStorage.getItem('agis_finance_last_backend_sync')||0);
-    if(st)st.textContent=repaired?'URL duplikat dibersihkan otomatis · klik Simpan & Cek':last?`Sync terkonfirmasi ${new Date(last).toLocaleString('id-ID')}`:'Belum ada sync terkonfirmasi.';
-  }
-  window.saveAutomationV245=async()=>{
-    const u=document.getElementById('v245-url'),st=document.getElementById('v245-sync-status');
-    const raw=(u?.value||'').trim(),appKey=(document.getElementById('v245-key')?.value||'').trim(),autoSync=!!document.getElementById('v245-autosync')?.checked;
-    let backendUrl;try{backendUrl=normalizeBackendUrl(raw);}catch(e){return Swal.fire('URL backend belum benar',e.message,'error')}
-    if(!backendUrl)return Swal.fire('URL backend belum diisi','','warning');if(!appKey)return Swal.fire('App Key belum diisi','','warning');
-    const repaired=backendUrl!==raw;persistSettings({backendUrl,appKey,autoSync});if(u)u.value=backendUrl;if(st)st.textContent='Mengecek koneksi backend…';
-    try{
-      const res=await backend('ping');
-      const telegramReady=res.telegramReady!==false;
-      if(st)st.textContent=`Backend terhubung ✓${telegramReady?' · Telegram siap':' · Telegram belum siap'}`;
-      const note=[repaired?'URL duplikat/berlebih sudah dibersihkan.':'URL tersimpan.',telegramReady?'BOT_TOKEN + CHAT_ID terbaca di Apps Script.':'Backend nyambung, tapi BOT_TOKEN/CHAT_ID belum tersimpan.'].join(' ');
-      await Swal.fire('Automation terhubung',note,telegramReady?'success':'warning');
-      if(autoSync)scheduleSync();
-    }catch(e){if(st)st.textContent=`Koneksi gagal · ${e.message}`;Swal.fire('Backend belum terhubung',e.message,'error')}
-  };
+  function loadUI(){const c=settings();const u=document.getElementById('v245-url'),k=document.getElementById('v245-key'),a=document.getElementById('v245-autosync'),st=document.getElementById('v245-sync-status');if(u)u.value=c.backendUrl||'';if(k)k.value=c.appKey||'';if(a)a.checked=c.autoSync!==false;const last=Number(localStorage.getItem('agis_finance_last_backend_sync')||0);if(st)st.textContent=last?`Sync terakhir ${new Date(last).toLocaleString('id-ID')}`:'Belum ada sync database.';}
+  window.saveAutomationV245=()=>{const backendUrl=(document.getElementById('v245-url')?.value||'').trim(),appKey=(document.getElementById('v245-key')?.value||'').trim(),autoSync=!!document.getElementById('v245-autosync')?.checked;persistSettings({backendUrl,appKey,autoSync});Swal.fire('Automation disimpan',autoSync?'Perubahan data akan dikirim ke database otomatis.':'Auto-sync dimatikan.','success');if(autoSync)scheduleSync();};
   window.syncDatabaseV245=()=>syncNow(false);
-  window.testTelegramV245=async()=>{try{const res=await backend('testTelegram',{message:'✅ Agis Finance v26.0.6: Telegram + database terhubung.'});Swal.fire('Telegram terhubung',res.telegramMessage||'Backend mengonfirmasi pesan tes berhasil dikirim.','success')}catch(e){Swal.fire('Tes Telegram gagal',e.message,'error')}};
-  window.wipeAutomationDbV245=async()=>{const r=await Swal.fire({title:'Hapus database Google Sheets?',text:'Data di aplikasi/Firestore tidak ikut dihapus. Buat backup dulu kalau perlu.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus DB Sheets',cancelButtonText:'Batal'});if(!r.isConfirmed)return;try{await backend('wipeDatabase');Swal.fire('Database Sheets dibersihkan','Backend mengonfirmasi database Sheets sudah dibersihkan.','success')}catch(e){Swal.fire('Gagal',e.message,'error')}};
-  function parseBackup(parsed){const d=parsed?.data||parsed;if(!d||!d.wallets||!Array.isArray(d.trans))throw new Error('Format backup tidak dikenali.');return {version:Number(parsed?.schemaVersion||parsed?.version||22),data:{wallets:d.wallets||{},goal:Number(d.goal)||0,limits:d.limits||{},trans:Array.isArray(d.trans)?d.trans:[],incomes:Array.isArray(d.incomes)?d.incomes:[],transfers:Array.isArray(d.transfers)?d.transfers:[],goals:Array.isArray(d.goals)?d.goals:[],recurring:Array.isArray(d.recurring)?d.recurring:[],audit:Array.isArray(d.audit)?d.audit:[],v25:d.v25||null,v26:d.v26&&typeof d.v26==='object'?d.v26:null,carryOver:d.carryOver&&typeof d.carryOver==='object'?d.carryOver:null,recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null}};}
+  window.testTelegramV245=async()=>{try{await backend('testTelegram',{message:'✅ Agis Finance v25.3.5: Telegram + pengingat otomatis sudah terhubung.'});Swal.fire('Telegram terhubung','Pesan tes sudah dikirim oleh backend.','success')}catch(e){Swal.fire('Tes gagal',e.message,'error')}};
+  window.wipeAutomationDbV245=async()=>{const r=await Swal.fire({title:'Hapus database Google Sheets?',text:'Data di aplikasi/Firestore tidak ikut dihapus. Buat backup dulu kalau perlu.',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus DB Sheets',cancelButtonText:'Batal'});if(!r.isConfirmed)return;try{await backend('wipeDatabase');Swal.fire('Database Sheets dibersihkan','Aplikasi tetap aman dan bisa sync ulang kapan saja.','success')}catch(e){Swal.fire('Gagal',e.message,'error')}};
+  function parseBackup(parsed){const d=parsed?.data||parsed;if(!d||!d.wallets||!Array.isArray(d.trans))throw new Error('Format backup tidak dikenali.');return {version:Number(parsed?.schemaVersion||parsed?.version||22),data:{wallets:d.wallets||{},goal:Number(d.goal)||0,limits:d.limits||{},trans:Array.isArray(d.trans)?d.trans:[],incomes:Array.isArray(d.incomes)?d.incomes:[],transfers:Array.isArray(d.transfers)?d.transfers:[],goals:Array.isArray(d.goals)?d.goals:[],recurring:Array.isArray(d.recurring)?d.recurring:[],audit:Array.isArray(d.audit)?d.audit:[],v25:d.v25||null,v26:d.v26&&typeof d.v26==='object'?d.v26:null,v27:d.v27&&typeof d.v27==='object'?d.v27:null,carryOver:d.carryOver&&typeof d.carryOver==='object'?d.carryOver:null,recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null}};}
   window.previewImportV245=async e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;try{const parsed=parseBackup(JSON.parse(await f.text()));sessionStorage.setItem(IMPORT_KEY,JSON.stringify(parsed));const d=parsed.data,rows=[...d.trans,...d.incomes,...d.transfers].sort((a,b)=>String(b.tanggal||'').localeCompare(String(a.tanggal||''))).slice(0,8);const p=document.getElementById('v245-preview');p.hidden=false;p.innerHTML=`<div class="v245-preview-head"><b>Preview backup v${parsed.version}</b><span>${d.trans.length+d.incomes.length+d.transfers.length} transaksi</span></div><div class="v245-grid"><div><small>Wallet</small><b>${rp(Object.values(d.wallets).reduce((s,n)=>s+(Number(n)||0),0))}</b></div><div><small>Pengeluaran</small><b>${d.trans.length}</b></div><div><small>Pemasukan</small><b>${d.incomes.length}</b></div><div><small>Goals</small><b>${d.goals.length}</b></div><div><small>Carry-over</small><b>${rp(d.carryOver?.balance||0)}</b></div></div><div class="v245-table">${rows.length?rows.map(x=>`<div><span>${esc(x.tanggal||'-')} · ${esc(x.kategori||x.type||'-')}</span><b>${rp(x.nominal||0)}</b></div>`).join(''):'<div class="mini-muted">Tidak ada transaksi untuk dipreview.</div>'}</div><button class="btn-primary" onclick="applyImportV245()">Terapkan Backup Ini</button>`;}catch(err){Swal.fire('Preview gagal',err.message,'error')}};
-  window.applyImportV245=async()=>{const raw=sessionStorage.getItem(IMPORT_KEY);if(!raw)return;const parsed=JSON.parse(raw),d=parsed.data;const c=await Swal.fire({title:'Terapkan backup?',text:`Data preview v${parsed.version} akan menggantikan state lokal lalu diantrikan untuk sinkronisasi.`,icon:'warning',showCancelButton:true,confirmButtonText:'Terapkan',cancelButtonText:'Batal'});if(!c.isConfirmed)return;store.wallets=d.wallets;store.limits=d.limits;store.trans=d.trans;store.incomes=d.incomes;store.transfers=d.transfers;store.goals=d.goals;store.recurring=d.recurring;store.audit=d.audit;if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}))}catch{}}if(d.v26){try{localStorage.setItem('agis_finance_v26_decision_lab',JSON.stringify(d.v26))}catch{}}if(d.carryOver){try{localStorage.setItem('agis_finance_carry_over_v24_1',JSON.stringify({month:String(d.carryOver.month||''),balance:Math.max(0,Number(d.carryOver.balance)||0),lastDate:String(d.carryOver.lastDate||''),dailyBase:Math.max(0,Number(d.carryOver.dailyBase)||0),history:d.carryOver.history&&typeof d.carryOver.history==='object'?d.carryOver.history:{}}))}catch{}}if(d.recoveryTarget){try{localStorage.setItem('agis_finance_recovery_target_v24_2',JSON.stringify(d.recoveryTarget))}catch{}}store.conflicts=[];store.goal=store.goals.length?store.goals.reduce((s,g)=>s+(Number(g.saved)||0),0):d.goal;const now=Date.now();enqueueSync({opId:`v245-restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now});enqueueSync({opId:`v245-restore-goal:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now});Object.entries(store.limits||{}).forEach(([category,amount])=>enqueueSync({opId:`v245-restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));store.trans.forEach(t=>t.id&&enqueueSync({opId:`v245-rexp:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:{...t,pendingSync:undefined},createdAt:now,force:true}));store.incomes.forEach(t=>t.id&&enqueueSync({opId:`v245-rinc:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:{...t,pendingSync:undefined},createdAt:now,force:true}));store.transfers.forEach(t=>t.id&&enqueueSync({opId:`v245-rtr:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:{...t,pendingSync:undefined},createdAt:now,force:true}));store.goals.forEach(g=>g.id&&enqueueSync({opId:`v245-rgoal:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:{...g,pendingSync:undefined},createdAt:now,force:true}));store.recurring.forEach(r=>r.id&&enqueueSync({opId:`v245-rr:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:{...r,pendingSync:undefined},createdAt:now,force:true}));if(typeof auditEvent==='function')auditEvent('Import backup via preview',`Schema v${parsed.version} → v26`);persistLocalSnapshot();renderAll();flushOutbox();sessionStorage.removeItem(IMPORT_KEY);document.getElementById('v245-preview').hidden=true;scheduleSync();Swal.fire('Backup diterapkan','Data utama, planning, dan Decision Lab sudah dipulihkan.','success');};
+  window.applyImportV245=async()=>{const raw=sessionStorage.getItem(IMPORT_KEY);if(!raw)return;const parsed=JSON.parse(raw),d=parsed.data;const c=await Swal.fire({title:'Terapkan backup?',text:`Data preview v${parsed.version} akan menggantikan state lokal lalu diantrikan untuk sinkronisasi.`,icon:'warning',showCancelButton:true,confirmButtonText:'Terapkan',cancelButtonText:'Batal'});if(!c.isConfirmed)return;store.wallets=d.wallets;store.limits=d.limits;store.trans=d.trans;store.incomes=d.incomes;store.transfers=d.transfers;store.goals=d.goals;store.recurring=d.recurring;store.audit=d.audit;if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}))}catch{}}if(d.v26){try{localStorage.setItem('agis_finance_v26_decision_lab',JSON.stringify(d.v26))}catch{}}if(d.v27){try{localStorage.setItem('agis_finance_v27_tracking',JSON.stringify(d.v27))}catch{}}if(d.carryOver){try{localStorage.setItem('agis_finance_carry_over_v24_1',JSON.stringify({month:String(d.carryOver.month||''),balance:Math.max(0,Number(d.carryOver.balance)||0),lastDate:String(d.carryOver.lastDate||''),dailyBase:Math.max(0,Number(d.carryOver.dailyBase)||0),history:d.carryOver.history&&typeof d.carryOver.history==='object'?d.carryOver.history:{}}))}catch{}}if(d.recoveryTarget){try{localStorage.setItem('agis_finance_recovery_target_v24_2',JSON.stringify(d.recoveryTarget))}catch{}}store.conflicts=[];store.goal=store.goals.length?store.goals.reduce((s,g)=>s+(Number(g.saved)||0),0):d.goal;const now=Date.now();enqueueSync({opId:`v245-restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now});enqueueSync({opId:`v245-restore-goal:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now});Object.entries(store.limits||{}).forEach(([category,amount])=>enqueueSync({opId:`v245-restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));store.trans.forEach(t=>t.id&&enqueueSync({opId:`v245-rexp:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:{...t,pendingSync:undefined},createdAt:now,force:true}));store.incomes.forEach(t=>t.id&&enqueueSync({opId:`v245-rinc:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:{...t,pendingSync:undefined},createdAt:now,force:true}));store.transfers.forEach(t=>t.id&&enqueueSync({opId:`v245-rtr:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:{...t,pendingSync:undefined},createdAt:now,force:true}));store.goals.forEach(g=>g.id&&enqueueSync({opId:`v245-rgoal:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:{...g,pendingSync:undefined},createdAt:now,force:true}));store.recurring.forEach(r=>r.id&&enqueueSync({opId:`v245-rr:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:{...r,pendingSync:undefined},createdAt:now,force:true}));if(typeof auditEvent==='function')auditEvent('Import backup via preview',`Schema v${parsed.version} → v27`);persistLocalSnapshot();renderAll();flushOutbox();sessionStorage.removeItem(IMPORT_KEY);document.getElementById('v245-preview').hidden=true;scheduleSync();Swal.fire('Backup diterapkan','Data utama, planning, dan Decision Lab dan Tracking sudah dipulihkan.','success');};
   window.factoryResetV245=async()=>{const first=await Swal.fire({title:'Reset SEMUA data?',text:'Pengeluaran, pemasukan, transfer, goals, recurring, wallet dan limit akan dihapus/reset. Buat Backup JSON dulu.',icon:'warning',showCancelButton:true,confirmButtonText:'Lanjut',cancelButtonText:'Batal'});if(!first.isConfirmed)return false;const second=await Swal.fire({title:'Konfirmasi terakhir',input:'text',inputLabel:'Ketik HAPUS untuk melanjutkan',showCancelButton:true,confirmButtonText:'Reset',inputValidator:v=>v==='HAPUS'?undefined:'Harus mengetik HAPUS'});if(!second.isConfirmed)return false;const now=Date.now();(store.trans||[]).forEach(x=>x.id&&enqueueSync({opId:`v245-del-exp:${x.id}:${now}`,type:'deleteExpense',expenseId:x.id,data:x,createdAt:now,force:true}));(store.incomes||[]).forEach(x=>x.id&&enqueueSync({opId:`v245-del-inc:${x.id}:${now}`,type:'deleteIncome',incomeId:x.id,data:x,createdAt:now,force:true}));(store.transfers||[]).forEach(x=>x.id&&enqueueSync({opId:`v245-del-tr:${x.id}:${now}`,type:'deleteTransfer',transferId:x.id,data:x,createdAt:now,force:true}));(store.goals||[]).forEach(x=>x.id&&enqueueSync({opId:`v245-del-goal:${x.id}:${now}`,type:'deleteSavingsGoal',goalItemId:x.id,data:x,createdAt:now,force:true}));(store.recurring||[]).forEach(x=>x.id&&enqueueSync({opId:`v245-del-rr:${x.id}:${now}`,type:'deleteRecurring',recurringId:x.id,data:x,createdAt:now,force:true}));Object.keys(store.limits||{}).forEach(category=>enqueueSync({opId:`v245-zero-limit:${category}:${now}`,type:'setLimit',category,amount:0,createdAt:now,updatedAt:now}));store.wallets={Tunai:0,Bank:0,'E-Wallet':0};store.goal=0;store.limits={};store.trans=[];store.incomes=[];store.transfers=[];store.goals=[];store.recurring=[];store.audit=[];store.conflicts=[];enqueueSync({opId:`v245-zero-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now});enqueueSync({opId:`v245-zero-goal:${now}`,type:'setGoal',amount:0,createdAt:now,updatedAt:now});persistLocalSnapshot();renderAll();flushOutbox();scheduleSync();Swal.fire('Reset diantrikan','Kalau offline, penghapusan cloud akan berjalan saat koneksi kembali.','success');return true;};
   function wrapPersistence(){if(typeof window.persistLocalSnapshot==='function'&&!window.persistLocalSnapshot.__v245){const orig=window.persistLocalSnapshot;const fn=function(){const r=orig.apply(this,arguments);scheduleSync();return r};fn.__v245=true;window.persistLocalSnapshot=fn;}else{document.addEventListener('click',e=>{if(e.target.closest('button'))scheduleSync()});}}
-  async function reconnectSync(attempt=0){
-    if(!navigator.onLine||reconnectBusy)return;
-    const c=settings();if(!c.autoSync||!c.backendUrl||!String(c.appKey||'').trim())return;
-    reconnectBusy=true;
-    const st=document.getElementById('v245-sync-status');
-    try{
-      if(st)st.textContent=attempt?'Mengulang sync setelah internet kembali…':'Internet kembali · menyinkronkan…';
-      try{if(typeof window.flushOutbox==='function')window.flushOutbox();else if(typeof flushOutbox==='function')flushOutbox();}catch{}
-      const ok=await syncNow(true);
-      reconnectBusy=false;
-      if(ok)return;
-      if(navigator.onLine&&attempt<2){const waits=[4000,12000,30000];clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>reconnectSync(attempt+1),waits[attempt]||12000);}
-    }catch(e){
-      reconnectBusy=false;
-      if(navigator.onLine&&attempt<2){const waits=[4000,12000,30000];clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>reconnectSync(attempt+1),waits[attempt]||12000);}
-    }
-  }
-  function installReconnectSync(){
-    if(window.__agisV2606Reconnect)return;window.__agisV2606Reconnect=true;
-    window.addEventListener('online',()=>{clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>reconnectSync(0),700);});
-    window.addEventListener('offline',()=>{clearTimeout(reconnectTimer);reconnectBusy=false;const st=document.getElementById('v245-sync-status');if(st)st.textContent='Offline · perubahan tetap disimpan lokal';});
-    document.addEventListener('visibilitychange',()=>{
-      if(document.hidden||!navigator.onLine)return;
-      const last=Number(localStorage.getItem('agis_finance_last_backend_sync')||0);
-      if(Date.now()-last>120000){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>reconnectSync(0),900);}
-    });
-  }
-  function init(){inject();wrapPersistence();installReconnectSync();if(settings().autoSync&&settings().backendUrl)setTimeout(()=>syncNow(true),4200);}
+  function init(){inject();wrapPersistence();if(settings().autoSync&&settings().backendUrl)setTimeout(()=>syncNow(true),3500);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,80));else setTimeout(init,80);
 })();
