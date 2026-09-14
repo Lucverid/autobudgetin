@@ -22,6 +22,13 @@
     const normalized=/^\d{1,3}(\.\d{3})+$/.test(raw)?raw.replace(/\./g,''):raw.replace(/[^0-9.-]/g,'');
     return Math.max(0,Number(normalized)||0);
   };
+  // Money fields are integers in rupiah. Strip every separator/non-digit first,
+  // so typing 1.000 -> 10.000 -> 100.000 never collapses back to 1.
+  const moneyNum=v=>{
+    if(typeof v==='number')return Math.max(0,Number.isFinite(v)?Math.round(v):0);
+    const digits=String(v??'').replace(/\D/g,'');
+    return digits?Math.max(0,Number(digits)||0):0;
+  };
   const rp=v=>typeof fmt==='function'?fmt(Math.round(Number(v)||0)):`Rp ${Math.round(Number(v)||0).toLocaleString('id-ID')}`;
   const moneyValue=v=>Number(v)?Math.round(Number(v)).toLocaleString('id-ID'):'';
   const uid=p=>`${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
@@ -209,7 +216,7 @@
     return true;
   }
 
-  function profileInput(name,label,value){return `<div><label for="v26-profile-${name}">${label}</label><input id="v26-profile-${name}" data-v26-profile="${name}" inputmode="numeric" value="${moneyValue(value)}" placeholder="0"></div>`;}
+  function profileInput(name,label,value){return `<div><label for="v26-profile-${name}">${label}</label><input id="v26-profile-${name}" data-v26-profile="${name}" data-v26-type="money" inputmode="numeric" value="${moneyValue(value)}" placeholder="0"></div>`;}
   function injectProfile(){
     const page=document.getElementById('settings');
     if(!page||document.getElementById('v26-profile-card'))return false;
@@ -224,8 +231,12 @@
 
   function formatField(el){
     if(el.dataset.v26Type==='text')return;
-    const value=num(el.value);
-    if((el.dataset.v26Type||'money')==='money')el.value=value?Math.round(value).toLocaleString('id-ID'):'';
+    if((el.dataset.v26Type||'money')==='money'){
+      // Reuse the app-wide safe formatter when available. It is digits-only,
+      // so Indonesian thousand separators can never be misread as decimals.
+      if(typeof window.formatMoneyField==='function')window.formatMoneyField(el);
+      else{const value=moneyNum(el.value);el.value=value?Math.round(value).toLocaleString('id-ID'):'';}
+    }
   }
   function bindLab(){
     const lab=document.getElementById('v26-decision-lab');if(!lab||lab.dataset.bound)return;lab.dataset.bound='1';
@@ -234,12 +245,12 @@
       const el=e.target,field=el.dataset.v26Field,credit=el.dataset.v26Credit;
       if(!field&&!credit)return;
       if(el.dataset.v26Type==='money')formatField(el);
-      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=el.dataset.v26Type==='text'?el.value:num(el.value);});
+      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=el.dataset.v26Type==='text'?el.value:(el.dataset.v26Type==='money'?moneyNum(el.value):num(el.value));});
       renderResults();
     });
     lab.addEventListener('change',e=>{
       const el=e.target,field=el.dataset.v26Field,credit=el.dataset.v26Credit;if(!field&&!credit)return;
-      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=el.dataset.v26Type==='text'?el.value:num(el.value);});renderResults();
+      setState(s=>{const target=field?s.businessDraft:s.creditDraft;const key=field||credit;target[key]=el.dataset.v26Type==='text'?el.value:(el.dataset.v26Type==='money'?moneyNum(el.value):num(el.value));});renderResults();
     });
   }
   function switchTab(name,save=true){
@@ -280,7 +291,7 @@
   }
 
   window.saveV26Profile=()=>{
-    const values={};document.querySelectorAll('[data-v26-profile]').forEach(el=>values[el.dataset.v26Profile]=num(el.value));
+    const values={};document.querySelectorAll('[data-v26-profile]').forEach(el=>values[el.dataset.v26Profile]=moneyNum(el.value));
     setState(s=>s.profile={...s.profile,...values});renderResults();
     if(typeof auditEvent==='function')auditEvent('Profil perhitungan diperbarui','Gaji dan kebutuhan wajib untuk simulasi kredit');
     Swal.fire({title:'Profil disimpan',text:'Simulasi Kredit langsung memakai angka terbaru.',icon:'success',timer:1300,showConfirmButton:false});
