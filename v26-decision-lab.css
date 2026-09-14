@@ -329,3 +329,15 @@ body.light-mode .v26-result{background:rgba(148,163,184,.06)}
   .v26-profile-actions{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){.v26-panel.active{animation:none}}
+
+/* v26.0.4 — compact Planning placement: Decision Lab sebelum What-if. */
+.v26-lab{margin-top:10px}
+.v26-head p{max-width:54ch}
+.v26-tabs{margin:14px 0 12px}
+.v26-section{padding:12px 0}
+.v26-section-title{margin-bottom:9px}
+.v26-saved-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px}
+@media(max-width:620px){
+  .v26-saved-list{grid-template-columns:1fr}
+  .v26-section-title span{display:none}
+}

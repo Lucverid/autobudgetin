@@ -189,19 +189,21 @@
   function injectLab(){
     const host=document.getElementById('v2531-planning-host');
     if(!host)return false;
+    const whatIf=host.querySelector('#v244-simulator-card')||host.querySelector('.v2533-whatif-card');
+    const year=host.querySelector('.v25-year-card');
+    const anchor=whatIf||year;
     const existing=document.getElementById('v26-decision-lab');
     if(existing){
-      // What-if anchors itself before this card, never before the year report.
-      // Only move the existing node when needed: preserve input/focus/drafts.
-      const year=host.querySelector('.v25-year-card');
-      if(year&&existing.nextElementSibling!==year)host.insertBefore(existing,year);
+      // v26.0.4: urutan stabil = Budget/Tagihan -> Decision Lab -> What-if -> Laporan.
+      // Tracking tetap hidup di dalam Decision Lab dan hanya render saat dibuka.
+      if(existing.parentElement!==host){if(anchor)host.insertBefore(existing,anchor);else host.appendChild(existing);}
+      else if(anchor&&existing.nextElementSibling!==anchor)host.insertBefore(existing,anchor);
       return false;
     }
     const s=state(),card=document.createElement('section');
     card.className='card v26-lab';card.id='v26-decision-lab';
-    card.innerHTML=`<div class="v26-head"><div><span class="v26-eyebrow">DECISION LAB</span><h3>Uji keputusan sebelum keluar uang</h3><p>Hitung kelayakan usaha dan kemampuan kredit dari kondisi keuanganmu.</p></div><div class="v26-head-icon"><i data-lucide="chart-no-axes-combined"></i></div></div><div class="v26-tabs" role="tablist"><button class="v26-tab" data-v26-tab="business" type="button"><i data-lucide="briefcase-business"></i> Analisis Bisnis</button><button class="v26-tab" data-v26-tab="credit" type="button"><i data-lucide="credit-card"></i> Simulasi Kredit</button></div>${businessPanel(s.businessDraft)}${creditPanel(s.creditDraft)}`;
-    const year=host.querySelector('.v25-year-card');
-    if(year)host.insertBefore(card,year);else host.appendChild(card);
+    card.innerHTML=`<div class="v26-head"><div><span class="v26-eyebrow">DECISION LAB</span><h3>Bisnis & kredit sebelum keluar uang</h3><p>Simulasikan keputusan dulu, simpan skenario yang layak, lalu lanjut ke Realisasi & Tracking di card yang sama.</p></div><div class="v26-head-icon"><i data-lucide="chart-no-axes-combined"></i></div></div><div class="v26-tabs" role="tablist"><button class="v26-tab" data-v26-tab="business" type="button"><i data-lucide="briefcase-business"></i> Analisis Bisnis</button><button class="v26-tab" data-v26-tab="credit" type="button"><i data-lucide="credit-card"></i> Simulasi Kredit</button></div>${businessPanel(s.businessDraft)}${creditPanel(s.creditDraft)}`;
+    if(anchor)host.insertBefore(card,anchor);else host.appendChild(card);
     bindLab();switchTab(s.activeTab||'business',false);renderResults();
     if(window.lucide?.createIcons)lucide.createIcons();
     return true;
