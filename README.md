@@ -1,21 +1,23 @@
-# AutoBudgetin v26.0.5 STABLE+ — Reliable Sync
+# AutoBudgetin v26.0.6 STABLE+
 
-Hotfix untuk koneksi Apps Script/Telegram di atas v26.0.4.
+Patch ini dibuat dari file v26.0.5 yang saat ini ada di branch `main`.
 
-## GitHub
-Timpa:
+## Yang baru
+- Feature Switcher di halaman Planning: Decision Lab / Realisasi / What-if / Laporan / Semua.
+- Pilihan fitur terakhir disimpan di perangkat.
+- Budget & Tagihan dipindah ke bagian atas Planning; Laporan Tahunan masuk ke pilihan Laporan.
+- Realisasi tetap memakai modul tracking stabil yang sudah ada dan hanya dirender saat dibuka.
+- Apps Script auto-sync langsung mencoba lagi saat internet kembali.
+- Firebase outbox tetap di-flush saat reconnect.
+- Retry Apps Script: langsung, lalu sekitar 4 detik dan 12 detik bila percobaan sebelumnya gagal.
+- Saat PWA kembali dari background dan sync sudah lama, dilakukan pengecekan/sync ulang.
+
+## Upload ke GitHub
+Timpa / upload 5 file berikut ke root repo:
 - index.html
 - service-worker.js
 - v24-5-automation.js
+- v26-feature-switcher.js
+- v26-feature-switcher.css
 
-## Apps Script
-Ganti kode dengan `telegram-database-backend.gs`, lalu Deploy > Manage deployments > Edit > New version > Deploy.
-Jangan jalankan setupAgisFinance lagi jika secret lama sudah tersimpan.
-
-## Perubahan
-- Menghapus konfirmasi iframe/postMessage yang tidak reliabel pada Apps Script sandbox.
-- POST dikirim ke Apps Script, backend menyimpan receipt hasil nyata.
-- Frontend mengambil receipt via JSONP GET yang tidak bergantung CORS.
-- Tes Telegram hanya sukses jika Telegram API benar-benar berhasil.
-- Error APP_KEY / BOT_TOKEN / CHAT_ID / Telegram API dikembalikan ke UI.
-- Layout Decision Lab dari v26.0.4 tetap dipertahankan.
+Tidak perlu mengubah Apps Script backend untuk patch ini.

@@ -1,0 +1,22 @@
+#v26-feature-switcher{margin:0 0 14px}
+.v26fs-wrap{padding:12px;border:1px solid var(--border);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));overflow:hidden}
+.v26fs-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.v26fs-head>div{display:grid;gap:2px;min-width:0}.v26fs-head span{font-size:.62rem;letter-spacing:.13em;font-weight:900;color:var(--primary)}.v26fs-head b{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v26fs-all{border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);height:36px;padding:0 11px;border-radius:12px;display:flex;gap:6px;align-items:center;font-weight:800;font-size:.7rem;flex:none}.v26fs-all svg{width:15px;height:15px}
+.v26fs-tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:1px 1px 3px;scroll-snap-type:x proximity}.v26fs-tabs::-webkit-scrollbar{display:none}
+.v26fs-tabs button{scroll-snap-align:start;min-width:max-content;border:1px solid var(--border);background:rgba(255,255,255,.035);color:var(--text-dim);height:40px;border-radius:13px;padding:0 12px;display:flex;align-items:center;gap:7px;font-size:.72rem;font-weight:850;transition:.16s ease}.v26fs-tabs button svg{width:15px;height:15px}.v26fs-tabs button.active{color:var(--text);border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.12);box-shadow:inset 0 0 0 1px rgba(45,212,191,.05)}
+.v26fs-hidden{display:none!important}
+#v26-decision-lab.v26fs-tracking-mode> :not(#v26-stable-tracking){display:none!important}
+#v26-decision-lab.v26fs-tracking-mode{padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+#v26-decision-lab.v26fs-tracking-mode #v26-stable-tracking{margin:0!important}
+#v26-decision-lab.v26fs-tracking-mode #v26-stable-tracking>summary{display:none!important}
+#v26-decision-lab.v26fs-tracking-mode #v26-stable-tracking[open]>.v26st-body{padding-top:0}
+#v2531-planning-host>#v25-planning-card{margin-bottom:14px}
+#v2531-planning-host>.v25-year-card{margin-top:0}
+.v26fs-sheet[hidden]{display:none!important}.v26fs-sheet{position:fixed;inset:0;z-index:12000;display:flex;align-items:flex-end;justify-content:center}.v26fs-backdrop{position:absolute;inset:0;border:0;background:rgba(2,6,23,.64);backdrop-filter:blur(3px)}
+.v26fs-sheet-card{position:relative;width:min(520px,100%);max-height:min(620px,82vh);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:24px 24px 0 0;padding:10px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -20px 60px rgba(0,0,0,.32)}
+.v26fs-sheet-handle{width:38px;height:4px;border-radius:10px;background:var(--border);margin:0 auto 12px}.v26fs-sheet-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.v26fs-sheet-title>div{display:grid;gap:2px}.v26fs-sheet-title span{font-size:.62rem;color:var(--primary);letter-spacing:.12em;font-weight:900}.v26fs-sheet-title b{font-size:.95rem}.v26fs-sheet-title>button{width:36px;height:36px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text)}.v26fs-sheet-title svg{width:16px;height:16px}
+.v26fs-sheet-list{display:grid;gap:8px}.v26fs-sheet-list>button{width:100%;border:1px solid var(--border);background:rgba(255,255,255,.025);color:var(--text);border-radius:16px;padding:11px;display:grid;grid-template-columns:38px 1fr 18px;gap:10px;text-align:left;align-items:center}.v26fs-sheet-list>button>span:nth-child(2){display:grid;gap:2px}.v26fs-sheet-list b{font-size:.8rem}.v26fs-sheet-list small{font-size:.66rem;line-height:1.35;color:var(--text-dim)}.v26fs-sheet-icon{width:38px;height:38px;border-radius:12px;background:rgba(45,212,191,.1);display:grid;place-items:center;color:var(--primary)}.v26fs-sheet-icon svg,.v26fs-sheet-list>button>svg{width:16px;height:16px}.v26fs-sheet-list>button>svg{color:var(--text-dim)}
+body.v26fs-sheet-open{overflow:hidden}
+@media(min-width:700px){.v26fs-tabs{display:grid;grid-template-columns:repeat(4,1fr);overflow:visible}.v26fs-tabs button{justify-content:center;min-width:0}.v26fs-sheet-card{border-radius:24px;margin-bottom:18px}}
+@media(max-width:380px){.v26fs-wrap{padding:10px}.v26fs-tabs button{height:38px;padding:0 10px;font-size:.68rem}.v26fs-all span{display:none}.v26fs-all{width:36px;padding:0;justify-content:center}}
