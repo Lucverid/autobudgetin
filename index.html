@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v27.5.4 Recovery FS</title>
+    <title>Agis Finance AI - v27.5.4 Recovery</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -266,50 +266,7 @@
     <link rel="stylesheet" href="./v25-5-17-easter-egg.css">
     <link rel="stylesheet" href="./v26-decision-lab.css">
     <link rel="stylesheet" href="./v27-tracking.css?v=27.5.4-recovery">
-
-<style id="v2754-safe-feature-switcher-style">
-/* v27.5.4 Recovery FS — visual-only Planning feature switcher.
-   Does not replace nav(), finance calculations, sync, or existing feature modules. */
-#v2754-safe-feature-switcher{
-  margin:12px 0 14px;
-  padding:10px;
-  border:1px solid var(--border);
-  border-radius:18px;
-  background:var(--surface);
-  overflow:hidden;
-}
-#v2754-safe-feature-switcher .v2754fs-copy{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin:0 2px 9px;
-}
-#v2754-safe-feature-switcher .v2754fs-copy small{
-  color:var(--text-dim);font-size:.58rem;font-weight:900;letter-spacing:.09em;
-}
-#v2754-safe-feature-switcher .v2754fs-copy b{font-size:.76rem}
-#v2754-safe-feature-switcher .v2754fs-tabs{
-  display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:1px;
-  -webkit-overflow-scrolling:touch;
-}
-#v2754-safe-feature-switcher .v2754fs-tabs::-webkit-scrollbar{display:none}
-#v2754-safe-feature-switcher button{
-  flex:0 0 auto;min-height:38px;padding:8px 11px;border:1px solid var(--border);
-  border-radius:12px;background:rgba(127,127,127,.045);color:var(--text-dim);
-  font-size:.68rem;font-weight:900;cursor:pointer;white-space:nowrap;
-}
-#v2754-safe-feature-switcher button.active{
-  background:var(--primary);border-color:var(--primary);color:#0f172a;
-  box-shadow:0 5px 16px rgba(45,212,191,.14);
-}
-#v2754-safe-feature-switcher button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.v2754fs-hidden{display:none!important}
-@media(min-width:430px){#v2754-safe-feature-switcher .v2754fs-tabs{justify-content:center}}
-@media(max-width:360px){
-  #v2754-safe-feature-switcher{padding:9px}
-  #v2754-safe-feature-switcher button{padding:8px 9px;font-size:.64rem}
-  #v2754-safe-feature-switcher .v2754fs-copy b{font-size:.72rem}
-}
-</style>
-
+    <link rel="stylesheet" href="./v27-feature-switcher-safe.css?v=27.5.4-switcher-safe">
 </head>
 <body>
 
@@ -2447,7 +2404,7 @@
         valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
     }
 </script>
-<script>window.__v2753CanonicalBackup = window.exportBackup; window.__v2754CanonicalBackup = window.exportBackup;</script>
+<script>window.__v2753CanonicalBackup = window.exportBackup;</script>
 <script src="./v24-4-features.js"></script>
 <script src="./v24-5-automation.js"></script>
 <script src="./v25-features.js"></script>
@@ -2460,116 +2417,8 @@
 <script src="./v25-5-17-easter-egg.js"></script>
 <script src="./v26-decision-lab.js?v=26.0.1"></script>
 <script src="./v27-tracking.js?v=27.5.4-recovery"></script>
-<script src="./v27-safe-bridge.js?v=27.5.4-recovery-fs"></script>
-
-<script id="v2754-safe-feature-switcher-script">
-(() => {
-  'use strict';
-  const KEY='agis_finance_v2754_planning_feature';
-  const FEATURES=[
-    {id:'decision',label:'Decision Lab'},
-    {id:'tracking',label:'Realisasi'},
-    {id:'whatif',label:'What-if'},
-    {id:'report',label:'Laporan'}
-  ];
-  let active='decision';
-  try{
-    const saved=localStorage.getItem(KEY);
-    if(FEATURES.some(x=>x.id===saved))active=saved;
-  }catch{}
-
-  function nodes(){
-    return {
-      decision:document.getElementById('v26-decision-lab'),
-      tracking:document.getElementById('v27-tracking'),
-      whatif:document.getElementById('v244-simulator-card'),
-      report:document.querySelector('#v2531-planning-host .v25-year-card')
-    };
-  }
-
-  function makeSwitcher(){
-    const wrap=document.createElement('section');
-    wrap.id='v2754-safe-feature-switcher';
-    wrap.setAttribute('aria-label','Pilih fitur Planning');
-    wrap.innerHTML=`<div class="v2754fs-copy"><div><small>FITUR PLANNING</small><br><b>Pilih satu tampilan</b></div></div><div class="v2754fs-tabs" role="tablist">${FEATURES.map(f=>`<button type="button" role="tab" data-v2754-feature="${f.id}">${f.label}</button>`).join('')}</div>`;
-    wrap.addEventListener('click',e=>{
-      const btn=e.target.closest('[data-v2754-feature]');
-      if(btn)setFeature(btn.dataset.v2754Feature,true);
-    });
-    wrap.addEventListener('keydown',e=>{
-      const btn=e.target.closest('[data-v2754-feature]');
-      if(!btn||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
-      const buttons=[...wrap.querySelectorAll('[data-v2754-feature]')];
-      let i=buttons.indexOf(btn);
-      if(e.key==='Home')i=0;
-      else if(e.key==='End')i=buttons.length-1;
-      else i=(i+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;
-      e.preventDefault();buttons[i]?.focus();setFeature(buttons[i]?.dataset.v2754Feature||'decision',false);
-    });
-    return wrap;
-  }
-
-  function ensureSwitcher(){
-    const host=document.getElementById('v2531-planning-host');
-    if(!host)return null;
-    let wrap=document.getElementById('v2754-safe-feature-switcher');
-    if(!wrap)wrap=makeSwitcher();
-    const budget=document.getElementById('v25-planning-card');
-    if(budget){
-      if(budget.nextElementSibling!==wrap)host.insertBefore(wrap,budget.nextElementSibling);
-    }else if(wrap.parentElement!==host){
-      host.insertBefore(wrap,host.firstElementChild||null);
-    }
-    return wrap;
-  }
-
-  function apply(){
-    const wrap=ensureSwitcher();
-    if(!wrap)return;
-    const map=nodes();
-    Object.entries(map).forEach(([id,node])=>{
-      if(!node)return;
-      node.classList.toggle('v2754fs-hidden',id!==active);
-      node.setAttribute('aria-hidden',id===active?'false':'true');
-    });
-    wrap.querySelectorAll('[data-v2754-feature]').forEach(btn=>{
-      const on=btn.dataset.v2754Feature===active;
-      btn.classList.toggle('active',on);
-      btn.setAttribute('aria-selected',on?'true':'false');
-      btn.tabIndex=on?0:-1;
-    });
-  }
-
-  function setFeature(id,scroll){
-    if(!FEATURES.some(x=>x.id===id))id='decision';
-    active=id;
-    try{localStorage.setItem(KEY,active)}catch{}
-    apply();
-    if(active==='tracking'){
-      try{window.refreshTrackingV27?.()}catch{}
-      // refresh can rerender the same card; re-apply only the visibility class.
-      apply();
-    }
-    try{window.dispatchEvent(new Event('resize'))}catch{}
-    if(scroll){
-      const target=nodes()[active]||document.getElementById('v2754-safe-feature-switcher');
-      requestAnimationFrame(()=>target?.scrollIntoView?.({behavior:'smooth',block:'start'}));
-    }
-  }
-
-  function init(){
-    apply();
-    // Existing Planning modules render asynchronously. Limited retries only;
-    // no permanent MutationObserver and no nav() wrapping.
-    [180,420,850,1400,2200].forEach(ms=>setTimeout(apply,ms));
-  }
-
-  window.setPlanningFeatureV2754=setFeature;
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
-  else init();
-})();
-</script>
-
-<!-- v27.5.4 Recovery FS: safe Planning feature switcher, global nav untouched -->
+<script src="./v27-safe-bridge.js?v=27.5.4-recovery"></script>
+<script src="./v27-feature-switcher-safe.js?v=27.5.4-switcher-safe"></script>
+<!-- v27.5.4 Recovery: uploaded working core + isolated feature switcher; main nav untouched -->
 </body>
 </html>
