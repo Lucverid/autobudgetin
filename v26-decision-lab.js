@@ -11,9 +11,11 @@
       salePrice:0,unitsPerDay:10,daysPerMonth:26,targetMargin:30
     },
     creditDraft:{name:'',cashPrice:0,downPayment:0,adminFee:0,interest:0,months:12,method:'flat'},
-    businesses:[],credits:[]
+    businesses:[],credits:[],editingBusinessId:'',editingCreditId:''
   };
 
+  const BLANK_BUSINESS={name:'',capitalAvailable:'',setupCost:'',fixedMonthly:'',initialStock:'',material:'',packaging:'',labor:'',operational:'',otherUnit:'',salePrice:'',unitsPerDay:'',daysPerMonth:'',targetMargin:''};
+  const BLANK_CREDIT={name:'',cashPrice:'',downPayment:'',adminFee:'',interest:'',months:'',method:'flat'};
   const clone=v=>JSON.parse(JSON.stringify(v));
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const num=v=>{
@@ -124,6 +126,67 @@
     return {principal,months,installment,totalCredit,financeCost,essentials,totalDebt,remaining,newRatio,dsr,cash,maxInstallment,tone,title,reason};
   }
 
+  const clamp=(v,min=0,max=100)=>Math.max(min,Math.min(max,Number(v)||0));
+  function businessCoach(d,r){
+    const complete=r.hpp>0&&num(d.salePrice)>0&&num(d.unitsPerDay)>0&&num(d.daysPerMonth)>0;
+    if(!complete)return {tone:'idle',score:0,label:'BUTUH DATA',title:'Lengkapi angka utama dulu',summary:'Decision Coach akan membaca margin, modal, laba, dan BEP secara otomatis saat data utama sudah terisi.',actions:['Isi komponen HPP per unit.','Masukkan harga jual dan target unit per hari.','Lengkapi modal tersedia agar risiko modal bisa dinilai.']};
+    const target=Math.min(90,num(d.targetMargin));
+    let score=45;
+    score+=r.marginUnit>0?15:-35;
+    score+=r.net>0?20:-25;
+    score+=r.capitalGap>=0?15:-10;
+    if(r.marginPct>=target)score+=10;
+    if(r.payback>0&&r.payback<=6)score+=10;else if(r.payback>0&&r.payback<=12)score+=5;
+    score=Math.round(clamp(score));
+    const actions=[];
+    if(r.marginUnit<=0)actions.push(`Harga jual harus di atas HPP ${rp(r.hpp)}. Naikkan harga atau turunkan biaya per unit.`);
+    else if(r.marginPct+0.01<target)actions.push(`Untuk mendekati margin ${target}%, harga jual referensi sekitar ${rp(r.suggestedPrice)}.`);
+    if(r.capitalGap<0)actions.push(`Modal masih kurang ${rp(Math.abs(r.capitalGap))}. Kurangi biaya awal/stok atau tambah modal tanpa mengorbankan dana aman.`);
+    if(r.net<=0&&r.marginUnit>0){const daily=Math.max(1,Math.ceil(r.bepUnits/Math.max(1,num(d.daysPerMonth))));actions.push(`Minimal sekitar ${daily} unit/hari dibutuhkan untuk menutup biaya tetap pada struktur harga sekarang.`);}
+    if(r.net>0&&r.payback>12)actions.push(`Balik modal sekitar ${r.payback.toFixed(1)} bulan. Uji cara menaikkan volume atau margin sebelum memperbesar modal.`);
+    if(r.net>0&&r.capitalGap>=0&&r.marginPct>=target){const pilot=Math.max(3,Math.min(20,Math.round(num(d.unitsPerDay)||5)));actions.push(`Mulai pilot 7 hari sekitar ${pilot} unit/hari, lalu bandingkan penjualan aktual dengan target sebelum scale up.`);}
+    if(actions.length<2&&r.marginUnit>0)actions.push(`Jaga HPP maksimal ${rp(r.hpp)} per unit agar margin tidak turun saat harga bahan berubah.`);
+    const tone=score>=78?'good':score>=52?'warn':'bad';
+    const label=score>=78?'GO TERBATAS':score>=52?'REVISI DULU':'JANGAN DIPAKSA';
+    const title=score>=78?'Layak diuji dengan skala kecil':score>=52?'Ada potensi, tapi masih ada titik lemah':'Risikonya masih terlalu tinggi';
+    const summary=score>=78?`Skenario menghasilkan laba ${rp(r.net)}/bulan dengan margin ${r.marginPct.toFixed(1)}%. Validasi dulu lewat penjualan nyata.`:score>=52?`Skenario belum ideal. Fokus perbaiki faktor yang paling menekan margin, modal, atau arus kas.`:`Jangan keluarkan modal dulu sebelum struktur harga dan biaya menghasilkan laba yang sehat.`;
+    return {tone,score,label,title,summary,actions:actions.slice(0,3)};
+  }
+  function suggestedDpForComfort(d,targetInstallment){
+    if(targetInstallment<=0||num(d.cashPrice)<=0)return 0;
+    const price=num(d.cashPrice);let lo=clamp(num(d.downPayment),0,price),hi=price;
+    if(monthlyInstallment({...d,downPayment:lo})<=targetInstallment)return lo;
+    for(let i=0;i<32;i++){const mid=(lo+hi)/2;if(monthlyInstallment({...d,downPayment:mid})>targetInstallment)lo=mid;else hi=mid;}
+    return Math.min(price,Math.ceil(hi/10000)*10000);
+  }
+  function creditCoach(d,p,r){
+    const complete=num(d.cashPrice)>0&&num(p.salary)>0&&num(d.months)>0;
+    if(!complete)return {tone:'idle',score:0,label:'BUTUH DATA',title:'Lengkapi profil dan data kredit',summary:'Decision Coach akan membandingkan cicilan dengan pendapatan, kebutuhan wajib, utang aktif, serta dana bebas untuk DP.',actions:['Isi harga barang dan tenor.','Pastikan gaji/pendapatan bulanan sudah ada di Profil Perhitungan.','Masukkan DP dan bunga untuk melihat total biaya kredit.']};
+    const buffer=num(p.salary)*.15, premium=num(d.cashPrice)>0?r.financeCost/num(d.cashPrice)*100:0;
+    let score=100;
+    if(num(d.downPayment)>r.cash)score-=40;
+    if(r.remaining<0)score-=50;else if(r.remaining<buffer)score-=18;
+    if(r.dsr>35)score-=40;else if(r.dsr>25)score-=15;
+    if(r.installment>r.maxInstallment)score-=15;
+    if(premium>25)score-=12;else if(premium>15)score-=6;
+    score=Math.round(clamp(score));
+    const actions=[];
+    if(num(d.downPayment)>r.cash)actions.push(`DP melebihi uang bebas sekitar ${rp(num(d.downPayment)-r.cash)}. Jangan ambil DP dari dana yang sudah dialokasikan untuk kebutuhan/target.`);
+    if(r.dsr>35)actions.push(`Total rasio utang ${r.dsr.toFixed(1)}% terlalu tinggi. Turunkan cicilan sampai mendekati atau di bawah 35% pendapatan.`);
+    if(r.installment>r.maxInstallment&&r.maxInstallment>0){const dp=suggestedDpForComfort(d,r.maxInstallment);actions.push(dp>num(d.downPayment)&&dp<num(d.cashPrice)?`Agar cicilan mendekati batas nyaman ${rp(r.maxInstallment)}/bulan, DP kira-kira perlu ${rp(dp)} atau pilih tenor/harga yang lebih ringan.`:`Cari harga/tenor yang menekan cicilan ke sekitar ${rp(r.maxInstallment)}/bulan.`);}
+    if(r.remaining>=0&&r.remaining<buffer)actions.push(`Sisa bulanan ${rp(r.remaining)} masih di bawah buffer 15% gaji (${rp(buffer)}). Sisakan ruang untuk kejadian tak terduga.`);
+    if(premium>15)actions.push(`Biaya kredit menambah sekitar ${premium.toFixed(1)}% dari harga tunai. Bandingkan lagi dengan menabung lalu beli tunai.`);
+    if(actions.length===0)actions.push(`Cicilan berada dalam batas konservatif. Tetap pertahankan buffer dan jangan menambah cicilan baru bersamaan.`);
+    const tone=score>=78?'good':score>=52?'warn':'bad';
+    const label=score>=78?'CUKUP AMAN':score>=52?'PERTIMBANGKAN':'TUNDA DULU';
+    const title=score>=78?'Kredit masih masuk batas nyaman':score>=52?'Masih bisa, tapi ruang keuangan sempit':'Kredit ini terlalu menekan arus kas';
+    const summary=score>=78?`Cicilan ${rp(r.installment)}/bulan dengan DSR ${r.dsr.toFixed(1)}% masih menyisakan ${rp(r.remaining)} setelah komitmen utama.`:score>=52?`Ada satu atau lebih indikator yang mendekati batas. Perbaiki DP, tenor, atau harga sebelum ambil keputusan.`:`Risiko defisit atau beban utang terlalu tinggi dibanding kondisi keuangan saat ini.`;
+    return {tone,score,label,title,summary,actions:actions.slice(0,3)};
+  }
+  function coachMarkup(c){
+    return `<div class="v26-coach-head"><div class="v26-coach-title"><span class="v26-coach-icon"><i data-lucide="sparkles"></i></span><div><small>DECISION COACH</small><b>${esc(c.title)}</b></div></div><span class="v26-coach-score ${c.tone}">${c.score}/100</span></div><div class="v26-coach-status ${c.tone}">${esc(c.label)}</div><p class="v26-coach-summary">${esc(c.summary)}</p><div class="v26-coach-actions">${c.actions.map((x,i)=>`<div><span>${i+1}</span><p>${esc(x)}</p></div>`).join('')}</div>`;
+  }
+
   function input(name,label,value,type='money',extra=''){
     const val=type==='money'?moneyValue(value):esc(value);
     return `<div class="v26-field"><label for="v26-${name}">${label}</label><input id="v26-${name}" data-v26-field="${name}" data-v26-type="${type}" value="${val}" ${type==='money'?'inputmode="numeric"':'inputmode="decimal"'} ${extra}></div>`;
@@ -162,7 +225,9 @@
         </div>
       </div>
       <div id="v26-business-result" class="v26-result"></div>
-      <div class="v26-actions"><button class="btn-primary" type="button" onclick="saveBusinessV26()"><i data-lucide="bookmark-plus"></i> Simpan skenario</button><button class="btn-small" type="button" onclick="resetBusinessV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
+      <div id="v26-business-coach" class="v26-coach"></div>
+      <div id="v26-business-edit-state" class="v26-edit-state"></div>
+      <div class="v26-actions"><button id="v26-business-save" class="btn-primary" type="button" onclick="saveBusinessV26()"><i data-lucide="bookmark-plus"></i> <span>Simpan skenario</span></button><button class="btn-small" type="button" onclick="resetBusinessV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
       <div class="v26-saved"><div class="v26-saved-head">Skenario bisnis tersimpan</div><div id="v26-business-saved" class="v26-saved-list"></div></div>
     </div>`;}
 
@@ -183,7 +248,9 @@
       </div>
       <div id="v26-credit-profile-strip" class="v26-helper"></div>
       <div id="v26-credit-result" class="v26-result"></div>
-      <div class="v26-actions"><button class="btn-primary" type="button" onclick="saveCreditV26()"><i data-lucide="bookmark-plus"></i> Simpan simulasi</button><button class="btn-small" type="button" onclick="resetCreditV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
+      <div id="v26-credit-coach" class="v26-coach"></div>
+      <div id="v26-credit-edit-state" class="v26-edit-state"></div>
+      <div class="v26-actions"><button id="v26-credit-save" class="btn-primary" type="button" onclick="saveCreditV26()"><i data-lucide="bookmark-plus"></i> <span>Simpan simulasi</span></button><button class="btn-small" type="button" onclick="resetCreditV26()" aria-label="Kosongkan simulasi" title="Kosongkan"><i data-lucide="rotate-ccw"></i></button></div>
       <div class="v26-saved"><div class="v26-saved-head">Simulasi kredit tersimpan</div><div id="v26-credit-saved" class="v26-saved-list"></div></div>
     </div>`;}
   function creditInput(name,label,value,type='money',extra=''){
@@ -259,18 +326,30 @@
     const s=state(),r=calcBusiness(s.businessDraft),el=document.getElementById('v26-business-result');if(!el)return;
     const gapTone=r.capitalGap>=0?'good':'bad';
     el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>HPP / unit</small><b class="v26-money">${rp(r.hpp)}</b></div><div class="v26-metric"><small>Omzet / bulan</small><b class="v26-money">${rp(r.revenue)}</b></div><div class="v26-metric ${r.net>0?'good':'bad'}"><small>Laba bersih / bulan</small><b class="v26-money">${rp(r.net)}</b></div><div class="v26-metric ${gapTone}"><small>Selisih modal</small><b class="v26-money">${r.capitalGap>=0?'+ ': '- '}${rp(Math.abs(r.capitalGap))}</b></div><div class="v26-metric"><small>Modal minimum</small><b class="v26-money">${rp(r.capitalNeeded)}</b></div><div class="v26-metric"><small>Margin kotor</small><b>${r.marginPct.toFixed(1)}%</b></div><div class="v26-metric"><small>BEP operasional</small><b>${r.bepUnits?r.bepUnits+' unit':'—'}</b></div><div class="v26-metric"><small>Balik modal</small><b>${r.payback?`${r.payback.toFixed(1)} bulan`:'—'}</b></div></div><div class="v26-breakdown"><div><span>Harga rekomendasi sesuai target margin</span><b class="v26-money">${rp(r.suggestedPrice)}</b></div><div><span>Perkiraan BEP tercapai</span><b>${r.bepDays?`${r.bepDays.toFixed(1)} hari jual`:'Belum tercapai'}</b></div><div><span>Laba kotor sebelum biaya tetap</span><b class="v26-money">${rp(r.gross)}</b></div></div>`;
+    const coach=document.getElementById('v26-business-coach');if(coach)coach.innerHTML=coachMarkup(businessCoach(s.businessDraft,r));
   }
   function renderCredit(){
     const s=state(),r=calcCredit(s.creditDraft,s.profile),el=document.getElementById('v26-credit-result');if(!el)return;
     const pct=Math.min(100,r.dsr/35*100),progressTone=r.dsr>35?'bad':r.dsr>25?'warn':'';
     const strip=document.getElementById('v26-credit-profile-strip');if(strip)strip.innerHTML=`Memakai profil: gaji <b class="v26-money">${rp(s.profile.salary)}</b> · makan <b class="v26-money">${rp(s.profile.food)}</b> · bensin <b class="v26-money">${rp(s.profile.fuel)}</b>. <button class="mini-action primary" type="button" onclick="nav('settings')">Ubah di Settings</button>`;
     el.innerHTML=`<div class="v26-verdict ${r.tone}"><span class="v26-verdict-dot"></span><div><b>${esc(r.title)}</b><p>${esc(r.reason)}</p></div></div><div class="v26-result-grid"><div class="v26-metric"><small>Cicilan / bulan</small><b class="v26-money">${rp(r.installment)}</b></div><div class="v26-metric ${r.remaining>=0?'good':'bad'}"><small>Sisa setelah semua</small><b class="v26-money">${rp(r.remaining)}</b></div><div class="v26-metric"><small>Total dibayar</small><b class="v26-money">${rp(r.totalCredit)}</b></div><div class="v26-metric"><small>Biaya kredit</small><b class="v26-money">${rp(r.financeCost)}</b></div><div class="v26-metric"><small>Pokok dibiayai</small><b class="v26-money">${rp(r.principal)}</b></div><div class="v26-metric"><small>Rasio cicilan baru</small><b>${r.newRatio.toFixed(1)}%</b></div><div class="v26-metric ${r.dsr>35?'bad':r.dsr>25?'warn':'good'}"><small>Total rasio utang</small><b>${r.dsr.toFixed(1)}%</b></div><div class="v26-metric"><small>Batas cicilan nyaman</small><b class="v26-money">${rp(r.maxInstallment)}</b></div></div><div class="v26-progress ${progressTone}"><span style="width:${pct}%"></span></div><div class="v26-breakdown"><div><span>Gaji bulanan</span><b class="v26-money">${rp(s.profile.salary)}</b></div><div><span>Makan + bensin + wajib + tabungan</span><b class="v26-money">${rp(r.essentials)}</b></div><div><span>Cicilan lama + cicilan baru</span><b class="v26-money">${rp(r.totalDebt)}</b></div><div><span>Uang bebas untuk DP saat ini</span><b class="v26-money">${rp(r.cash)}</b></div></div>`;
+    const coach=document.getElementById('v26-credit-coach');if(coach)coach.innerHTML=coachMarkup(creditCoach(s.creditDraft,s.profile,r));
   }
   function renderSaved(){
     const s=state(),b=document.getElementById('v26-business-saved'),c=document.getElementById('v26-credit-saved');
-    if(b)b.innerHTML=s.businesses.length?s.businesses.map(x=>`<div class="v26-saved-item"><button type="button" onclick="loadBusinessV26('${esc(x.id)}')"><b>${esc(x.data.name||'Bisnis tanpa nama')}</b><small>${rp(x.summary.net)} laba/bln · modal ${rp(x.summary.capitalNeeded)}</small></button><button class="v26-delete" type="button" onclick="deleteBusinessV26('${esc(x.id)}')" aria-label="Hapus"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26-empty">Belum ada skenario bisnis tersimpan.</div>';
-    if(c)c.innerHTML=s.credits.length?s.credits.map(x=>`<div class="v26-saved-item"><button type="button" onclick="loadCreditV26('${esc(x.id)}')"><b>${esc(x.data.name||'Kredit tanpa nama')}</b><small>${rp(x.summary.installment)}/bln · DSR ${Number(x.summary.dsr||0).toFixed(1)}%</small></button><button class="v26-delete" type="button" onclick="deleteCreditV26('${esc(x.id)}')" aria-label="Hapus"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26-empty">Belum ada simulasi kredit tersimpan.</div>';
+    if(b)b.innerHTML=s.businesses.length?s.businesses.map(x=>`<div class="v26-saved-item ${s.editingBusinessId===x.id?'active':''}"><button type="button" onclick="loadBusinessV26('${esc(x.id)}')"><b>${esc(x.data.name||'Bisnis tanpa nama')}</b><small>${rp(x.summary.net)} laba/bln · modal ${rp(x.summary.capitalNeeded)}${s.editingBusinessId===x.id?' · sedang diedit':''}</small></button><button class="v26-delete" type="button" onclick="deleteBusinessV26('${esc(x.id)}')" aria-label="Hapus"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26-empty">Belum ada skenario bisnis tersimpan.</div>';
+    if(c)c.innerHTML=s.credits.length?s.credits.map(x=>`<div class="v26-saved-item ${s.editingCreditId===x.id?'active':''}"><button type="button" onclick="loadCreditV26('${esc(x.id)}')"><b>${esc(x.data.name||'Kredit tanpa nama')}</b><small>${rp(x.summary.installment)}/bln · DSR ${Number(x.summary.dsr||0).toFixed(1)}%${s.editingCreditId===x.id?' · sedang diedit':''}</small></button><button class="v26-delete" type="button" onclick="deleteCreditV26('${esc(x.id)}')" aria-label="Hapus"><i data-lucide="trash-2"></i></button></div>`).join(''):'<div class="v26-empty">Belum ada simulasi kredit tersimpan.</div>';
+    renderEditState(s);
     if(window.lucide?.createIcons)lucide.createIcons();
+  }
+  function renderEditState(s=state()){
+    const biz=s.businesses.find(x=>x.id===s.editingBusinessId),credit=s.credits.find(x=>x.id===s.editingCreditId);
+    const bizState=document.getElementById('v26-business-edit-state'),creditState=document.getElementById('v26-credit-edit-state');
+    const bizSave=document.getElementById('v26-business-save'),creditSave=document.getElementById('v26-credit-save');
+    if(bizState){bizState.classList.toggle('active',!!biz);bizState.innerHTML=biz?`<div><small>MODE EDIT</small><b>${esc(biz.data?.name||'Skenario bisnis')}</b><span>Perubahan akan memperbarui skenario ini tanpa membuat duplikat.</span></div><button type="button" onclick="cancelBusinessEditV26()">Batal edit</button>`:'';}
+    if(creditState){creditState.classList.toggle('active',!!credit);creditState.innerHTML=credit?`<div><small>MODE EDIT</small><b>${esc(credit.data?.name||'Simulasi kredit')}</b><span>Perubahan akan memperbarui simulasi ini tanpa membuat duplikat.</span></div><button type="button" onclick="cancelCreditEditV26()">Batal edit</button>`:'';}
+    if(bizSave)bizSave.innerHTML=`<i data-lucide="${biz?'save':'bookmark-plus'}"></i> <span>${biz?'Simpan perubahan':'Simpan skenario'}</span>`;
+    if(creditSave)creditSave.innerHTML=`<i data-lucide="${credit?'save':'bookmark-plus'}"></i> <span>${credit?'Simpan perubahan':'Simpan simulasi'}</span>`;
   }
   function renderProfileSummary(){
     const p=state().profile,el=document.getElementById('v26-profile-summary');if(!el)return;
@@ -299,23 +378,41 @@
     Swal.fire({title:'Budget dimuat',text:'Makan, transportasi, dan tagihan wajib sudah diperbarui.',icon:'success',timer:1400,showConfirmButton:false});
   };
   window.saveBusinessV26=()=>{
-    const s=state(),r=calcBusiness(s.businessDraft);
+    const s=state(),r=calcBusiness(s.businessDraft),editingId=s.editingBusinessId||'';
     if(!s.businessDraft.name.trim()||!r.hpp||!num(s.businessDraft.salePrice))return Swal.fire('Belum lengkap','Isi nama bisnis, komponen HPP, dan harga jual.','warning');
-    setState(x=>x.businesses=[{id:uid('biz'),savedAt:Date.now(),data:clone(x.businessDraft),summary:{net:r.net,capitalNeeded:r.capitalNeeded,marginPct:r.marginPct}},...x.businesses].slice(0,25));renderSaved();
-    Swal.fire({title:'Skenario bisnis disimpan',icon:'success',timer:1200,showConfirmButton:false});
+    let updated=false;
+    setState(x=>{
+      const item={id:editingId||uid('biz'),savedAt:Date.now(),data:clone(x.businessDraft),summary:{net:r.net,capitalNeeded:r.capitalNeeded,marginPct:r.marginPct}};
+      const oldIndex=editingId?x.businesses.findIndex(v=>v.id===editingId):-1;
+      if(oldIndex>=0){item.savedAt=x.businesses[oldIndex].savedAt||Date.now();item.updatedAt=Date.now();x.businesses.splice(oldIndex,1);updated=true;}
+      x.businesses=[item,...x.businesses].slice(0,25);
+      x.businessDraft=clone(BLANK_BUSINESS);x.editingBusinessId='';
+    });
+    refillDraft('business');
+    Swal.fire({title:updated?'Perubahan skenario disimpan':'Skenario bisnis disimpan',text:'Form sudah dikosongkan dan siap untuk keputusan berikutnya.',icon:'success',timer:1450,showConfirmButton:false});
   };
   window.saveCreditV26=()=>{
-    const s=state(),r=calcCredit(s.creditDraft,s.profile);
+    const s=state(),r=calcCredit(s.creditDraft,s.profile),editingId=s.editingCreditId||'';
     if(!s.creditDraft.name.trim()||!num(s.creditDraft.cashPrice)||!num(s.profile.salary))return Swal.fire('Belum lengkap','Isi nama barang, harga tunai, dan gaji di Profil Perhitungan.','warning');
-    setState(x=>x.credits=[{id:uid('credit'),savedAt:Date.now(),data:clone(x.creditDraft),summary:{installment:r.installment,dsr:r.dsr,totalCredit:r.totalCredit}},...x.credits].slice(0,25));renderSaved();
-    Swal.fire({title:'Simulasi kredit disimpan',icon:'success',timer:1200,showConfirmButton:false});
+    let updated=false;
+    setState(x=>{
+      const item={id:editingId||uid('credit'),savedAt:Date.now(),data:clone(x.creditDraft),summary:{installment:r.installment,dsr:r.dsr,totalCredit:r.totalCredit}};
+      const oldIndex=editingId?x.credits.findIndex(v=>v.id===editingId):-1;
+      if(oldIndex>=0){item.savedAt=x.credits[oldIndex].savedAt||Date.now();item.updatedAt=Date.now();x.credits.splice(oldIndex,1);updated=true;}
+      x.credits=[item,...x.credits].slice(0,25);
+      x.creditDraft=clone(BLANK_CREDIT);x.editingCreditId='';
+    });
+    refillDraft('credit');
+    Swal.fire({title:updated?'Perubahan simulasi disimpan':'Simulasi kredit disimpan',text:'Form sudah dikosongkan dan siap untuk simulasi berikutnya.',icon:'success',timer:1450,showConfirmButton:false});
   };
-  window.loadBusinessV26=id=>{const item=state().businesses.find(x=>x.id===id);if(!item)return;setState(s=>{s.businessDraft={...DEFAULTS.businessDraft,...item.data};s.activeTab='business';});refillDraft('business');switchTab('business');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
-  window.loadCreditV26=id=>{const item=state().credits.find(x=>x.id===id);if(!item)return;setState(s=>{s.creditDraft={...DEFAULTS.creditDraft,...item.data};s.activeTab='credit';});refillDraft('credit');switchTab('credit');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'smooth',block:'start'});};
-  window.deleteBusinessV26=async id=>{const r=await Swal.fire({title:'Hapus skenario?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setState(s=>s.businesses=s.businesses.filter(x=>x.id!==id));renderSaved();};
-  window.deleteCreditV26=async id=>{const r=await Swal.fire({title:'Hapus simulasi?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;setState(s=>s.credits=s.credits.filter(x=>x.id!==id));renderSaved();};
-  window.resetBusinessV26=()=>{setState(s=>s.businessDraft=clone(DEFAULTS.businessDraft));refillDraft('business');};
-  window.resetCreditV26=()=>{setState(s=>s.creditDraft=clone(DEFAULTS.creditDraft));refillDraft('credit');};
+  window.loadBusinessV26=id=>{const item=state().businesses.find(x=>x.id===id);if(!item)return;setState(s=>{s.businessDraft={...DEFAULTS.businessDraft,...item.data};s.editingBusinessId=id;s.activeTab='business';});refillDraft('business');switchTab('business');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'auto',block:'start'});};
+  window.loadCreditV26=id=>{const item=state().credits.find(x=>x.id===id);if(!item)return;setState(s=>{s.creditDraft={...DEFAULTS.creditDraft,...item.data};s.editingCreditId=id;s.activeTab='credit';});refillDraft('credit');switchTab('credit');document.getElementById('v26-decision-lab')?.scrollIntoView({behavior:'auto',block:'start'});};
+  window.cancelBusinessEditV26=()=>{setState(s=>{s.businessDraft=clone(BLANK_BUSINESS);s.editingBusinessId='';});refillDraft('business');};
+  window.cancelCreditEditV26=()=>{setState(s=>{s.creditDraft=clone(BLANK_CREDIT);s.editingCreditId='';});refillDraft('credit');};
+  window.deleteBusinessV26=async id=>{const r=await Swal.fire({title:'Hapus skenario?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;let cleared=false;setState(s=>{s.businesses=s.businesses.filter(x=>x.id!==id);if(s.editingBusinessId===id){s.editingBusinessId='';s.businessDraft=clone(DEFAULTS.businessDraft);cleared=true;}});cleared?refillDraft('business'):renderSaved();};
+  window.deleteCreditV26=async id=>{const r=await Swal.fire({title:'Hapus simulasi?',icon:'warning',showCancelButton:true,confirmButtonText:'Hapus',cancelButtonText:'Batal'});if(!r.isConfirmed)return;let cleared=false;setState(s=>{s.credits=s.credits.filter(x=>x.id!==id);if(s.editingCreditId===id){s.editingCreditId='';s.creditDraft=clone(DEFAULTS.creditDraft);cleared=true;}});cleared?refillDraft('credit'):renderSaved();};
+  window.resetBusinessV26=()=>{setState(s=>{s.businessDraft=clone(BLANK_BUSINESS);s.editingBusinessId='';});refillDraft('business');};
+  window.resetCreditV26=()=>{setState(s=>{s.creditDraft=clone(BLANK_CREDIT);s.editingCreditId='';});refillDraft('credit');};
   window.getV26DecisionData=()=>state();
 
   function wrapFactoryReset(){
