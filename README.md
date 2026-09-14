@@ -1,17 +1,12 @@
-# AutoBudgetin v27.5.5 SAFE — Lazy Stability Hotfix
+# AutoBudgetin v26.0.3 — Apps Script CORS Hotfix
 
-Fix khusus freeze total di Home setelah v27.5.x.
+Patch ini hanya memperbaiki koneksi GitHub Pages -> Google Apps Script yang menampilkan `Failed to fetch` walau Web App `/exec` bisa dibuka normal.
 
-Perubahan utama:
-- `v27-tracking.js` TIDAK lagi inject/render saat startup.
-- Tidak ada MutationObserver v27 saat startup.
-- Kalender, chart, weekly intelligence, dan icon tracking baru dirender ketika user membuka tab `Realisasi` atau mulai tracking dari Decision Lab.
-- Home, Riwayat, tombol +, dan Settings tidak menunggu modul tracking baru.
-- Cache PWA dibump supaya browser tidak terus memakai v27.5.4.
+Upload/timpa 3 file:
+- index.html
+- service-worker.js
+- v24-5-automation.js
 
-Upload/replace hanya:
-1. index.html
-2. service-worker.js
-3. v27-tracking.js
+Tidak perlu mengubah Apps Script backend lagi. Tetap gunakan URL Web App asli `https://script.google.com/macros/s/.../exec`, bukan URL redirect `script.googleusercontent.com`.
 
-Tidak perlu update Apps Script Telegram.
+Catatan: Apps Script dipanggil dengan mode `no-cors`, jadi browser tidak dapat membaca body respons. UI akan menampilkan `Permintaan sync dikirim`; konfirmasi keberhasilan dengan melihat timestamp/snapshot di Google Sheets atau pesan tes di Telegram.
