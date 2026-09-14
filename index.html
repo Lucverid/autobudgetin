@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v27.5.3 SAFE</title>
+    <title>Agis Finance AI - v27.5.4 Recovery</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -265,79 +265,7 @@
     <link rel="stylesheet" href="./v25-3-10-health-engine.css">
     <link rel="stylesheet" href="./v25-5-17-easter-egg.css">
     <link rel="stylesheet" href="./v26-decision-lab.css">
-    <link rel="stylesheet" href="./v27-tracking.css?v=27.5.3-safe">
-    <style id="v2731-feature-switcher-inline">
-/* v27.3 — compact Financial Plan feature switcher */
-#planning .v273-feature-switcher{
-  width:100%;
-  margin:12px 0 14px;
-  padding:14px;
-  border:1px solid var(--border);
-  border-radius:22px;
-  background:linear-gradient(180deg,rgba(30,41,59,.72),rgba(15,23,42,.72));
-  box-shadow:0 10px 28px rgba(0,0,0,.12);
-  overflow:hidden;
-}
-#planning .v273-feature-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-#planning .v273-feature-head>div{min-width:0;display:grid;gap:2px}
-#planning .v273-feature-head small{font-size:.61rem;letter-spacing:.14em;font-weight:900;color:var(--primary)}
-#planning .v273-feature-head b{font-size:.93rem;line-height:1.2}
-#planning .v273-feature-head span{font-size:.67rem;color:var(--text-dim);line-height:1.4}
-#planning .v273-all-btn{border:1px solid var(--border);background:rgba(148,163,184,.08);color:var(--text);border-radius:14px;min-width:66px;height:42px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:.7rem;font-weight:850;cursor:pointer;flex:none}
-#planning .v273-all-btn svg{width:16px;height:16px;color:var(--primary)}
-#planning .v273-tabs{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none;padding:2px 1px 4px;-webkit-overflow-scrolling:touch}
-#planning .v273-tabs::-webkit-scrollbar{display:none}
-#planning .v273-tab{scroll-snap-align:center;flex:0 0 auto;min-width:112px;height:44px;padding:0 13px;border:1px solid var(--border);border-radius:14px;background:rgba(15,23,42,.6);color:var(--text-dim);display:flex;align-items:center;justify-content:center;gap:7px;font:inherit;font-size:.72rem;font-weight:850;cursor:pointer;transition:transform .16s ease,border-color .2s ease,background .2s ease,color .2s ease}
-#planning .v273-tab svg{width:16px;height:16px;flex:none}
-#planning .v273-tab.active{color:var(--text);border-color:rgba(45,212,191,.42);background:linear-gradient(135deg,rgba(45,212,191,.15),rgba(59,130,246,.13));box-shadow:inset 0 0 0 1px rgba(45,212,191,.05)}
-#planning .v273-tab:active,#planning .v273-all-btn:active{transform:scale(.97)}
-#planning .v273-feature-hidden{display:none !important}
-
-.v273-sheet-wrap[hidden]{display:none!important}
-.v273-sheet-wrap{position:fixed;inset:0;z-index:9998;display:flex;align-items:flex-end;justify-content:center;padding:14px;pointer-events:none}
-.v273-sheet-backdrop{position:absolute;inset:0;background:rgba(2,6,23,.68);backdrop-filter:blur(3px);opacity:0;transition:opacity .18s ease;pointer-events:auto}
-.v273-sheet{position:relative;width:min(680px,100%);max-height:min(78vh,720px);overflow:auto;border:1px solid var(--border);border-radius:26px 26px 20px 20px;background:var(--card-bg,#111827);box-shadow:0 -18px 55px rgba(0,0,0,.35);padding:10px 16px 18px;transform:translateY(24px);opacity:0;transition:transform .2s ease,opacity .18s ease;pointer-events:auto}
-.v273-sheet-wrap.open .v273-sheet-backdrop{opacity:1}
-.v273-sheet-wrap.open .v273-sheet{transform:none;opacity:1}
-.v273-sheet-grab{width:46px;height:5px;border-radius:999px;background:rgba(148,163,184,.34);margin:0 auto 12px}
-.v273-sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
-.v273-sheet-head>div{display:grid;gap:3px}
-.v273-sheet-head small{font-size:.61rem;letter-spacing:.14em;font-weight:900;color:var(--primary)}
-.v273-sheet-head h3{margin:0;font-size:1.15rem}
-.v273-sheet-head p{margin:0;color:var(--text-dim);font-size:.71rem;line-height:1.45}
-.v273-sheet-close{width:40px;height:40px;border-radius:13px;border:1px solid var(--border);background:rgba(148,163,184,.08);color:var(--text);display:grid;place-items:center;flex:none}
-.v273-sheet-close svg{width:18px;height:18px}
-.v273-feature-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.v273-feature-card{width:100%;border:1px solid var(--border);border-radius:18px;background:rgba(15,23,42,.55);color:var(--text);padding:13px;text-align:left;display:grid;grid-template-columns:42px minmax(0,1fr) 18px;gap:10px;align-items:start;font:inherit;cursor:pointer}
-.v273-feature-card:active{transform:scale(.985)}
-.v273-feature-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(45,212,191,.10);color:var(--primary)}
-.v273-feature-icon svg{width:19px;height:19px}
-.v273-feature-copy{display:grid;min-width:0;gap:2px}
-.v273-feature-copy>b{font-size:.68rem;color:var(--primary)}
-.v273-feature-copy>strong{font-size:.84rem;line-height:1.25}
-.v273-feature-copy>small{font-size:.66rem;line-height:1.42;color:var(--text-dim)}
-.v273-feature-copy>em{font-style:normal;font-size:.59rem;color:#94a3b8;margin-top:4px;line-height:1.35}
-.v273-chevron{width:17px;height:17px;color:#64748b;margin-top:11px}
-body.v273-sheet-open{overflow:hidden}
-
-@media (max-width:759px){
-  #planning .v273-feature-switcher{margin:9px 0 11px;padding:12px;border-radius:19px}
-  #planning .v273-feature-head{margin-bottom:10px}
-  #planning .v273-feature-head span{display:none}
-  #planning .v273-all-btn{min-width:44px;width:44px;padding:0}
-  #planning .v273-all-btn span{display:none}
-  #planning .v273-tab{min-width:104px;height:42px;padding:0 11px;font-size:.69rem}
-  .v273-sheet-wrap{padding:0;align-items:flex-end}
-  .v273-sheet{width:100%;max-height:82vh;border-radius:24px 24px 0 0;border-bottom:0;padding:9px 14px calc(18px + env(safe-area-inset-bottom))}
-  .v273-feature-list{grid-template-columns:1fr}
-  .v273-feature-card{grid-template-columns:40px minmax(0,1fr) 18px;padding:12px}
-  .v273-feature-icon{width:40px;height:40px}
-}
-
-@media (prefers-reduced-motion:reduce){
-  #planning .v273-tab,.v273-sheet,.v273-sheet-backdrop{transition:none!important}
-}
-    </style>
+    <link rel="stylesheet" href="./v27-tracking.css?v=27.5.4-recovery">
 </head>
 <body>
 
@@ -559,7 +487,7 @@ body.v273-sheet-open{overflow:hidden}
             <div>
                 <span class="v2531-page-kicker">FINANCIAL PLAN</span>
                 <h2>Planning</h2>
-                <p>Budget, tagihan, rencana, realisasi, dan laporan. Buka satu fitur sesuai kebutuhan.</p>
+                <p>Budget, tagihan, simulator keputusan, dan laporan tahunan dalam satu tempat.</p>
             </div>
             <i data-lucide="calendar-range" aria-hidden="true"></i>
         </div>
@@ -670,7 +598,7 @@ body.v273-sheet-open{overflow:hidden}
             </div>
             <input type="file" id="v245-import" accept="application/json,.json" style="display:none" onchange="previewImportV245(event)">
             <div id="v245-preview" class="v245-preview" hidden></div>
-            <div class="mini-muted" style="margin-top:12px">Backup schema v27 memuat wallet, transaksi, planning, Decision Lab, tracking penjualan/stok, dan tracking cicilan. Backup v22–v26 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
+            <div class="mini-muted" style="margin-top:12px">Backup schema v26 memuat wallet, transaksi, planning, profil kebutuhan bulanan, serta skenario Bisnis & Kredit. Backup v22–v25 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
         </div>
     </div>
 </div>
@@ -1615,7 +1543,7 @@ body.v273-sheet-open{overflow:hidden}
         const v27 = typeof window.getV27TrackingData === 'function' ? window.getV27TrackingData() : (()=>{try{return JSON.parse(localStorage.getItem('agis_finance_v27_tracking')||'null')}catch{return null}})();
         const payload={app:'Agis Finance',schemaVersion:27,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord),v25,v26,v27,carryOver,recoveryTarget}};
         const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_v27_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
-        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v27 · Decision Lab + Tracking ikut'); renderHealth();
+        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v27 · Decision Lab + Realisasi ikut'); renderHealth();
     };
 
     window.restoreBackupFile = async (event) => {
@@ -1632,7 +1560,7 @@ body.v273-sheet-open{overflow:hidden}
             store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
             const now=Date.now(); enqueueSync({opId:`restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now}); enqueueSync({opId:`restore-goal-total:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now}); Object.entries(store.limits).forEach(([category,amount])=>enqueueSync({opId:`restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));
             store.trans.forEach(t=>{if(t.id)enqueueSync({opId:`restore-expense:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.incomes.forEach(t=>{if(t.id)enqueueSync({opId:`restore-income:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.transfers.forEach(t=>{if(t.id)enqueueSync({opId:`restore-transfer:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.goals.forEach(g=>enqueueSync({opId:`restore-goal-item:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:cleanBackupRecord(g),createdAt:now,force:true})); store.recurring.forEach(r=>enqueueSync({opId:`restore-recurring:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:cleanBackupRecord(r),createdAt:now,force:true}));
-            auditEvent('Restore backup',`Schema v${migrated.version} → v27`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, planning, Decision Lab, dan Tracking sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
+            auditEvent('Restore backup',`Schema v${migrated.version} → v25`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, Budget Tersimpan, dan data planning sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
         }catch(err){Swal.fire('Restore gagal',err.message||'File backup rusak.','error');}
     };
 
@@ -2477,235 +2405,18 @@ body.v273-sheet-open{overflow:hidden}
 </script>
 <script>window.__v2753CanonicalBackup = window.exportBackup;</script>
 <script src="./v24-4-features.js"></script>
-<script src="./v24-5-automation.js?v=27.2.0"></script>
+<script src="./v24-5-automation.js"></script>
 <script src="./v25-features.js"></script>
 <script src="./v25-1-mobile.js"></script>
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
 <script src="./v25-3-1-quick-transaction.js"></script>
-<script src="./v25-3-3-financial-plan.js?v=27.2.0"></script>
+<script src="./v25-3-3-financial-plan.js?v=26.0.1"></script>
 <script src="./v25-3-10-health-engine.js"></script>
 <script src="./v25-5-17-easter-egg.js"></script>
-<script src="./v26-decision-lab.js?v=27.2.0"></script>
-<script src="./v27-tracking.js?v=27.5.3-safe"></script>
-<script src="./v27-safe-bridge.js?v=27.5.3-safe"></script>
-<script id="v2731-feature-switcher-inline">
-(() => {
-  'use strict';
-
-  const KEY = 'agis_finance_v273_planning_feature';
-  const FEATURES = [
-    { id:'decision', label:'Decision Lab', icon:'flask-conical', title:'Rencanakan keputusan', desc:'Analisis bisnis dan simulasi kredit sebelum uang benar-benar dipakai.', items:['Analisis bisnis','Simulasi kredit'] },
-    { id:'tracking', label:'Realisasi', icon:'activity', title:'Jalankan & pantau', desc:'Pantau penjualan, stok, target keuntungan, dan pembayaran cicilan dari data nyata.', items:['Tracking penjualan','Tracking stok','Tracking cicilan'] },
-    { id:'whatif', label:'What-if', icon:'sliders-horizontal', title:'Coba skenario cepat', desc:'Ubah angka sementara untuk melihat dampaknya tanpa mengubah data utama.', items:['Simulasi kondisi keuangan'] },
-    { id:'report', label:'Laporan', icon:'chart-no-axes-combined', title:'Lihat hasil tahunan', desc:'Ringkasan pemasukan, pengeluaran, net, dan tren setahun.', items:['Yearly Report'] }
-  ];
-
-  let active = readActive();
-  let observer = null;
-  let wrappingDone = false;
-  let applying = false;
-
-  function readActive(){
-    try{
-      const saved = localStorage.getItem(KEY);
-      return FEATURES.some(x=>x.id===saved) ? saved : 'decision';
-    }catch{return 'decision'}
-  }
-  function saveActive(id){
-    active = FEATURES.some(x=>x.id===id) ? id : 'decision';
-    try{localStorage.setItem(KEY,active)}catch{}
-  }
-  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-
-  function featureNodes(){
-    return {
-      decision: document.getElementById('v26-decision-lab'),
-      tracking: document.getElementById('v27-tracking'),
-      whatif: document.getElementById('v244-simulator-card'),
-      report: document.querySelector('#v2531-planning-host .v25-year-card')
-    };
-  }
-
-  function createSwitcher(){
-    const el=document.createElement('section');
-    el.id='v273-feature-switcher';
-    el.className='v273-feature-switcher';
-    el.innerHTML=`
-      <div class="v273-feature-head">
-        <div><small>FITUR PLANNING</small><b>Pilih yang mau dibuka</b><span>Geser menu, lalu pilih satu fitur. Halaman jadi lebih lega.</span></div>
-        <button class="v273-all-btn" type="button" data-v273-all aria-label="Lihat semua fitur"><i data-lucide="layout-grid"></i><span>Semua</span></button>
-      </div>
-      <div class="v273-tabs" role="tablist" aria-label="Fitur Financial Plan">
-        ${FEATURES.map(f=>`<button type="button" class="v273-tab" role="tab" data-v273-feature="${f.id}" aria-selected="false"><i data-lucide="${f.icon}"></i><span>${esc(f.label)}</span></button>`).join('')}
-      </div>`;
-    el.addEventListener('click',e=>{
-      const tab=e.target.closest('[data-v273-feature]');
-      if(tab){setFeature(tab.dataset.v273Feature,true);return}
-      if(e.target.closest('[data-v273-all]'))openAllFeatures();
-    });
-    el.addEventListener('keydown',e=>{
-      const tab=e.target.closest('[data-v273-feature]');
-      if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
-      const tabs=[...el.querySelectorAll('[data-v273-feature]')];
-      let i=tabs.indexOf(tab);
-      if(e.key==='Home')i=0; else if(e.key==='End')i=tabs.length-1; else i=(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
-      e.preventDefault();
-      tabs[i]?.focus();
-      setFeature(tabs[i]?.dataset.v273Feature||'decision',false);
-    });
-    return el;
-  }
-
-  function ensureSwitcher(){
-    const host=document.getElementById('v2531-planning-host');
-    if(!host)return null;
-    let switcher=document.getElementById('v273-feature-switcher');
-    if(!switcher)switcher=createSwitcher();
-    const plan=document.getElementById('v25-planning-card');
-    const desiredBefore=plan?.nextElementSibling||host.firstElementChild||null;
-    if(plan){
-      if(plan.nextElementSibling!==switcher)host.insertBefore(switcher,plan.nextElementSibling);
-    }else if(host.firstElementChild!==switcher){
-      host.insertBefore(switcher,host.firstElementChild||null);
-    }
-    return switcher;
-  }
-
-  function applyVisibility(){
-    if(applying)return;
-    applying=true;
-    try{
-      const switcher=ensureSwitcher();
-      if(!switcher)return;
-      const nodes=featureNodes();
-      Object.entries(nodes).forEach(([id,node])=>{
-        if(!node)return;
-        node.dataset.v273FeaturePanel=id;
-        const visible=id===active;
-        node.classList.toggle('v273-feature-hidden',!visible);
-        node.setAttribute('aria-hidden',visible?'false':'true');
-      });
-      switcher.querySelectorAll('[data-v273-feature]').forEach(btn=>{
-        const selected=btn.dataset.v273Feature===active;
-        btn.classList.toggle('active',selected);
-        btn.setAttribute('aria-selected',selected?'true':'false');
-      });
-      if(window.lucide?.createIcons)window.lucide.createIcons();
-    } finally { applying=false; }
-  }
-
-  function refreshVisiblePanel(){
-    // Sections can be rendered while hidden. Give responsive charts/layout a resize
-    // signal after a feature becomes visible, without touching their data/state.
-    const ping=()=>{try{window.dispatchEvent(new Event('resize'))}catch{}};
-    requestAnimationFrame(()=>{ping();setTimeout(ping,180)});
-  }
-
-  function focusActiveTab(smooth=true){
-    const btn=document.querySelector(`[data-v273-feature="${active}"]`);
-    if(btn)requestAnimationFrame(()=>btn.scrollIntoView?.({behavior:smooth?'smooth':'auto',inline:'center',block:'nearest'}));
-  }
-
-  function setFeature(id,scroll=false){
-    if(!FEATURES.some(x=>x.id===id))id='decision';
-    saveActive(id);
-    applyVisibility();
-    focusActiveTab(scroll);
-    refreshVisiblePanel();
-    if(scroll){
-      const switcher=document.getElementById('v273-feature-switcher');
-      const panel=featureNodes()[id];
-      requestAnimationFrame(()=>{
-        (panel||switcher)?.scrollIntoView?.({behavior:'smooth',block:'start'});
-      });
-    }
-    closeAllFeatures();
-  }
-
-  function ensureSheet(){
-    let wrap=document.getElementById('v273-feature-sheet');
-    if(wrap)return wrap;
-    wrap=document.createElement('div');
-    wrap.id='v273-feature-sheet';
-    wrap.className='v273-sheet-wrap';
-    wrap.hidden=true;
-    wrap.setAttribute('aria-hidden','true');
-    wrap.innerHTML=`
-      <div class="v273-sheet-backdrop" data-v273-close></div>
-      <section class="v273-sheet" role="dialog" aria-modal="true" aria-labelledby="v273-sheet-title">
-        <div class="v273-sheet-grab"></div>
-        <div class="v273-sheet-head"><div><small>FINANCIAL PLAN</small><h3 id="v273-sheet-title">Semua fitur</h3><p>Pilih satu. Fitur lain tetap tersimpan dan tidak dihapus.</p></div><button type="button" class="v273-sheet-close" data-v273-close aria-label="Tutup"><i data-lucide="x"></i></button></div>
-        <div class="v273-feature-list">
-          ${FEATURES.map(f=>`<button type="button" class="v273-feature-card" data-v273-open="${f.id}"><span class="v273-feature-icon"><i data-lucide="${f.icon}"></i></span><span class="v273-feature-copy"><b>${esc(f.label)}</b><strong>${esc(f.title)}</strong><small>${esc(f.desc)}</small><em>${f.items.map(esc).join(' · ')}</em></span><i class="v273-chevron" data-lucide="chevron-right"></i></button>`).join('')}
-        </div>
-      </section>`;
-    wrap.addEventListener('click',e=>{
-      const open=e.target.closest('[data-v273-open]');
-      if(open){setFeature(open.dataset.v273Open,true);return}
-      if(e.target.closest('[data-v273-close]'))closeAllFeatures();
-    });
-    document.body.appendChild(wrap);
-    if(window.lucide?.createIcons)window.lucide.createIcons();
-    return wrap;
-  }
-
-  let sheetReturnFocus=null;
-  function openAllFeatures(){
-    sheetReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
-    const wrap=ensureSheet();
-    wrap.hidden=false;
-    wrap.setAttribute('aria-hidden','false');
-    document.body.classList.add('v273-sheet-open');
-    requestAnimationFrame(()=>{wrap.classList.add('open');wrap.querySelector('[data-v273-open]')?.focus?.()});
-  }
-  function closeAllFeatures(){
-    const wrap=document.getElementById('v273-feature-sheet');
-    if(!wrap||wrap.hidden)return;
-    wrap.classList.remove('open');
-    wrap.setAttribute('aria-hidden','true');
-    document.body.classList.remove('v273-sheet-open');
-    setTimeout(()=>{if(!wrap.classList.contains('open')){wrap.hidden=true;sheetReturnFocus?.focus?.();sheetReturnFocus=null}},180);
-  }
-
-  function wrapTrackingLaunch(){
-    if(wrappingDone)return;
-    const b=window.startBusinessTrackingV27,c=window.startCreditTrackingV27;
-    if(typeof b!=='function'||typeof c!=='function')return;
-    const wb=function(){const r=b.apply(this,arguments);setFeature('tracking',true);return r};
-    const wc=function(){const r=c.apply(this,arguments);setFeature('tracking',true);return r};
-    wb.__v273=true;wc.__v273=true;
-    window.startBusinessTrackingV27=wb;
-    window.startCreditTrackingV27=wc;
-    wrappingDone=true;
-  }
-
-  function installObserver(){
-    const host=document.getElementById('v2531-planning-host');
-    if(!host||observer)return;
-    observer=new MutationObserver(()=>{applyVisibility();wrapTrackingLaunch()});
-    observer.observe(host,{childList:true,subtree:false});
-  }
-
-  function init(){
-    ensureSheet();
-    applyVisibility();
-    focusActiveTab(false);
-    refreshVisiblePanel();
-    wrapTrackingLaunch();
-    installObserver();
-    [120,320,700,1200].forEach(ms=>setTimeout(()=>{applyVisibility();wrapTrackingLaunch()},ms));
-    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAllFeatures()});
-  }
-
-  window.setPlanningFeatureV273=setFeature;
-  window.openPlanningFeaturesV273=openAllFeatures;
-  window.closePlanningFeaturesV273=closeAllFeatures;
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
-  else init();
-})();
-</script>
-<!-- AutoBudgetin v27.5.3 SAFE: v27.4.0 stable shell + isolated v27 intelligence/tracking module -->
+<script src="./v26-decision-lab.js?v=26.0.1"></script>
+<script src="./v27-tracking.js?v=27.5.4-recovery"></script>
+<script src="./v27-safe-bridge.js?v=27.5.4-recovery"></script>
+<!-- v27.5.4 Recovery: uploaded working core + Realisasi/Milestones; no feature-switcher wrapper -->
 </body>
 </html>

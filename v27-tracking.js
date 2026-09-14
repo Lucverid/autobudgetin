@@ -49,6 +49,11 @@
       s.businesses.forEach(b => {
         if (!Object.prototype.hasOwnProperty.call(b, 'originalUnitsPerDay')) b.originalUnitsPerDay = num(b.unitsPerDay);
         if (!Array.isArray(b.targetAdjustments)) b.targetAdjustments = [];
+        if (!b.milestones || typeof b.milestones !== 'object') b.milestones = {};
+        if (!b.milestones.dailyTargetDates || typeof b.milestones.dailyTargetDates !== 'object') b.milestones.dailyTargetDates = {};
+      });
+      s.credits.forEach(c => {
+        if (!c.milestones || typeof c.milestones !== 'object') c.milestones = {};
       });
       return s;
     } catch { return clone(DEFAULTS); }
@@ -148,6 +153,81 @@
     return { level, title, note, available, obligations, after, ratio, monthIncome };
   }
 
+  function trimDailyMilestones(map, keep = 60) {
+    const keys = Object.keys(map || {}).sort();
+    while (keys.length > keep) delete map[keys.shift()];
+  }
+  function businessMilestoneCard(b, st) {
+    const planned = num(b.unitsPerDay), todayHit = planned > 0 && st.todaySold >= planned;
+    if (st.targetProfit > 0 && st.targetPct >= 100) return `<div class="v2754-milestone ultimate"><i data-lucide="trophy"></i><div><small>MILESTONE TERCAPAI</small><b>🏆 Target keuntungan tercapai</b><span>Target keuntungan ${rp(st.targetProfit)} sudah tercapai. Pertahankan pencatatan, sisihkan dana restock, lalu tentukan apakah laba berikutnya mau ditabung atau diputar lagi.</span></div></div>`;
+    if (st.capital > 0 && st.bepPct >= 100) return `<div class="v2754-milestone bep"><i data-lucide="sparkles"></i><div><small>MILESTONE TERCAPAI</small><b>🎉 Balik modal tercapai</b><span>Modal berjalan sudah tertutup. Mulai fokus menjaga margin, stok, dan konsistensi penjualan supaya keuntungan tidak ikut bocor.</span></div></div>`;
+    if (todayHit) return `<div class="v2754-milestone daily"><i data-lucide="target"></i><div><small>TARGET HARI INI</small><b>🎯 Target ${planned} pcs tercapai</b><span>Bagus. Pertahankan ritme dulu; kalau pola ini konsisten beberapa hari, baru pertimbangkan menaikkan target secara bertahap.</span></div></div>`;
+    return '';
+  }
+  function creditCompletionCard(c, st) {
+    if (!st.lunas) return '';
+    return `<div class="v2754-milestone credit"><i data-lucide="party-popper"></i><div><small>SELESAI</small><b>🎉 ${esc(c.name || 'Cicilan')} sudah lunas</b><span>Pembayaran baru dikunci agar tidak kelebihan input. Riwayat tetap bisa dilihat, diedit, atau dihapus. Nominal cicilan ${rp(st.installment)}/bulan bisa dialihkan ke tabungan, dana darurat, atau target berikutnya.</span></div></div>`;
+  }
+  function syncBusinessMilestones(id, dates = [], allowReset = true, seedOnly = false) {
+    const dateList = [...new Set((Array.isArray(dates) ? dates : [dates]).filter(Boolean))];
+    const events = []; let info = null;
+    setState(s => {
+      const b = s.businesses.find(x => x.id === id); if (!b) return;
+      if (!b.milestones || typeof b.milestones !== 'object') b.milestones = {};
+      if (!b.milestones.dailyTargetDates || typeof b.milestones.dailyTargetDates !== 'object') b.milestones.dailyTargetDates = {};
+      const m = b.milestones, planned = num(b.unitsPerDay);
+      dateList.forEach(date => {
+        const hit = planned > 0 && dailyStats(b, date).qty >= planned;
+        if (hit && !m.dailyTargetDates[date]) {
+          m.dailyTargetDates[date] = Date.now();
+          if (!seedOnly) events.push({ type: 'daily', date });
+        } else if (!hit && allowReset && m.dailyTargetDates[date]) delete m.dailyTargetDates[date];
+      });
+      trimDailyMilestones(m.dailyTargetDates);
+      const st = businessStats(b), bepHit = st.capital > 0 && st.bepPct >= 100, profitHit = st.targetProfit > 0 && st.targetPct >= 100;
+      if (bepHit && !m.bepReachedAt) { m.bepReachedAt = Date.now(); if (!seedOnly) events.push({ type: 'bep' }); }
+      else if (!bepHit && allowReset && m.bepReachedAt) delete m.bepReachedAt;
+      if (profitHit && !m.targetProfitReachedAt) { m.targetProfitReachedAt = Date.now(); if (!seedOnly) events.push({ type: 'profit' }); }
+      else if (!profitHit && allowReset && m.targetProfitReachedAt) delete m.targetProfitReachedAt;
+      info = { name: b.name || 'Usaha', planned, st };
+    });
+    return { events, info };
+  }
+  function syncCreditMilestone(id, allowReset = true, seedOnly = false) {
+    let newlyPaid = false, info = null;
+    setState(s => {
+      const c = s.credits.find(x => x.id === id); if (!c) return;
+      if (!c.milestones || typeof c.milestones !== 'object') c.milestones = {};
+      const st = creditStats(c);
+      if (st.lunas && !c.milestones.paidAt) { c.milestones.paidAt = Date.now(); newlyPaid = !seedOnly; }
+      else if (!st.lunas && allowReset && c.milestones.paidAt) delete c.milestones.paidAt;
+      info = { name: c.name || 'Cicilan', st };
+    });
+    return { newlyPaid, info };
+  }
+  function showBusinessMilestonePopup(result) {
+    if (!result?.events?.length || !result.info) return;
+    const priority = result.events.some(x => x.type === 'profit') ? 'profit' : result.events.some(x => x.type === 'bep') ? 'bep' : 'daily';
+    const title = priority === 'profit' ? '🏆 Target keuntungan tercapai!' : priority === 'bep' ? '🎉 Balik modal tercapai!' : '🎯 Target penjualan tercapai!';
+    const lines = [];
+    if (result.events.some(x => x.type === 'daily')) {
+      const ev = result.events.find(x => x.type === 'daily');
+      lines.push(`<b>Target ${result.info.planned} pcs tercapai${ev?.date ? ` pada ${esc(humanDate(ev.date))}` : ''}.</b><br><span>Jaga ritme beberapa hari sebelum menaikkan target supaya pertumbuhan tetap realistis.</span>`);
+    }
+    if (result.events.some(x => x.type === 'bep')) lines.push(`<b>Modal berjalan sudah kembali.</b><br><span>Mulai pisahkan dana restock dan jangan anggap seluruh omzet berikutnya sebagai uang bebas.</span>`);
+    if (result.events.some(x => x.type === 'profit')) lines.push(`<b>Target keuntungan ${rp(result.info.st.targetProfit)} sudah tercapai.</b><br><span>Pertimbangkan mengunci sebagian laba sebagai tabungan atau modal cadangan sebelum menaikkan skala.</span>`);
+    Swal.fire({ icon: 'success', title, html: `<div class="v2754-swal-copy">${lines.map(x => `<p>${x}</p>`).join('')}</div>`, confirmButtonText: 'Mantap!' });
+  }
+  function showCreditPaidPopup(result) {
+    if (!result?.newlyPaid || !result.info) return;
+    Swal.fire({ icon: 'success', title: '🎉 Cicilan lunas!', html: `<div class="v2754-swal-copy"><p><b>${esc(result.info.name)} sudah selesai dibayar.</b></p><p>Input pembayaran baru sekarang dikunci supaya tidak terjadi kelebihan catat. Riwayat tetap bisa diedit atau dihapus.</p><p><b>Saran:</b> nominal sekitar ${rp(result.info.st.installment)}/bulan bisa langsung dialihkan ke tabungan, dana darurat, atau target berikutnya.</p></div>`, confirmButtonText: 'Sip!' });
+  }
+  function seedExistingMilestones() {
+    const s = state();
+    s.businesses.forEach(b => syncBusinessMilestones(b.id, [today()], false, true));
+    s.credits.forEach(c => syncCreditMilestone(c.id, false, true));
+  }
+
   function createBusiness(sourceId, focus = true) {
     const s26 = v26(), src = (s26.businesses || []).find(x => x.id === sourceId); if (!src) return null; let out;
     setState(s => {
@@ -210,6 +290,7 @@
     const selectedData = dailyStats(active, selected), prev = dailyStats(active, shiftDate(selected, -1)), next = dailyStats(active, shiftDate(selected, 1));
     return `${picker}<div class="v27-switcher">${s.businesses.map(x => `<button class="${x.id === active.id ? 'active' : ''}" onclick="selectBusinessTrackingV27('${esc(x.id)}')">${esc(x.name)}</button>`).join('')}</div>
       <div class="v27-summary"><div><small>Hari ini</small><b>${st.todaySold.toLocaleString('id-ID')} / ${st.planned.toLocaleString('id-ID')} unit</b><span>${targetStatus}</span></div><div><small>Omzet hari ini</small><b>${rp(st.todayRevenue)}</b><span>Angka aktual yang dicatat</span></div><div><small>Sisa stok</small><b>${st.stock.toLocaleString('id-ID')} unit</b><span>${st.avg ? `Rata-rata ${st.avg.toFixed(1)}/hari` : 'Belum ada rata-rata'}</span></div><div><small>Balik modal</small><b>${st.bepPct.toFixed(0)}%</b><span>${st.remainingBep ? `± ${st.remainingBep} unit lagi` : 'Sudah tercapai'}</span></div></div>
+      ${businessMilestoneCard(active, st)}
       <div class="v27-projection ${st.delay >= 2 ? 'warn' : ''}"><i data-lucide="route"></i><div><b>${st.delay >= 2 ? `Balik modal mundur ±${st.delay} hari` : 'Proyeksi masih sesuai rencana'}</b><span>${st.avg > 0 ? `Dengan ritme sekarang: BEP sekitar ${st.projectedBepDays || 0} hari lagi${st.targetProfit ? `, target untung sekitar ${st.projectedTargetDays || 0} hari lagi` : ''}.` : 'Catat penjualan untuk menghitung proyeksi aktual.'}</span></div></div>
       ${renderAdaptiveTarget(active)}
       ${renderWeeklySummary(active)}
@@ -251,9 +332,10 @@
     return `${picker}<div class="v27-switcher">${s.credits.map(x => `<button class="${x.id === active.id ? 'active' : ''}" onclick="selectCreditTrackingV27('${esc(x.id)}')">${esc(x.name)}</button>`).join('')}</div>
       <div class="v27-summary"><div><small>Sudah dibayar</small><b>${rp(st.paid)}</b><span>${st.paidInstallments} dari ${st.months} cicilan</span></div><div><small>Sisa cicilan</small><b>${rp(st.remaining)}</b><span>${(100 - st.pct).toFixed(0)}% tersisa</span></div><div><small>Cicilan bulanan</small><b>${rp(st.installment)}</b><span>Target tiap bulan</span></div><div><small>Jatuh tempo berikutnya</small><b>${st.lunas ? 'Lunas' : humanDate(st.nextDue)}</b><span>${st.lunas ? 'Semua cicilan selesai' : `Cicilan ke-${st.nextIndex}`}</span></div></div>
       <div class="v27-progress"><span style="width:${st.pct}%"></span></div>
+      ${creditCompletionCard(active, st)}
       <div class="v275-credit-safety ${safety.level}"><i data-lucide="shield-check"></i><div><small>KONDISI CICILAN</small><b>${safety.title}</b><span>${safety.note}</span><em>${safety.level !== 'unknown' ? `Saldo bebas sekarang ${rp(safety.available)} → setelah semua cicilan aktif sekitar ${rp(safety.after)}${safety.ratio !== null ? ` · beban cicilan ${safety.ratio.toFixed(0)}% dari pemasukan bulan ini` : ''}.` : 'Catat pemasukan/saldo agar indikator lebih akurat.'}</em></div></div>
-      <div class="v27-credit-settings"><label>Tanggal jatuh tempo tiap bulan <input type="number" min="1" max="31" value="${num(active.dueDay) || 1}" onchange="changeDueDayV27('${esc(active.id)}',this.value)"></label></div>
-      <div class="v27-actions"><button onclick="addPaymentV27('${esc(active.id)}')"><i data-lucide="badge-check"></i> Catat pembayaran</button><button class="danger ghost" onclick="deleteCreditTrackingV27('${esc(active.id)}')"><i data-lucide="trash-2"></i></button></div>
+      ${st.lunas ? '' : `<div class="v27-credit-settings"><label>Tanggal jatuh tempo tiap bulan <input type="number" min="1" max="31" value="${num(active.dueDay) || 1}" onchange="changeDueDayV27('${esc(active.id)}',this.value)"></label></div>`}
+      <div class="v27-actions">${st.lunas ? `<button class="v2754-paid-lock" disabled><i data-lucide="badge-check"></i> Lunas · pembayaran dikunci</button>` : `<button onclick="addPaymentV27('${esc(active.id)}')"><i data-lucide="badge-check"></i> Catat pembayaran</button>`}<button class="danger ghost" onclick="deleteCreditTrackingV27('${esc(active.id)}')"><i data-lucide="trash-2"></i></button></div>
       <div class="v27-list"><div class="v27-list-title">Riwayat pembayaran</div>${(active.payments || []).length ? [...active.payments].sort((a, b) => String(b.date).localeCompare(String(a.date))).map(x => `<div class="v27-row"><div><b>${humanDate(x.date)}</b><span>${esc(x.note || 'Pembayaran cicilan')}</span></div><strong>${rp(x.amount)}</strong><button onclick="editPaymentV27('${esc(active.id)}','${esc(x.id)}')"><i data-lucide="pencil"></i></button><button onclick="deletePaymentV27('${esc(active.id)}','${esc(x.id)}')"><i data-lucide="trash-2"></i></button></div>`).join('') : '<div class="v27-empty small">Belum ada pembayaran.</div>'}</div>`;
   }
 
@@ -288,38 +370,38 @@
   window.applyAdaptiveTargetV275 = async (id, suggested) => {
     const b = getBiz(id); if (!b) return; const next = Math.max(1, Math.round(Number(suggested) || 1));
     const r = await Swal.fire({ title: `Ubah target jadi ${next} pcs/hari?`, text: 'Riwayat penjualan lama tidak berubah. Target baru dipakai untuk evaluasi berikutnya.', icon: 'question', showCancelButton: true, confirmButtonText: 'Pakai target', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return;
-    setState(s => { const x = s.businesses.find(z => z.id === id); x.targetAdjustments = x.targetAdjustments || []; x.targetAdjustments.push({ id: uid('target'), date: today(), from: num(x.unitsPerDay), to: next, reason: 'Saran adaptif', createdAt: Date.now() }); x.unitsPerDay = next; x.updatedAt = Date.now(); }); render();
+    setState(s => { const x = s.businesses.find(z => z.id === id); x.targetAdjustments = x.targetAdjustments || []; x.targetAdjustments.push({ id: uid('target'), date: today(), from: num(x.unitsPerDay), to: next, reason: 'Saran adaptif', createdAt: Date.now() }); x.unitsPerDay = next; x.updatedAt = Date.now(); }); syncBusinessMilestones(id, [today()], true, true); render();
   };
   window.manualTargetV275 = async id => {
     const b = getBiz(id); if (!b) return; const v = await form('Atur target penjualan', [{ key: 'target', label: 'Target baru (pcs / hari)', type: 'number', value: Math.round(num(b.unitsPerDay)) }, { key: 'note', label: 'Alasan perubahan (opsional)', value: '' }]); if (!v || !moneyNum(v.target)) return;
-    const next = Math.max(1, moneyNum(v.target)); setState(s => { const x = s.businesses.find(z => z.id === id); x.targetAdjustments = x.targetAdjustments || []; x.targetAdjustments.push({ id: uid('target'), date: today(), from: num(x.unitsPerDay), to: next, reason: v.note || 'Diatur manual', createdAt: Date.now() }); x.unitsPerDay = next; x.updatedAt = Date.now(); }); render();
+    const next = Math.max(1, moneyNum(v.target)); setState(s => { const x = s.businesses.find(z => z.id === id); x.targetAdjustments = x.targetAdjustments || []; x.targetAdjustments.push({ id: uid('target'), date: today(), from: num(x.unitsPerDay), to: next, reason: v.note || 'Diatur manual', createdAt: Date.now() }); x.unitsPerDay = next; x.updatedAt = Date.now(); }); syncBusinessMilestones(id, [today()], true, true); render();
   };
 
   window.addSaleV27 = async (id, dateOverride) => {
     const b = getBiz(id); if (!b) return; const selected = dateOverride || state().selectedDates[id] || today();
     const v = await form('Catat penjualan', [{ key: 'date', label: 'Tanggal', type: 'date', value: selected }, { key: 'qty', label: 'Jumlah terjual (pcs, boleh 0)', type: 'number', value: '' }, { key: 'revenue', label: 'Uang yang didapat', type: 'number', value: '', placeholder: 'Kosong = otomatis dari harga jual' }, { key: 'reason', label: 'Faktor penjualan (opsional)', type: 'select', value: '', options: REASONS }, { key: 'note', label: 'Catatan (opsional)', value: '' }]); if (!v) return;
     const qtyRaw = String(v.qty ?? '').trim(); if (qtyRaw === '') return Swal.fire('Jumlah belum diisi', 'Isi 0 jika hari ini tidak ada barang terjual.', 'warning'); const qty = moneyNum(qtyRaw); const revenue = String(v.revenue || '').trim() ? moneyNum(v.revenue) : qty * num(b.salePrice), now = Date.now(), date = v.date || selected;
-    setState(s => { const x = s.businesses.find(z => z.id === id); x.sales.push({ id: uid('sale'), date, qty, revenue, reason: v.reason || '', note: v.note || '', createdAt: now, updatedAt: now }); s.selectedDates[id] = date; s.calendarMonths[id] = date.slice(0, 7); }); render();
+    setState(s => { const x = s.businesses.find(z => z.id === id); x.sales.push({ id: uid('sale'), date, qty, revenue, reason: v.reason || '', note: v.note || '', createdAt: now, updatedAt: now }); s.selectedDates[id] = date; s.calendarMonths[id] = date.slice(0, 7); }); const milestone = syncBusinessMilestones(id, [date], true); render(); showBusinessMilestonePopup(milestone);
   };
   window.editSaleV27 = async (id, eid) => {
     const b = getBiz(id), e = b?.sales?.find(x => x.id === eid); if (!e) return;
     const v = await form('Edit penjualan', [{ key: 'date', label: 'Tanggal', type: 'date', value: e.date }, { key: 'qty', label: 'Jumlah terjual (pcs, boleh 0)', type: 'number', value: e.qty }, { key: 'revenue', label: 'Uang yang didapat', type: 'number', value: Math.round(saleRevenue(e, b)) }, { key: 'reason', label: 'Faktor penjualan (opsional)', type: 'select', value: e.reason || '', options: REASONS }, { key: 'note', label: 'Catatan', value: e.note || '' }]); if (!v) return;
     const qtyRaw = String(v.qty ?? '').trim(); if (qtyRaw === '') return Swal.fire('Jumlah belum diisi', 'Isi 0 jika pada tanggal ini tidak ada barang terjual.', 'warning'); const qty = moneyNum(qtyRaw); const revenue = String(v.revenue || '').trim() ? moneyNum(v.revenue) : qty * num(b.salePrice), date = v.date || e.date;
-    setState(s => { const x = s.businesses.find(z => z.id === id).sales.find(z => z.id === eid); x.date = date; x.qty = qty; x.revenue = revenue; x.reason = v.reason || ''; x.note = v.note || ''; x.updatedAt = Date.now(); s.selectedDates[id] = date; s.calendarMonths[id] = date.slice(0, 7); }); render();
+    const oldDate = e.date; setState(s => { const x = s.businesses.find(z => z.id === id).sales.find(z => z.id === eid); x.date = date; x.qty = qty; x.revenue = revenue; x.reason = v.reason || ''; x.note = v.note || ''; x.updatedAt = Date.now(); s.selectedDates[id] = date; s.calendarMonths[id] = date.slice(0, 7); }); const milestone = syncBusinessMilestones(id, [oldDate, date], true); render(); showBusinessMilestonePopup(milestone);
   };
-  window.deleteSaleV27 = async (id, eid) => { const r = await Swal.fire({ title: 'Hapus penjualan?', text: 'Data pcs dan omzet pada catatan ini akan dihapus.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { const x = s.businesses.find(z => z.id === id); x.sales = x.sales.filter(z => z.id !== eid); }); render(); };
-  window.addStockV27 = async id => { const b = getBiz(id); if (!b) return; const v = await form('Tambah stok', [{ key: 'date', label: 'Tanggal', type: 'date', value: today() }, { key: 'qty', label: 'Jumlah stok masuk', type: 'number', value: '' }, { key: 'cost', label: 'Biaya restock', type: 'number', value: '', placeholder: `Kosong = otomatis ${rp(num(b.hpp))} / unit` }, { key: 'note', label: 'Catatan', value: 'Restock' }]); if (!v || !moneyNum(v.qty)) return; const qty=moneyNum(v.qty), cost=String(v.cost||'').trim()?moneyNum(v.cost):qty*num(b.hpp), now=Date.now(); setState(s => s.businesses.find(x => x.id === id).stockAdds.push({ id: uid('stock'), date: v.date || today(), qty, cost, note: v.note || '', createdAt: now, updatedAt: now })); render(); };
-  window.editStockV27 = async (id, eid) => { const b=getBiz(id), e = b?.stockAdds?.find(x => x.id === eid); if (!e) return; const v = await form('Edit stok', [{ key: 'date', label: 'Tanggal', type: 'date', value: e.date }, { key: 'qty', label: 'Jumlah stok masuk', type: 'number', value: e.qty }, { key: 'cost', label: 'Biaya restock', type: 'number', value: Math.round(stockCost(e,b)) }, { key: 'note', label: 'Catatan', value: e.note || '' }]); if (!v || !moneyNum(v.qty)) return; setState(s => { const x = s.businesses.find(z => z.id === id).stockAdds.find(z => z.id === eid); x.date = v.date; x.qty = moneyNum(v.qty); x.cost = String(v.cost||'').trim()?moneyNum(v.cost):x.qty*num(b.hpp); x.note = v.note || ''; x.updatedAt = Date.now(); }); render(); };
-  window.deleteStockV27 = async (id, eid) => { const r = await Swal.fire({ title: 'Hapus catatan stok?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { const x = s.businesses.find(z => z.id === id); x.stockAdds = x.stockAdds.filter(z => z.id !== eid); }); render(); };
+  window.deleteSaleV27 = async (id, eid) => { const b = getBiz(id), removed = b?.sales?.find(x => x.id === eid); const r = await Swal.fire({ title: 'Hapus penjualan?', text: 'Data pcs dan omzet pada catatan ini akan dihapus.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { const x = s.businesses.find(z => z.id === id); x.sales = x.sales.filter(z => z.id !== eid); }); syncBusinessMilestones(id, removed?.date ? [removed.date] : [], true); render(); };
+  window.addStockV27 = async id => { const b = getBiz(id); if (!b) return; const v = await form('Tambah stok', [{ key: 'date', label: 'Tanggal', type: 'date', value: today() }, { key: 'qty', label: 'Jumlah stok masuk', type: 'number', value: '' }, { key: 'cost', label: 'Biaya restock', type: 'number', value: '', placeholder: `Kosong = otomatis ${rp(num(b.hpp))} / unit` }, { key: 'note', label: 'Catatan', value: 'Restock' }]); if (!v || !moneyNum(v.qty)) return; const qty=moneyNum(v.qty), cost=String(v.cost||'').trim()?moneyNum(v.cost):qty*num(b.hpp), now=Date.now(); setState(s => s.businesses.find(x => x.id === id).stockAdds.push({ id: uid('stock'), date: v.date || today(), qty, cost, note: v.note || '', createdAt: now, updatedAt: now })); syncBusinessMilestones(id, [], true, true); render(); };
+  window.editStockV27 = async (id, eid) => { const b=getBiz(id), e = b?.stockAdds?.find(x => x.id === eid); if (!e) return; const v = await form('Edit stok', [{ key: 'date', label: 'Tanggal', type: 'date', value: e.date }, { key: 'qty', label: 'Jumlah stok masuk', type: 'number', value: e.qty }, { key: 'cost', label: 'Biaya restock', type: 'number', value: Math.round(stockCost(e,b)) }, { key: 'note', label: 'Catatan', value: e.note || '' }]); if (!v || !moneyNum(v.qty)) return; setState(s => { const x = s.businesses.find(z => z.id === id).stockAdds.find(z => z.id === eid); x.date = v.date; x.qty = moneyNum(v.qty); x.cost = String(v.cost||'').trim()?moneyNum(v.cost):x.qty*num(b.hpp); x.note = v.note || ''; x.updatedAt = Date.now(); }); syncBusinessMilestones(id, [], true, true); render(); };
+  window.deleteStockV27 = async (id, eid) => { const r = await Swal.fire({ title: 'Hapus catatan stok?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { const x = s.businesses.find(z => z.id === id); x.stockAdds = x.stockAdds.filter(z => z.id !== eid); }); syncBusinessMilestones(id, [], true, true); render(); };
   window.deleteBusinessTrackingV27 = async id => { const r = await Swal.fire({ title: 'Hapus tracking bisnis?', text: 'Skenario asli v26.1.0 tidak ikut dihapus.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus tracking', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { s.businesses = s.businesses.filter(x => x.id !== id); delete s.selectedDates[id]; delete s.calendarMonths[id]; delete s.chartMetrics[id]; s.activeBusinessId = s.businesses[0]?.id || ''; }); render(); };
-  window.addPaymentV27 = async id => { const c = getCredit(id); if (!c) return; const v = await form('Catat pembayaran', [{ key: 'date', label: 'Tanggal bayar', type: 'date', value: today() }, { key: 'amount', label: 'Nominal dibayar', type: 'number', value: Math.round(c.installment) }, { key: 'note', label: 'Catatan', value: 'Cicilan' }]); if (!v || !moneyNum(v.amount)) return; const now = Date.now(); setState(s => s.credits.find(x => x.id === id).payments.push({ id: uid('pay'), date: v.date || today(), amount: moneyNum(v.amount), note: v.note || '', createdAt: now, updatedAt: now })); render(); };
-  window.editPaymentV27 = async (id, eid) => { const e = getCredit(id)?.payments?.find(x => x.id === eid); if (!e) return; const v = await form('Edit pembayaran', [{ key: 'date', label: 'Tanggal bayar', type: 'date', value: e.date }, { key: 'amount', label: 'Nominal dibayar', type: 'number', value: e.amount }, { key: 'note', label: 'Catatan', value: e.note || '' }]); if (!v) return; setState(s => { const x = s.credits.find(z => z.id === id).payments.find(z => z.id === eid); x.date = v.date; x.amount = moneyNum(v.amount); x.note = v.note || ''; x.updatedAt = Date.now(); }); render(); };
-  window.deletePaymentV27 = async (id, eid) => { const r = await Swal.fire({ title: 'Hapus pembayaran?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { const x = s.credits.find(z => z.id === id); x.payments = x.payments.filter(z => z.id !== eid); }); render(); };
+  window.addPaymentV27 = async id => { const c = getCredit(id); if (!c) return; const st = creditStats(c); if (st.lunas) return Swal.fire('Cicilan sudah lunas 🎉', 'Pembayaran baru dikunci. Riwayat pembayaran tetap bisa dilihat, diedit, atau dihapus.', 'success'); const suggested = Math.max(1, Math.min(Math.ceil(st.remaining), Math.round(c.installment) || Math.ceil(st.remaining))); const v = await form('Catat pembayaran', [{ key: 'date', label: 'Tanggal bayar', type: 'date', value: today() }, { key: 'amount', label: 'Nominal dibayar', type: 'number', value: suggested }, { key: 'note', label: 'Catatan', value: 'Cicilan' }]); if (!v || !moneyNum(v.amount)) return; const amount = moneyNum(v.amount), maxAllowed = Math.max(1, Math.ceil(st.remaining)); if (amount > maxAllowed) return Swal.fire('Nominal terlalu besar', `Sisa cicilan hanya ${rp(st.remaining)}. Maksimum pembayaran terakhir ${rp(maxAllowed)}.`, 'warning'); const now = Date.now(); setState(s => s.credits.find(x => x.id === id).payments.push({ id: uid('pay'), date: v.date || today(), amount, note: v.note || '', createdAt: now, updatedAt: now })); const milestone = syncCreditMilestone(id, true); render(); showCreditPaidPopup(milestone); };
+  window.editPaymentV27 = async (id, eid) => { const c = getCredit(id), e = c?.payments?.find(x => x.id === eid); if (!e) return; const v = await form('Edit pembayaran', [{ key: 'date', label: 'Tanggal bayar', type: 'date', value: e.date }, { key: 'amount', label: 'Nominal dibayar', type: 'number', value: e.amount }, { key: 'note', label: 'Catatan', value: e.note || '' }]); if (!v || !moneyNum(v.amount)) return; const amount = moneyNum(v.amount), st = creditStats(c), otherPaid = Math.max(0, st.paid - num(e.amount)), maxAllowed = Math.max(1, Math.ceil(st.total - otherPaid)); if (amount > maxAllowed) return Swal.fire('Nominal terlalu besar', `Dengan pembayaran lain yang sudah ada, catatan ini maksimal ${rp(maxAllowed)}.`, 'warning'); setState(s => { const x = s.credits.find(z => z.id === id).payments.find(z => z.id === eid); x.date = v.date; x.amount = amount; x.note = v.note || ''; x.updatedAt = Date.now(); }); const milestone = syncCreditMilestone(id, true); render(); showCreditPaidPopup(milestone); };
+  window.deletePaymentV27 = async (id, eid) => { const r = await Swal.fire({ title: 'Hapus pembayaran?', text: 'Kalau cicilan jadi belum lunas, input pembayaran akan terbuka kembali otomatis.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { const x = s.credits.find(z => z.id === id); x.payments = x.payments.filter(z => z.id !== eid); }); syncCreditMilestone(id, true); render(); };
   window.changeDueDayV27 = (id, v) => { setState(s => { const x = s.credits.find(z => z.id === id); if (x) x.dueDay = Math.max(1, Math.min(31, Number(v) || 1)); }); render(); };
   window.deleteCreditTrackingV27 = async id => { const r = await Swal.fire({ title: 'Hapus tracking cicilan?', text: 'Simulasi asli v26.1.0 tidak ikut dihapus.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Hapus tracking', cancelButtonText: 'Batal' }); if (!r.isConfirmed) return; setState(s => { s.credits = s.credits.filter(x => x.id !== id); s.activeCreditId = s.credits[0]?.id || ''; }); render(); };
   window.getV27TrackingData = () => state();
   window.refreshTrackingV27 = () => render();
 
-  function init() { inject(); setTimeout(inject, 400); setTimeout(inject, 1100); const host = document.getElementById('v2531-planning-host'); if (host) new MutationObserver(() => inject()).observe(host, { childList: true }); }
+  function init() { seedExistingMilestones(); inject(); setTimeout(inject, 400); setTimeout(inject, 1100); const host = document.getElementById('v2531-planning-host'); if (host) new MutationObserver(() => inject()).observe(host, { childList: true }); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(init, 280), { once: true }); else setTimeout(init, 280);
 })();
