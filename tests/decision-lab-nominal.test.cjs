@@ -43,5 +43,5 @@ test('fixed Decision Lab asset is cache-busted and precached for offline use', (
   assert.ok(html.includes('./v26-decision-lab.js?v=26.0.5'));
   const shell = Function('self', sw + '\nreturn {CACHE_NAME, APP_SHELL};')({ addEventListener() {} });
   assert.ok(shell.APP_SHELL.includes('./v26-decision-lab.js?v=26.0.5'));
-  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-5-decision-coach');
+  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-9-stability-safe-today');
 });

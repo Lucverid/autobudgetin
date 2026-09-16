@@ -115,7 +115,7 @@ test('Decision Lab v26.0.5 JS and CSS are cache-busted and available offline', (
     assert.ok(html.includes(asset));
     assert.ok(shell.APP_SHELL.includes(asset));
   }
-  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-5-decision-coach');
+  assert.equal(shell.CACHE_NAME, 'agis-finance-v26-0-9-stability-safe-today');
 });
 
 test('Decision Coach reacts to scenario quality instead of returning static advice', () => {

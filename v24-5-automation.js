@@ -22,9 +22,15 @@
     const available=Math.max(0,totalWallet()-(Number(store?.goal)||0));
     const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
     const remainingDays=Math.max(1,lastDay-now.getDate()+1);
-    const dailySafe=Math.max(0,available-floor)/remainingDays;
     const valid=(store?.trans||[]).filter(t=>t.kategori!=='Penyesuaian Saldo');
     const todayExpense=valid.filter(t=>t.tanggal===today).reduce((sum,t)=>sum+(Number(t.nominal)||0),0);
+    // v26.0.9: available adalah saldo setelah transaksi hari ini. Tambahkan
+    // todayExpense kembali agar batas TOTAL harian tidak turun setiap kali
+    // transaksi dicatat. Telegram dan Home sekarang memakai makna yang sama.
+    const spendableNow=Math.max(0,available-floor);
+    const dailySafe=typeof window.calculateSafeToday==='function'
+      ? window.calculateSafeToday(spendableNow,remainingDays,todayExpense).dailyLimit
+      : (spendableNow+todayExpense)/remainingDays;
     const monthExpense=valid.filter(t=>String(t.tanggal||'').startsWith(month)).reduce((sum,t)=>sum+(Number(t.nominal)||0),0);
     return {today,month,floor,available,dailySafe,todayExpense,monthExpense,remainingDays};
   }

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'agis-finance-';
-const CACHE_NAME = 'agis-finance-v26-0-5-decision-coach';
+const CACHE_NAME = 'agis-finance-v26-0-9-stability-safe-today';
 
 const APP_SHELL = [
   './',
@@ -18,8 +18,26 @@ const APP_SHELL = [
   './icon-512.png'
 ];
 
+async function putIfOk(cache, request, response) {
+  if (response && response.ok) {
+    try { await cache.put(request, response.clone()); } catch (_) {}
+  }
+  return response;
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Partial deploy tidak boleh membuat update Service Worker gagal total.
+    await Promise.allSettled(APP_SHELL.map(async asset => {
+      try {
+        const response = await fetch(asset, { cache: 'reload' });
+        if (response && response.ok) await cache.put(asset, response);
+      } catch (err) {
+        console.warn('[SW] precache skip:', asset, err?.message || err);
+      }
+    }));
+  })());
   self.skipWaiting();
 });
 
@@ -38,31 +56,47 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigasi: coba versi terbaru dari network, fallback ke app shell saat offline.
+  // Navigasi selalu coba network lebih dulu supaya HTML deploy terbaru cepat terbaca.
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const response = await fetch(request, { cache: 'no-cache' });
+        if (response && response.ok) await cache.put('./index.html', response.clone());
+        return response;
+      } catch (_) {
+        return (await cache.match('./index.html')) || (await caches.match('./index.html')) || Response.error();
+      }
+    })());
     return;
   }
 
-  // Asset lokal: cache-first, lalu isi cache jika ada asset baru.
-  event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        }
-        return response;
-      });
-    })
-  );
+  const isCodeAsset = request.destination === 'script' || request.destination === 'style' || /\.(?:js|css|json)$/i.test(url.pathname);
+
+  if (isCodeAsset) {
+    // Online: cari versi terbaru. Offline/network error: pakai cache.
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const response = await fetch(request, { cache: 'no-cache' });
+        return await putIfOk(cache, request, response);
+      } catch (_) {
+        return (await cache.match(request)) || (await caches.match(request)) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // Gambar/icon: cache-first agar ringan, lalu fetch jika belum ada.
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request) || await caches.match(request);
+    if (cached) return cached;
+    try {
+      const response = await fetch(request);
+      return await putIfOk(cache, request, response);
+    } catch (_) {
+      return Response.error();
+    }
+  })());
 });

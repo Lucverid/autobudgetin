@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agis Finance AI - v26.0.2 Stable+</title>
+    <title>AutoBudgetin - v26.0.9 STABLE+</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -1949,6 +1949,18 @@
         }, 0);
     }
 
+    function calculateSafeToday(disposableNow, remainingDays, spentToday) {
+        const spendableNow = Math.max(0, Number(disposableNow) || 0);
+        const days = Math.max(1, Number(remainingDays) || 1);
+        const spent = Math.max(0, Number(spentToday) || 0);
+        const dailyLimit = (spendableNow + spent) / days;
+        return {
+            dailyLimit,
+            remaining: Math.max(0, dailyLimit - spent)
+        };
+    }
+    window.calculateSafeToday = calculateSafeToday;
+
     function buildSmartInsight(disposable, cats, remainingDays) {
         const today = new Date();
         today.setHours(23, 59, 59, 999);
@@ -1959,7 +1971,16 @@
         const last7 = sumRange(relevant, start7, today);
         const prev7 = sumRange(relevant, prevStart, prevEnd);
         const avg7 = last7 / 7;
-        const safeDaily = disposable > 0 && remainingDays > 0 ? disposable / remainingDays : 0;
+
+        // v26.0.9 — Batas aman harian harus stabil sepanjang hari.
+        // `disposable` adalah saldo bebas SEKARANG, jadi pengeluaran hari ini sudah
+        // menguranginya. Tambahkan kembali pengeluaran hari ini sebelum membagi
+        // sisa hari agar jatah total hari ini tidak terpotong dua kali.
+        const todayKey = localDateKey();
+        const spentTodayForSafe = store.trans
+            .filter(t => t.tanggal === todayKey)
+            .reduce((sum, t) => sum + Number(t.nominal || 0), 0);
+        const safeDaily = calculateSafeToday(disposable, remainingDays, spentTodayForSafe).dailyLimit;
         const daysAfterToday = Math.max(remainingDays - 1, 0);
         const predictedEnd = disposable - (avg7 * daysAfterToday);
 
@@ -2375,7 +2396,9 @@
 
         // PWA registration sebelumnya belum ada di v19.8.
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js').catch(err => console.error('Service Worker:', err));
+            navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' })
+                .then(registration => registration.update().catch(() => {}))
+                .catch(err => console.error('Service Worker:', err));
         }
     });
 
