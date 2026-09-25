@@ -267,6 +267,7 @@
     <link rel="stylesheet" href="./v26-decision-lab.css?v=26.0.5">
     <link rel="stylesheet" href="./v26-feature-switcher.css?v=26.0.3">
     <link rel="stylesheet" href="./v26-stable-tracking.css?v=26.0.2">
+    <link rel="stylesheet" href="./v28-auto-budget-review.css?v=28.0.0">
 </head>
 <body>
 
@@ -478,6 +479,14 @@
                 <input type="text" id="t-amount-display" placeholder="Nominal" inputmode="numeric" oninput="formatInput(this)">
                 <input type="hidden" id="t-amount">
                 <input type="text" id="t-note" maxlength="120" placeholder="Keterangan (opsional), contoh: makan siang / bensin">
+                <div class="v28-usage-wrap" id="v28-expense-detail">
+                    <select id="t-budget-bucket" aria-label="Jenis pemakaian">
+                        <option value="">Jenis pemakaian: Otomatis</option>
+                        <option>Makan Pokok</option><option>Jajan</option><option>Transportasi</option><option>Tagihan</option>
+                        <option>Pemberian</option><option>Belanja</option><option>Hiburan</option><option>Lainnya</option>
+                    </select>
+                    <input type="number" id="t-usage-days" min="1" max="3650" inputmode="numeric" placeholder="Dipakai berapa hari? (opsional)">
+                </div>
             </form>
             <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check-circle"></i> Simpan Transaksi</button>
         </div>
@@ -1095,6 +1104,7 @@
         const standardFields = document.getElementById('t-standard-fields');
         transferFields.classList.toggle('form-hidden', valid !== 'transfer');
         standardFields.classList.toggle('form-hidden', valid === 'transfer');
+        const usageFields=document.getElementById('v28-expense-detail'); if(usageFields) usageFields.classList.toggle('form-hidden', valid !== 'expense');
         if (valid === 'expense') fillCategoryOptions(EXPENSE_CATEGORIES);
         if (valid === 'income') fillCategoryOptions(INCOME_CATEGORIES);
     };
@@ -1227,7 +1237,7 @@
         const catatan = (document.getElementById('t-note')?.value || '').trim().slice(0,120);
         if (type === 'expense') {
             const ref = db.collection('pengeluaran').doc(); id = ref.id;
-            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, catatan, createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
+            data = { tanggal:d, dompet:document.getElementById('t-wallet').value, kategori:document.getElementById('t-cat').value, nominal:amount, catatan, budgetBucket:(document.getElementById('t-budget-bucket')?.value||''), usageDays:Math.max(0,Number(document.getElementById('t-usage-days')?.value)||0), createdAt, updatedAt:createdAt, version:1, deviceId:DEVICE_ID };
             op = { opId:`add:${id}`, type:'addExpense', expenseId:id, data, createdAt };
         } else if (type === 'income') {
             const ref = db.collection('pemasukan').doc(); id = ref.id;
@@ -1251,6 +1261,7 @@
         document.getElementById('t-amount-display').value = '';
         document.getElementById('t-amount').value = '';
         const noteInput = document.getElementById('t-note'); if (noteInput) noteInput.value = '';
+        const bucketInput=document.getElementById('t-budget-bucket'); if(bucketInput) bucketInput.value=''; const usageInput=document.getElementById('t-usage-days'); if(usageInput) usageInput.value='';
         nav('home');
         const label = type === 'expense' ? 'Pengeluaran' : type === 'income' ? 'Pemasukan' : 'Transfer';
         auditEvent(`Tambah ${label}`, `${type === 'transfer' ? `${data.dari} → ${data.ke}` : `${data.kategori} · ${data.dompet}`} · ${fmt(data.nominal)}`, {entityType:type, entityId:id});
@@ -1626,6 +1637,7 @@
                 <label>Kategori</label><select id="edit-cat">${categoryOptionHtml(categories, current.kategori)}</select>
                 <label>Nominal</label><input id="edit-amount" inputmode="numeric" value="${moneyFormatter.format(Number(current.nominal)||0)}">
                 <label>Keterangan</label><input id="edit-note" maxlength="120" value="${escapeHtml(current.catatan||current.note||'')}" placeholder="Opsional">
+                ${type==='expense'?`<label>Jenis pemakaian</label><select id="edit-budget-bucket"><option value="">Otomatis</option>${['Makan Pokok','Jajan','Transportasi','Tagihan','Pemberian','Belanja','Hiburan','Lainnya'].map(v=>`<option value="${v}"${current.budgetBucket===v?' selected':''}>${v}</option>`).join('')}</select><label>Dipakai berapa hari?</label><input id="edit-usage-days" type="number" min="1" max="3650" value="${Number(current.usageDays)||''}" placeholder="Opsional"></input>`:''}
             </div>`;
 
         const result = await Swal.fire({
@@ -1645,7 +1657,7 @@
                     if (dari === ke) return Swal.showValidationMessage('Wallet asal dan tujuan harus berbeda.');
                     return { tanggal, dari, ke, nominal, catatan:(document.getElementById('edit-note')?.value||'').trim().slice(0,120), createdAt:Number(current.createdAt)||Date.now() };
                 }
-                return { tanggal, dompet:document.getElementById('edit-wallet').value, kategori:document.getElementById('edit-cat').value, nominal, catatan:(document.getElementById('edit-note')?.value||'').trim().slice(0,120), createdAt:Number(current.createdAt)||Date.now() };
+                return { tanggal, dompet:document.getElementById('edit-wallet').value, kategori:document.getElementById('edit-cat').value, nominal, catatan:(document.getElementById('edit-note')?.value||'').trim().slice(0,120), budgetBucket:type==='expense'?(document.getElementById('edit-budget-bucket')?.value||''):(current.budgetBucket||''), usageDays:type==='expense'?Math.max(0,Number(document.getElementById('edit-usage-days')?.value)||0):(Number(current.usageDays)||0), createdAt:Number(current.createdAt)||Date.now() };
             }
         });
         if (!result.isConfirmed || !result.value) return;
@@ -2032,7 +2044,7 @@
             const hasConflict=(store.conflicts||[]).some(c=>c.entityType===t.type&&c.entityId===t.id); const pending = hasConflict ? '<span style="color:var(--danger);font-weight:800">• Konflik sync</span>' : (t.pendingSync ? '<span style="color:var(--warning);font-weight:800">• Menunggu sync</span>' : '');
             let title, sub, amount, amountClass;
             if (t.type === 'expense') {
-                title = escapeHtml(t.kategori); sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dompet)} ${pending}`; amount = `- ${fmt(t.nominal)}`; amountClass = '';
+                const bucket=t.budgetBucket?` <span>•</span> ${escapeHtml(t.budgetBucket)}`:''; const usage=Number(t.usageDays)>0?` <span>•</span> ${Number(t.usageDays)} hari (${fmt((Number(t.nominal)||0)/Number(t.usageDays))}/hari)`:''; const note=t.catatan?` <span>•</span> ${escapeHtml(t.catatan)}`:''; title = escapeHtml(t.kategori); sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dompet)}${bucket}${usage}${note} ${pending}`; amount = `- ${fmt(t.nominal)}`; amountClass = '';
             } else if (t.type === 'income') {
                 title = escapeHtml(t.kategori); sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dompet)} ${pending}`; amount = `+ ${fmt(t.nominal)}`; amountClass = 'income';
             } else {
@@ -2438,5 +2450,6 @@
 <script src="./v26-stable-tracking.js?v=26.0.2"></script>
 <script src="./v26-tracking-money-format.js?v=26.0.2"></script>
 <script src="./v26-feature-switcher.js?v=26.0.3"></script>
+<script src="./v28-auto-budget-review.js?v=28.0.0"></script>
 </body>
 </html>
