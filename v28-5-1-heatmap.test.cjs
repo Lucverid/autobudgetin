@@ -1,0 +1,13 @@
+const fs=require('fs');
+const js=fs.readFileSync(__dirname+'/v24-4-features.js','utf8');
+const css=fs.readFileSync(__dirname+'/v24-4-features.css','utf8');
+const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
+assert(js.includes('heatmapMonthKey'), 'heatmap month state missing');
+assert(js.includes('shiftHeatmapMonthV2851'), 'month navigation missing');
+assert(js.includes('openHeatmapArchiveV2851'), 'archive selector missing');
+assert(js.includes("heatmapData(mk=getHeatmapMonth())"), 'month-specific heatmap data missing');
+assert(js.includes("Skala warna dihitung ulang untuk setiap bulan"), 'per-month scale note missing');
+assert(js.includes('v244-day-detail-row'), 'day category breakdown missing');
+assert(css.includes('.v244-heatmap-toolbar'), 'responsive toolbar CSS missing');
+assert(css.includes('@media(max-width:480px)'), 'mobile CSS missing');
+console.log('month-aware heatmap v28.5.1: PASS');

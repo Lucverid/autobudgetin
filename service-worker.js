@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'agis-finance-';
-const CACHE_NAME = 'agis-finance-v26-0-5-decision-coach';
+const CACHE_NAME = 'agis-finance-v28-5-1-heatmap';
 
 const APP_SHELL = [
   './',
