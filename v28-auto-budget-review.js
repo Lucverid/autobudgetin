@@ -152,9 +152,11 @@
     let card=document.getElementById('v28-auto-budget-card');if(!card){const old=settings.querySelector('.limit-guard-card');card=document.createElement('div');card.id='v28-auto-budget-card';card.className='card v28-auto-card';settings.insertBefore(card,old||settings.children[3]||null)}
     card.innerHTML=`<div class="v283-section-head"><div><span class="v283-kicker">BUDGET CONTROL</span><h3>Batas penggunaan uang</h3><p id="v283-budget-status">Pendapatan dikurangi tabungan, lalu dibagi ke kebutuhan.</p></div><span id="v28-auto-state" class="v283-mode-badge">OTOMATIS</span></div><div class="v283-summary"><div><span>Pendapatan</span><b id="v28-income-source">Rp 0</b></div><div><span>Tabungan</span><b id="v28-saving-value">Rp 0</b></div><div><span>Untuk kebutuhan</span><b id="v28-spendable-value">Rp 0</b></div></div><div id="v28-budget-grid" class="v283-budget-grid"></div><div class="v283-actions"><button type="button" onclick="configureAutoBudgetV28()">${icon('settings-2')}<span>Atur budget</span></button><button type="button" onclick="openSpendingReviewV28()">${icon('chart-no-axes-combined')}<span>Review pemakaian</span></button></div>`;
     if(home&&!document.getElementById('v28-spending-review')){const r=document.createElement('div');r.id='v28-spending-review';r.className='card v28-review-card';const chart=home.querySelector('.home-chart-card');home.insertBefore(r,chart||null)}
-    injectShortcutButton();window.lucide?.createIcons?.();render();
+    // Final UI: shortcut launcher kanan-atas dihapus agar header Home tetap bersih.
+    // Fungsi Shortcut Information tetap dipertahankan untuk kompatibilitas/internal use.
+    document.getElementById('v283-shortcut-button')?.remove();window.lucide?.createIcons?.();render();
   }
-  function wrapRender(){const old=window.renderAll;if(typeof old==='function'&&!old.__v283){const fn=function(){const r=old.apply(this,arguments);setTimeout(()=>{injectShortcutButton();render();maybeAutoApply()},0);return r};fn.__v283=true;window.renderAll=fn}}
+  function wrapRender(){const old=window.renderAll;if(typeof old==='function'&&!old.__v283){const fn=function(){const r=old.apply(this,arguments);setTimeout(()=>{document.getElementById('v283-shortcut-button')?.remove();render();maybeAutoApply()},0);return r};fn.__v283=true;window.renderAll=fn}}
   function init(){inject();wrapRender();maybeAutoApply();render()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,350));else setTimeout(init,350);
 })();

@@ -3,3 +3,10 @@
 @container (max-width:650px){.v283-budget-grid,.v283-review-columns{grid-template-columns:1fr}.v283-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.v283-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.v283-summary>div:last-child{grid-column:1/-1}}
 @media(max-width:680px){.v28-auto-card,.v28-review-card{border-radius:18px!important;padding:16px!important}.v283-section-head{gap:10px}.v283-summary,.v28-usage-wrap,.v283-weight-grid,.v283-manual-grid,.v283-detail-metrics{grid-template-columns:1fr}.v283-actions{grid-template-columns:1fr}.v283-shortcut-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.v283-shortcut-grid button{min-height:76px;padding:10px}.v283-mode-tabs{grid-template-columns:1fr}.v283-detail-row{align-items:flex-start}.v283-detail-value{max-width:44%}}
 @media(max-width:430px){.v283-shortcut-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.v283-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.v283-section-head{flex-wrap:wrap}.v283-mode-badge{margin-left:auto}.v283-detail-row{display:grid;grid-template-columns:1fr}.v283-detail-value{max-width:none;text-align:left;padding-left:44px}.v283-shortcut-button{width:36px;height:36px}}
+
+/* v28.4 final polish: Home header tanpa shortcut launcher */
+#home>.header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+#home>.header>div{min-width:0}
+#home>.header>div:last-child{margin-left:auto}
+#v283-shortcut-button{display:none!important}
+@media(max-width:680px){#home>.header{gap:8px}#home>.header .btn-icon{flex:0 0 auto}}

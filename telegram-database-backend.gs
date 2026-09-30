@@ -1,5 +1,5 @@
 /**
- * Agis Finance v28.3.1 — Google Apps Script backend
+ * Agis Finance v28.4 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v28.3.1','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v28.4','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -42,7 +42,7 @@ function saveSecretsFromConfig(){
   SpreadsheetApp.getUi().alert('Secret tersimpan. Token bot tidak lagi diletakkan di sel.');
 }
 
-function doGet(){return json_({ok:true,service:'Agis Finance v28.3.1 Clean Finance Hub + Telegram Shortcut Center',time:new Date().toISOString()});}
+function doGet(){return json_({ok:true,service:'Agis Finance v28.4 Final Stable + Telegram Shortcut Center',time:new Date().toISOString()});}
 function doPost(e){
   try{
     const body=JSON.parse(e.postData?.contents||'{}');
@@ -53,7 +53,7 @@ function doPost(e){
     if(body.action){
       auth_(body.appKey);
       if(body.action==='syncSnapshot'){saveSnapshot_(body.snapshot);checkSnapshot_(body.snapshot,false);return json_({ok:true,syncedAt:new Date().toISOString()});}
-      if(body.action==='testTelegram'){sendTelegram_(body.message||'AutoBudgetin v28.3.1 backend aktif.',true);return json_({ok:true});}
+      if(body.action==='testTelegram'){sendTelegram_(body.message||'AutoBudgetin v28.4 backend aktif.',true);return json_({ok:true});}
       if(body.action==='wipeDatabase'){wipeDatabase_();return json_({ok:true});}
       return json_({ok:false,error:'Action tidak dikenal.'});
     }
@@ -255,22 +255,49 @@ function bucketFor_(x){const c=String(x?.kategori||''),n=String(x?.catatan||x?.n
 function bucketIcon_(b){return ({'Makan Pokok':'·','Jajan':'·','Transportasi':'·','Tagihan':'·','Pemberian':'·','Belanja':'·','Hiburan':'·','Lainnya':'·'})[b]||'·';}
 function notifyOnce_(id,msg){const p=PropertiesService.getScriptProperties();if(p.getProperty('N:'+id))return;sendTelegram_(msg,true);p.setProperty('N:'+id,new Date().toISOString());log_(id,msg)}
 function telegramMenu_(){return {inline_keyboard:[
-  [{text:'▦ Ringkasan',callback_data:'fin:summary'},{text:'◫ Hari ini',callback_data:'fin:today'}],
-  [{text:'◩ Pemakaian',callback_data:'fin:usage'},{text:'◎ Budget',callback_data:'fin:budget'}],
-  [{text:'◇ Tabungan',callback_data:'fin:savings'},{text:'◷ Durasi',callback_data:'fin:durability'}],
-  [{text:'↗ Terbesar',callback_data:'fin:largest'},{text:'↻ Refresh',callback_data:'fin:summary'}],
+  [{text:'Ringkasan',callback_data:'fin:summary'},{text:'Hari ini',callback_data:'fin:today'}],
+  [{text:'Pemakaian',callback_data:'fin:usage'},{text:'Budget',callback_data:'fin:budget'}],
+  [{text:'Tabungan',callback_data:'fin:savings'},{text:'Durasi',callback_data:'fin:durability'}],
+  [{text:'Terbesar',callback_data:'fin:largest'},{text:'Kategori',callback_data:'fin:categories'}],
+  [{text:'Refresh',callback_data:'fin:summary'}]
+]};}
+function telegramCategoryMenu_(){return {inline_keyboard:[
   [{text:'Makan',callback_data:'fin:bucket:Makan Pokok'},{text:'Jajan',callback_data:'fin:bucket:Jajan'}],
   [{text:'Transport',callback_data:'fin:bucket:Transportasi'},{text:'Tagihan',callback_data:'fin:bucket:Tagihan'}],
   [{text:'Pemberian',callback_data:'fin:bucket:Pemberian'},{text:'Belanja',callback_data:'fin:bucket:Belanja'}],
-  [{text:'Hiburan',callback_data:'fin:bucket:Hiburan'},{text:'Lainnya',callback_data:'fin:bucket:Lainnya'}]
+  [{text:'Hiburan',callback_data:'fin:bucket:Hiburan'},{text:'Lainnya',callback_data:'fin:bucket:Lainnya'}],
+  [{text:'Kembali',callback_data:'fin:back'}]
 ]};}
-function sendTelegram_(text,withMenu){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const payload={chat_id:chat,text:String(text||'')};if(withMenu)payload.reply_markup=telegramMenu_();const r=UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'post',contentType:'application/json',payload:JSON.stringify(payload),muteHttpExceptions:true});if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());return r;}
+function sendTelegram_(text,withMenu){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const payload={chat_id:chat,text:String(text||'')};if(withMenu)payload.reply_markup=telegramMenu_();const r=telegramApi_('sendMessage',payload);if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());return r;}
 function telegramApi_(method,payload){const token=PropertiesService.getScriptProperties().getProperty('BOT_TOKEN');if(!token)throw new Error('BOT_TOKEN belum disimpan.');return UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'post',contentType:'application/json',payload:JSON.stringify(payload||{}),muteHttpExceptions:true});}
-function installTelegramWebhook(){const url=ScriptApp.getService().getUrl();if(!url)throw new Error('Deploy dulu sebagai Web App, lalu jalankan menu ini lagi.');const r=telegramApi_('setWebhook',{url,allowed_updates:['message','callback_query'],drop_pending_updates:true});try{telegramApi_('setMyCommands',{commands:[{command:'start',description:'Buka Shortcut Information'}]})}catch{};SpreadsheetApp.getUi().alert('Telegram Shortcut Center aktif. Tombol informasi akan ikut tampil pada pesan bot.\n\nWebhook: '+url+'\n\n'+r.getContentText());}
+function telegramJson_(response){try{return JSON.parse(response.getContentText()||'{}')}catch{return {}}}
+function editTelegramShortcut_(chatId,messageId,text,markup){const payload={chat_id:chatId,message_id:messageId,text:String(text||''),reply_markup:markup||telegramMenu_()};const r=telegramApi_('editMessageText',payload);if(r.getResponseCode()>=300){sendTelegram_(text,true);return false}return true;}
+function editTelegramMarkup_(chatId,messageId,markup){const r=telegramApi_('editMessageReplyMarkup',{chat_id:chatId,message_id:messageId,reply_markup:markup});return r.getResponseCode()<300;}
+function installTelegramWebhook(){const url=ScriptApp.getService().getUrl();if(!url)throw new Error('Deploy dulu sebagai Web App, lalu jalankan menu ini lagi.');const r=telegramApi_('setWebhook',{url,allowed_updates:['message','callback_query'],drop_pending_updates:true});const parsed=telegramJson_(r);if(!parsed.ok)throw new Error('Webhook gagal: '+r.getContentText());try{telegramApi_('setMyCommands',{commands:[{command:'start',description:'Buka Shortcut Information'},{command:'menu',description:'Buka Shortcut Information'}]})}catch{};SpreadsheetApp.getUi().alert('Telegram Shortcut Center aktif.\n\nWebhook: '+url+'\n\n'+r.getContentText());}
 function sendTelegramMenuFromSheet(){sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau dari snapshot AutoBudgetin terbaru.',true);SpreadsheetApp.getUi().alert('Shortcut Information dikirim ke Telegram.');}
-function testTelegramFromSheet(){sendTelegram_('AutoBudgetin v28.3.1 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Pesan tes + shortcut dikirim.');}
-function handleTelegramUpdate_(u){const p=PropertiesService.getScriptProperties(),allowed=String(p.getProperty('CHAT_ID')||'');const q=u.callback_query,msg=u.message;const chat=String(q?.message?.chat?.id||msg?.chat?.id||'');if(!allowed||chat!==allowed)return;if(q){try{telegramApi_('answerCallbackQuery',{callback_query_id:q.id,text:'Memuat…',show_alert:false})}catch{};const snap=latestSnapshot_();sendTelegram_(telegramShortcutText_(String(q.data||''),snap),true);return;}const text=String(msg?.text||'').trim().toLowerCase();if(['/start','/menu','menu','shortcut','shortcut information'].includes(text))sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau.',true);}
-function telegramShortcutText_(action,snap){if(!snap)return 'Belum ada snapshot AutoBudgetin. Buka aplikasi dan tunggu sinkronisasi Automation terlebih dahulu.';if(action==='fin:summary')return financeSummaryMessage_(snap);if(action==='fin:today')return financeTodayMessage_(snap);if(action==='fin:usage')return financeUsageMessage_(snap);if(action==='fin:budget')return financeBudgetMessage_(snap);if(action==='fin:savings')return financeSavingsMessage_(snap);if(action==='fin:durability')return financeDurabilityMessage_(snap);if(action==='fin:largest')return financeLargestMessage_(snap);if(action.indexOf('fin:bucket:')===0)return financeBucketMessage_(snap,action.slice('fin:bucket:'.length));return 'Pilih shortcut informasi di bawah.';}
+function testTelegramFromSheet(){sendTelegram_('AutoBudgetin v28.4 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Pesan tes + shortcut dikirim.');}
+function normalizeShortcutText_(text){return String(text||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+function shortcutActionFromText_(text){const t=normalizeShortcutText_(text);const aliases={
+  'ringkasan':'fin:summary','hari ini':'fin:today','pemakaian':'fin:usage','budget':'fin:budget','tabungan':'fin:savings','durasi':'fin:durability','daya tahan':'fin:durability','terbesar':'fin:largest','refresh':'fin:summary',
+  'makan':'fin:bucket:Makan Pokok','jajan':'fin:bucket:Jajan','transport':'fin:bucket:Transportasi','transportasi':'fin:bucket:Transportasi','tagihan':'fin:bucket:Tagihan','pemberian':'fin:bucket:Pemberian','belanja':'fin:bucket:Belanja','hiburan':'fin:bucket:Hiburan','lainnya':'fin:bucket:Lainnya'
+};return aliases[t]||'';}
+function handleTelegramUpdate_(u){
+  const p=PropertiesService.getScriptProperties(),allowed=String(p.getProperty('CHAT_ID')||''),q=u.callback_query,msg=u.message;
+  const chat=String(q?.message?.chat?.id||msg?.chat?.id||'');if(!allowed||chat!==allowed)return;
+  if(q){
+    const data=String(q.data||''),messageId=q?.message?.message_id;
+    try{telegramApi_('answerCallbackQuery',{callback_query_id:q.id,text:'',show_alert:false})}catch{}
+    if(data==='fin:categories'){if(messageId)editTelegramShortcut_(chat,messageId,'KATEGORI PEMAKAIAN\nPilih kategori yang ingin ditinjau.',telegramCategoryMenu_());else sendTelegram_('Pilih kategori.',true);return;}
+    if(data==='fin:back'){if(messageId)editTelegramShortcut_(chat,messageId,'SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau.',telegramMenu_());return;}
+    const snap=latestSnapshot_(),out=telegramShortcutText_(data,snap);
+    if(messageId)editTelegramShortcut_(chat,messageId,out,data.indexOf('fin:bucket:')===0?telegramCategoryMenu_():telegramMenu_());else sendTelegram_(out,true);
+    return;
+  }
+  const raw=String(msg?.text||'').trim(),text=normalizeShortcutText_(raw);
+  if(['/start','/menu'].includes(raw.toLowerCase())||['menu','shortcut','shortcut information'].includes(text)){sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau.',true);return;}
+  const action=shortcutActionFromText_(raw);if(action){sendTelegram_(telegramShortcutText_(action,latestSnapshot_()),true);}
+}
+function telegramShortcutText_(action,snap){if(!snap)return 'Belum ada snapshot AutoBudgetin. Buka aplikasi dan tunggu sinkronisasi Automation terlebih dahulu.';if(action==='fin:summary')return financeSummaryMessage_(snap);if(action==='fin:today')return financeTodayMessage_(snap);if(action==='fin:usage')return financeUsageMessage_(snap);if(action==='fin:budget')return financeBudgetMessage_(snap);if(action==='fin:savings')return financeSavingsMessage_(snap);if(action==='fin:durability')return financeDurabilityMessage_(snap);if(action==='fin:largest')return financeLargestMessage_(snap);if(action.indexOf('fin:bucket:')===0)return financeBucketMessage_(snap,action.slice('fin:bucket:'.length));return 'Pilih Shortcut Information di bawah.';}
 function monthRows_(snap){const month=String(snap.summary?.date||Utilities.formatDate(new Date(),Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd')).slice(0,7);return (snap.data?.trans||[]).filter(x=>String(x.tanggal||'').startsWith(month)&&x.kategori!=='Penyesuaian Saldo');}
 function financeSummaryMessage_(snap){const s=snap.summary||{},rows=monthRows_(snap),total=rows.reduce((a,x)=>a+(Number(x.nominal)||0),0),today=todayExpenseFromRows_(snap),safe=Number(s.dailySafe)||dailySafeFallback_(snap);const lines=['RINGKASAN KEUANGAN','',`Saldo tersedia  Rp ${fmt_(s.available||0)}`,`Tabungan        Rp ${fmt_(s.reservedSavings||0)}`,`Keluar bulan ini Rp ${fmt_(total)}`,`Hari ini         Rp ${fmt_(today)}`];if(safe>0)lines.push(`Batas aman hari ini Rp ${fmt_(safe)}`);lines.push(`Financial score ${Math.round(Number(s.score)||0)}/100`);return lines.join('\n');}
 function financeTodayMessage_(snap){const s=snap.summary||{},rows=(snap.data?.trans||[]).filter(x=>String(x.tanggal||'')===String(s.date||'')),total=rows.reduce((a,x)=>a+(Number(x.nominal)||0),0),safe=Number(s.dailySafe)||dailySafeFallback_(snap);const lines=['PEMAKAIAN HARI INI','',`Total  Rp ${fmt_(total)}`,safe>0?`Batas aman  Rp ${fmt_(safe)}`:'Batas aman belum tersedia'];rows.slice(0,8).forEach(x=>lines.push(`· ${x.catatan||x.kategori} — Rp ${fmt_(x.nominal)}`));if(!rows.length)lines.push('Belum ada pengeluaran hari ini.');return lines.join('\n');}
