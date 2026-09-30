@@ -2075,7 +2075,8 @@
         document.getElementById('w-e').innerText = fmt(store.wallets['E-Wallet'] || 0);
 
         const now = new Date();
-        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        const calendarMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        const currentMonthKey = window.getActivePeriodV285?.() || calendarMonthKey;
         const insightCats = {}; let monthExpense = 0; let monthIncome = 0;
         store.trans.forEach(t => {
             if (t.tanggal?.startsWith(currentMonthKey)) {
@@ -2092,14 +2093,16 @@
         const netEl = document.getElementById('month-net');
         netEl.innerText = `${netCashflow >= 0 ? '+' : '-'} ${fmt(Math.abs(netCashflow))}`;
         netEl.style.color = netCashflow >= 0 ? 'var(--success)' : 'var(--danger)';
-        document.getElementById('cashflow-month').innerText = now.toLocaleDateString('id-ID', { month:'short', year:'numeric' });
+        { const [ay,am]=currentMonthKey.split('-').map(Number); document.getElementById('cashflow-month').innerText = new Date(ay,am-1,1).toLocaleDateString('id-ID', { month:'short', year:'numeric' }); }
         document.getElementById('cashflow-note').innerHTML = monthIncome > 0
             ? `Savings rate bulan ini <b style="color:${savingsRate >= 0 ? 'var(--success)' : 'var(--danger)'}">${savingsRate.toFixed(0)}%</b>. Transfer antar-wallet tidak dihitung sebagai pemasukan/pengeluaran.`
             : (monthExpense > 0 ? 'Belum ada pemasukan tercatat bulan ini. Transfer antar-wallet tidak memengaruhi cashflow.' : 'Belum ada data cashflow bulan ini.');
 
         document.getElementById('chart-total-val').innerText = fmt(monthExpense);
-        const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-        const remainingDays = lastDay - now.getDate() + 1;
+        const [activeYear,activeMon]=currentMonthKey.split('-').map(Number);
+        const lastDay = new Date(activeYear, activeMon, 0).getDate();
+        const activeAnchorDay = currentMonthKey===calendarMonthKey ? now.getDate() : Math.max(1,...[...store.trans,...store.incomes,...store.transfers].filter(t=>String(t.tanggal||'').startsWith(currentMonthKey+'-')).map(t=>Number(String(t.tanggal).slice(8,10))||1));
+        const remainingDays = Math.max(1,lastDay - activeAnchorDay + 1);
         const alerts = [];
         for (const [c,v] of Object.entries(insightCats)) {
             const lim = store.limits[c];
@@ -2129,7 +2132,7 @@
         const streak=calculateNoSpendStreak(); const streakEl=document.getElementById('home-no-spend-streak');if(streakEl)streakEl.textContent=`${streak} hari`; const streakNote=document.getElementById('home-no-spend-note');if(streakNote)streakNote.textContent=streak?`🔥 ${streak} hari tanpa belanja konsumtif berturut-turut`:'Ada pengeluaran konsumtif hari ini.';
         const predEl=document.getElementById('home-eom-prediction'); const predNote=document.getElementById('home-eom-note'); if(predEl){if(insight.avg7>0){predEl.textContent=fmt(Math.max(0,Math.floor(insight.predictedEnd)));predEl.style.color=insight.predictedEnd>=0?'var(--success)':'var(--danger)';}else{predEl.textContent='Belum cukup data';predEl.style.color='var(--text-dim)';}} if(predNote)predNote.textContent=insight.avg7>0?(insight.predictedEnd>=0?`Estimasi sisa · pace ${fmt(Math.round(insight.avg7))}/hari`:`Defisit ${fmt(Math.abs(Math.floor(insight.predictedEnd)))} jika pace berlanjut`):'Butuh data pengeluaran untuk proyeksi.';
         const recoveryTarget=readRecoveryTarget(); const recoveryValue=document.getElementById('home-recovery-value'); const recoveryNote=document.getElementById('home-recovery-note'); const recoveryBar=document.getElementById('home-recovery-bar'); if(recoveryTarget){const rp=recoveryProgress(recoveryTarget,readCarryOverState());if(recoveryValue)recoveryValue.textContent=`${fmt(rp.recovered)} / ${fmt(recoveryTarget.amount)}`;if(recoveryNote)recoveryNote.textContent=`${recoveryTarget.name} · ${rp.pct.toFixed(0)}% pulih · kurang ${fmt(rp.remaining)}`;if(recoveryBar)recoveryBar.style.width=`${rp.pct}%`;}else{if(recoveryValue)recoveryValue.textContent='Belum dibuat';if(recoveryNote)recoveryNote.textContent='Contoh: pulihkan Rp100k dari carry-over yang terkumpul.';if(recoveryBar)recoveryBar.style.width='0%';}
-        const spentEl=document.getElementById('home-spent-today');if(spentEl)spentEl.textContent=fmt(spentToday);const spentNote=document.getElementById('home-spent-note');if(spentNote)spentNote.textContent=`${todayRows.length} transaksi pengeluaran`;
+        const spentEl=document.getElementById('home-spent-today');if(spentEl)spentEl.textContent=fmt(spentToday);const spentNote=document.getElementById('home-spent-note');if(spentNote){if(currentMonthKey!==calendarMonthKey)spentNote.textContent=`Hari ini ${fmt(spentToday)} · ${currentMonthKey} sudah keluar ${fmt(monthExpense)}`;else spentNote.textContent=`${todayRows.length} transaksi pengeluaran`; }
         const goalEl=document.getElementById('home-goal-progress');if(goalEl)goalEl.textContent=totalGoalTarget?`${goalPct.toFixed(0)}%`:'Belum ada';const syncNote=document.getElementById('home-sync-note');if(syncNote)syncNote.textContent=(store.conflicts||[]).length?`${store.conflicts.length} konflik sync`:userPendingOps()?`${userPendingOps()} perubahan menunggu sync`:'Sync bersih';
 
         const predictionText = insight.avg7 > 0
@@ -2455,6 +2458,6 @@
 <script src="./v26-tracking-money-format.js?v=26.0.2"></script>
 <script src="./v26-feature-switcher.js?v=26.0.3"></script>
 <script src="./v28-auto-budget-review.js?v=28.4.0"></script>
-<script src="./v28-5-monthly-archive.js?v=28.5.0"></script>
+<script src="./v28-5-monthly-archive.js?v=28.5.2"></script>
 </body>
 </html>

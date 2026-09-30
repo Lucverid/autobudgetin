@@ -13,7 +13,7 @@ const checks=[
  ['monthly close',/closeCurrentMonthV285/],
  ['opening balance',/setOpeningBalanceV285/],
  ['archive UI',/openMonthlyArchiveV285/],
- ['responsive assets linked',/v28-5-monthly-archive\.css\?v=28\.5\.0/.test(html)&&/v28-5-monthly-archive\.js\?v=28\.5\.0/.test(html)],
+ ['responsive assets linked',/v28-5-monthly-archive\.css\?v=28\.5\.0/.test(html)&&/v28-5-monthly-archive\.js\?v=28\.5\.(?:0|2)/.test(html)],
  ['automation snapshots archive',/monthlyArchive:/.test(auto)&&/periodComparison:/.test(auto)],
  ['telegram comparison shortcut',/fin:compare/.test(tg)&&/financeComparisonMessage_/.test(tg)]
 ];
