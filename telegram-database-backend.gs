@@ -1,5 +1,5 @@
 /**
- * Agis Finance v28.3.0 — Google Apps Script backend
+ * Agis Finance v28.3.1 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v28.3.0','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v28.3.1','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -42,17 +42,28 @@ function saveSecretsFromConfig(){
   SpreadsheetApp.getUi().alert('Secret tersimpan. Token bot tidak lagi diletakkan di sel.');
 }
 
-function doGet(){return json_({ok:true,service:'Agis Finance v28.3 Clean Finance Hub + Telegram Shortcut Center',time:new Date().toISOString()});}
+function doGet(){return json_({ok:true,service:'Agis Finance v28.3.1 Clean Finance Hub + Telegram Shortcut Center',time:new Date().toISOString()});}
 function doPost(e){
   try{
     const body=JSON.parse(e.postData?.contents||'{}');
-    // Telegram webhook tidak membawa APP_KEY. Update hanya diterima dari CHAT_ID yang sudah disimpan.
-    if(body.update_id||body.callback_query||body.message){handleTelegramUpdate_(body);return json_({ok:true,telegram:true});}
-    auth_(body.appKey);
-    if(body.action==='syncSnapshot'){saveSnapshot_(body.snapshot);checkSnapshot_(body.snapshot,false);return json_({ok:true,syncedAt:new Date().toISOString()});}
-    if(body.action==='testTelegram'){sendTelegram_('✅ '+(body.message||'Agis Finance v28.3 backend aktif.'),true);return json_({ok:true});}
-    if(body.action==='wipeDatabase'){wipeDatabase_();return json_({ok:true});}
-    return json_({ok:false,error:'Action tidak dikenal.'});
+
+    // Request dari AutoBudgetin selalu membawa `action`. Proses ini lebih dulu
+    // supaya payload testTelegram yang juga punya field `message` tidak keliru
+    // dianggap sebagai update webhook Telegram.
+    if(body.action){
+      auth_(body.appKey);
+      if(body.action==='syncSnapshot'){saveSnapshot_(body.snapshot);checkSnapshot_(body.snapshot,false);return json_({ok:true,syncedAt:new Date().toISOString()});}
+      if(body.action==='testTelegram'){sendTelegram_(body.message||'AutoBudgetin v28.3.1 backend aktif.',true);return json_({ok:true});}
+      if(body.action==='wipeDatabase'){wipeDatabase_();return json_({ok:true});}
+      return json_({ok:false,error:'Action tidak dikenal.'});
+    }
+
+    // Telegram webhook tidak membawa APP_KEY. Terima hanya payload yang benar-benar
+    // menyerupai Telegram Update, bukan sekadar memiliki properti bernama `message`.
+    const isTelegramUpdate = body.update_id != null || !!body.callback_query || !!(body.message && typeof body.message==='object' && body.message.chat);
+    if(isTelegramUpdate){handleTelegramUpdate_(body);return json_({ok:true,telegram:true});}
+
+    return json_({ok:false,error:'Payload tidak dikenal.'});
   }catch(err){return json_({ok:false,error:String(err.message||err)});}
 }
 function auth_(key){const expected=PropertiesService.getScriptProperties().getProperty('APP_KEY');if(!expected||String(key)!==expected)throw new Error('APP_KEY salah atau belum disetel.');}
@@ -257,7 +268,7 @@ function sendTelegram_(text,withMenu){const p=PropertiesService.getScriptPropert
 function telegramApi_(method,payload){const token=PropertiesService.getScriptProperties().getProperty('BOT_TOKEN');if(!token)throw new Error('BOT_TOKEN belum disimpan.');return UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'post',contentType:'application/json',payload:JSON.stringify(payload||{}),muteHttpExceptions:true});}
 function installTelegramWebhook(){const url=ScriptApp.getService().getUrl();if(!url)throw new Error('Deploy dulu sebagai Web App, lalu jalankan menu ini lagi.');const r=telegramApi_('setWebhook',{url,allowed_updates:['message','callback_query'],drop_pending_updates:true});try{telegramApi_('setMyCommands',{commands:[{command:'start',description:'Buka Shortcut Information'}]})}catch{};SpreadsheetApp.getUi().alert('Telegram Shortcut Center aktif. Tombol informasi akan ikut tampil pada pesan bot.\n\nWebhook: '+url+'\n\n'+r.getContentText());}
 function sendTelegramMenuFromSheet(){sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau dari snapshot AutoBudgetin terbaru.',true);SpreadsheetApp.getUi().alert('Shortcut Information dikirim ke Telegram.');}
-function testTelegramFromSheet(){sendTelegram_('AutoBudgetin v28.3 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Pesan tes + shortcut dikirim.');}
+function testTelegramFromSheet(){sendTelegram_('AutoBudgetin v28.3.1 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Pesan tes + shortcut dikirim.');}
 function handleTelegramUpdate_(u){const p=PropertiesService.getScriptProperties(),allowed=String(p.getProperty('CHAT_ID')||'');const q=u.callback_query,msg=u.message;const chat=String(q?.message?.chat?.id||msg?.chat?.id||'');if(!allowed||chat!==allowed)return;if(q){try{telegramApi_('answerCallbackQuery',{callback_query_id:q.id,text:'Memuat…',show_alert:false})}catch{};const snap=latestSnapshot_();sendTelegram_(telegramShortcutText_(String(q.data||''),snap),true);return;}const text=String(msg?.text||'').trim().toLowerCase();if(['/start','/menu','menu','shortcut','shortcut information'].includes(text))sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau.',true);}
 function telegramShortcutText_(action,snap){if(!snap)return 'Belum ada snapshot AutoBudgetin. Buka aplikasi dan tunggu sinkronisasi Automation terlebih dahulu.';if(action==='fin:summary')return financeSummaryMessage_(snap);if(action==='fin:today')return financeTodayMessage_(snap);if(action==='fin:usage')return financeUsageMessage_(snap);if(action==='fin:budget')return financeBudgetMessage_(snap);if(action==='fin:savings')return financeSavingsMessage_(snap);if(action==='fin:durability')return financeDurabilityMessage_(snap);if(action==='fin:largest')return financeLargestMessage_(snap);if(action.indexOf('fin:bucket:')===0)return financeBucketMessage_(snap,action.slice('fin:bucket:'.length));return 'Pilih shortcut informasi di bawah.';}
 function monthRows_(snap){const month=String(snap.summary?.date||Utilities.formatDate(new Date(),Session.getScriptTimeZone()||'Asia/Jakarta','yyyy-MM-dd')).slice(0,7);return (snap.data?.trans||[]).filter(x=>String(x.tanggal||'').startsWith(month)&&x.kategori!=='Penyesuaian Saldo');}
