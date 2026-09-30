@@ -33,3 +33,7 @@ Buka Agis Finance > Settings > Telegram Notifications:
 
 ## Catatan penting
 GitHub Pages/PWA tidak bisa menjalankan JavaScript ketika browser benar-benar tertutup. Karena itu Weekly Review dan pengecekan kondisi dikirim saat aplikasi dibuka/aktif. Untuk notifikasi terjadwal penuh walau aplikasi tidak pernah dibuka, backend perlu membaca data finance (mis. Cloudflare Worker + Firestore service integration), yang sengaja tidak diaktifkan di v24.4 supaya kredensial database tetap sederhana dan aman.
+
+
+## v28.3 Shortcut Information
+Setelah mengganti Code.gs dengan `telegram-database-backend.gs` v28.3 dan redeploy Web App, jalankan menu **Agis Finance → Aktifkan Telegram Shortcut** satu kali. Lalu pilih **Kirim Shortcut Information** untuk mengirim panel tombol. Pengguna tidak perlu mengetik `/menu`; tombol shortcut juga ikut pada notifikasi bot.

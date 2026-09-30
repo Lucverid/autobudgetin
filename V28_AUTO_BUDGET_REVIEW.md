@@ -7,7 +7,7 @@
 - Tabungan otomatis dipisahkan lebih dulu, lalu sisa uang dibagi ke bucket: Makan Pokok, Jajan, Transportasi, Tagihan, Pemberian, Belanja, Hiburan, dan Lainnya.
 - Bobot setiap bucket bisa diubah tanpa mengubah histori lama.
 - Budget Planning lama tetap terisi otomatis dan hard limit lama tetap kompatibel.
-- Transaksi pengeluaran baru bisa menyimpan `budgetBucket` dan `usageDays`.
+- v28.0 memperkenalkan `budgetBucket` dan `usageDays`; mulai v28.2 input hari manual digantikan `autoUsage` dan `usageDays` lama dipertahankan hanya untuk kompatibilitas histori.
 - Spending Review memperlihatkan uang dipakai ke mana dan biaya efektif per hari untuk pembelian berdurasi.
 - History menampilkan bucket, keterangan, durasi manfaat, dan biaya per hari jika tersedia.
 
