@@ -26,6 +26,7 @@
 
   function detectedIncome(){
     const cfg=read(),mk=monthKey();
+    if(window.isPeriodClosedV285?.(mk))return 0;
     return (store?.incomes||[]).filter(x=>String(x.tanggal||'').startsWith(mk)).filter(x=>x.kategori==='Gaji'||(cfg.useBonus&&x.kategori==='Bonus')).reduce((s,x)=>s+(Number(x.nominal)||0),0);
   }
   function sourceIncome(){const c=read(),manual=Math.max(0,Number(c.manualIncome)||0),detected=detectedIncome();return manual>0?manual:detected}
@@ -51,6 +52,7 @@
     if(c==='Makan & Minum')return /(jajan|snack|kopi|coffee|es |boba|cafe|café|minuman)/i.test(note)?'Jajan':'Makan Pokok';
     if(c==='Transportasi')return 'Transportasi';if(c==='Tagihan')return 'Tagihan';if(c==='Keluarga & Pemberian')return 'Pemberian';if(c==='Belanja')return 'Belanja';if(c==='Hiburan')return 'Hiburan';return 'Lainnya';
   }
+  window.getBudgetBucketV28=bucketOf;
 
   function normalizeUsageText(v){return String(v||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
   function usageKey(t){const note=normalizeUsageText(t?.catatan||t?.note||'');if(note)return `note:${note}`;return `fallback:${normalizeUsageText(t?.kategori||'lainnya')}|${normalizeUsageText(t?.budgetBucket||bucketOf(t))}`}
@@ -82,7 +84,7 @@
   function signature(a){return `${monthKey()}:${a.cfg.mode}:${a.income}:${a.save}:${JSON.stringify(a.cfg.mode==='auto'?a.cfg.weights:a.cfg.manualBuckets)}`}
   function maybeAutoApply(){const a=allocations();if(a.cfg.mode!=='auto'||a.income<=0)return;let last={};try{last=JSON.parse(localStorage.getItem('agis_finance_auto_budget_applied_v28')||'{}')}catch{};if(last.signature!==signature(a))setTimeout(()=>applyBudget(true),80)}
 
-  function reviewRows(){const mk=monthKey();return (store?.trans||[]).filter(t=>String(t.tanggal||'').startsWith(mk)&&t.kategori!=='Penyesuaian Saldo').sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0))}
+  function reviewRows(){const mk=monthKey();if(window.isPeriodClosedV285?.(mk))return [];return (store?.trans||[]).filter(t=>String(t.tanggal||'').startsWith(mk)&&t.kategori!=='Penyesuaian Saldo').sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0))}
   function spentByBucket(){const out={};BUCKETS.forEach(b=>out[b]=0);reviewRows().forEach(t=>out[bucketOf(t)]=(out[bucketOf(t)]||0)+(Number(t.nominal)||0));return out}
   function stats(){
     const rows=reviewRows(),total=rows.reduce((s,t)=>s+(Number(t.nominal)||0),0),groups={},days={};
