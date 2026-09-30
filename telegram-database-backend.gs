@@ -1,5 +1,5 @@
 /**
- * Agis Finance v28.4.1 — Google Apps Script backend
+ * Agis Finance v28.4.2 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v28.4.1','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v28.4.2','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -42,7 +42,7 @@ function saveSecretsFromConfig(){
   SpreadsheetApp.getUi().alert('Secret tersimpan. Token bot tidak lagi diletakkan di sel.');
 }
 
-function doGet(){return json_({ok:true,service:'Agis Finance v28.4.1 Final Callback Fix + Telegram Shortcut Center',time:new Date().toISOString()});}
+function doGet(){return json_({ok:true,service:'Agis Finance v28.4.2 Single Message Finance Center',time:new Date().toISOString()});}
 function doPost(e){
   try{
     const body=JSON.parse(e.postData?.contents||'{}');
@@ -53,7 +53,7 @@ function doPost(e){
     if(body.action){
       auth_(body.appKey);
       if(body.action==='syncSnapshot'){saveSnapshot_(body.snapshot);checkSnapshot_(body.snapshot,false);return json_({ok:true,syncedAt:new Date().toISOString()});}
-      if(body.action==='testTelegram'){const hook=ensureTelegramWebhook_(body.webAppUrl||'');removeLegacyKeyboard_();sendTelegram_(body.message||'AutoBudgetin v28.4.1 backend aktif.',true);return json_({ok:true,webhookOk:!!hook.ok,webhookUrl:hook.url||''});}
+      if(body.action==='testTelegram'){const hook=ensureTelegramWebhook_(body.webAppUrl||'');removeLegacyKeyboard_();sendTelegram_(body.message||'AutoBudgetin v28.4.2 backend aktif.',true);return json_({ok:true,webhookOk:!!hook.ok,webhookUrl:hook.url||''});}
       if(body.action==='wipeDatabase'){wipeDatabase_();return json_({ok:true});}
       return json_({ok:false,error:'Action tidak dikenal.'});
     }
@@ -271,14 +271,22 @@ function telegramCategoryMenu_(){return {inline_keyboard:[
 function sendTelegram_(text,withMenu){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)throw new Error('BOT_TOKEN/CHAT_ID belum disimpan.');const payload={chat_id:chat,text:String(text||'')};if(withMenu)payload.reply_markup=telegramMenu_();const r=telegramApi_('sendMessage',payload);if(r.getResponseCode()>=300)throw new Error('Telegram HTTP '+r.getResponseCode()+': '+r.getContentText());return r;}
 function telegramApi_(method,payload){const token=PropertiesService.getScriptProperties().getProperty('BOT_TOKEN');if(!token)throw new Error('BOT_TOKEN belum disimpan.');return UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'post',contentType:'application/json',payload:JSON.stringify(payload||{}),muteHttpExceptions:true});}
 function telegramJson_(response){try{return JSON.parse(response.getContentText()||'{}')}catch{return {}}}
-function editTelegramShortcut_(chatId,messageId,text,markup){const payload={chat_id:chatId,message_id:messageId,text:String(text||''),reply_markup:markup||telegramMenu_()};const r=telegramApi_('editMessageText',payload);if(r.getResponseCode()>=300){sendTelegram_(text,true);return false}return true;}
+function editTelegramShortcut_(chatId,messageId,text,markup){
+  const payload={chat_id:chatId,message_id:messageId,text:String(text||''),reply_markup:markup||telegramMenu_()};
+  const r=telegramApi_('editMessageText',payload),code=r.getResponseCode(),body=telegramJson_(r),desc=String(body.description||'');
+  // Refresh pada tampilan yang belum berubah bisa menghasilkan HTTP 400
+  // "message is not modified". Itu bukan kegagalan dan tidak boleh membuat
+  // pesan baru karena Finance Center memakai satu pesan yang sama.
+  if(code<300||/message is not modified/i.test(desc))return {ok:true,unchanged:/message is not modified/i.test(desc)};
+  return {ok:false,error:desc||('Telegram HTTP '+code)};
+}
 function editTelegramMarkup_(chatId,messageId,markup){const r=telegramApi_('editMessageReplyMarkup',{chat_id:chatId,message_id:messageId,reply_markup:markup});return r.getResponseCode()<300;}
 function normalizeWebAppUrl_(url){url=String(url||'').trim();if(!url)return '';url=url.replace(/\/dev(?:[?#].*)?$/,'/exec').replace(/[?#].*$/,'');return url;}
 function ensureTelegramWebhook_(preferredUrl){const url=normalizeWebAppUrl_(preferredUrl)||normalizeWebAppUrl_(ScriptApp.getService().getUrl());if(!url||!/\/exec$/.test(url))throw new Error('Web App URL /exec tidak valid. Isi URL Apps Script yang aktif di AutoBudgetin lalu Tes Telegram lagi.');const r=telegramApi_('setWebhook',{url,allowed_updates:['message','callback_query'],drop_pending_updates:false});const parsed=telegramJson_(r);if(!parsed.ok)throw new Error('Webhook gagal: '+r.getContentText());try{telegramApi_('setMyCommands',{commands:[{command:'start',description:'Buka Shortcut Information'},{command:'menu',description:'Buka Shortcut Information'}]})}catch{};const info=telegramJson_(telegramApi_('getWebhookInfo',{}));if(!info.ok||String(info.result?.url||'')!==url)throw new Error('Webhook belum mengarah ke deployment aktif. '+JSON.stringify(info.result||{}));return {ok:true,url,info:info.result||{}};}
 function installTelegramWebhook(){const url=normalizeWebAppUrl_(ScriptApp.getService().getUrl());const hook=ensureTelegramWebhook_(url);removeLegacyKeyboard_();SpreadsheetApp.getUi().alert('Telegram Shortcut Center aktif.\n\nWebhook: '+hook.url+'\n\nShortcut lama juga sudah dibersihkan.');}
 function removeLegacyKeyboard_(){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)return false;try{const r=telegramApi_('sendMessage',{chat_id:chat,text:'Shortcut diperbarui.',reply_markup:{remove_keyboard:true}});return r.getResponseCode()<300}catch(e){return false}}
 function sendTelegramMenuFromSheet(){removeLegacyKeyboard_();sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau dari snapshot AutoBudgetin terbaru.',true);SpreadsheetApp.getUi().alert('Shortcut Information dikirim ke Telegram.');}
-function testTelegramFromSheet(){const hook=ensureTelegramWebhook_('');removeLegacyKeyboard_();sendTelegram_('AutoBudgetin v28.4.1 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Tes berhasil. Webhook aktif di: '+hook.url);}
+function testTelegramFromSheet(){const hook=ensureTelegramWebhook_('');removeLegacyKeyboard_();sendTelegram_('AutoBudgetin v28.4.2 aktif.\nFinance Center siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Tes berhasil. Webhook aktif di: '+hook.url);}
 function normalizeShortcutText_(text){return String(text||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
 function shortcutActionFromText_(text){const t=normalizeShortcutText_(text);const aliases={
   'ringkasan':'fin:summary','hari ini':'fin:today','pemakaian':'fin:usage','budget':'fin:budget','tabungan':'fin:savings','durasi':'fin:durability','daya tahan':'fin:durability','terbesar':'fin:largest','refresh':'fin:summary',
@@ -289,11 +297,20 @@ function handleTelegramUpdate_(u){
   const chat=String(q?.message?.chat?.id||msg?.chat?.id||'');if(!allowed||chat!==allowed)return;
   if(q){
     const data=String(q.data||''),messageId=q?.message?.message_id;
-    try{telegramApi_('answerCallbackQuery',{callback_query_id:q.id,text:'',show_alert:false})}catch{}
-    if(data==='fin:categories'){if(messageId)editTelegramShortcut_(chat,messageId,'KATEGORI PEMAKAIAN\nPilih kategori yang ingin ditinjau.',telegramCategoryMenu_());else sendTelegram_('Pilih kategori.',true);return;}
-    if(data==='fin:back'){if(messageId)editTelegramShortcut_(chat,messageId,'SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau.',telegramMenu_());return;}
-    const snap=latestSnapshot_(),out=telegramShortcutText_(data,snap);
-    if(messageId)editTelegramShortcut_(chat,messageId,out,data.indexOf('fin:bucket:')===0?telegramCategoryMenu_():telegramMenu_());else sendTelegram_(out,true);
+    let result={ok:false,error:'Pesan Finance Center tidak ditemukan.'};
+    if(messageId){
+      if(data==='fin:categories'){
+        result=editTelegramShortcut_(chat,messageId,'KATEGORI PEMAKAIAN\nPilih kategori yang ingin ditinjau.',telegramCategoryMenu_());
+      }else if(data==='fin:back'){
+        result=editTelegramShortcut_(chat,messageId,'FINANCE CENTER\nPilih informasi yang ingin ditinjau.',telegramMenu_());
+      }else{
+        const snap=latestSnapshot_(),out=telegramShortcutText_(data,snap);
+        result=editTelegramShortcut_(chat,messageId,out,data.indexOf('fin:bucket:')===0?telegramCategoryMenu_():telegramMenu_());
+      }
+    }
+    // Callback selalu dijawab agar loading tombol berhenti. Error edit ditampilkan
+    // sebagai toast kecil, bukan mengirim pesan baru yang menumpuk chat.
+    try{telegramApi_('answerCallbackQuery',{callback_query_id:q.id,text:result.ok?'':('Gagal memperbarui: '+String(result.error||'unknown')).slice(0,180),show_alert:!result.ok})}catch{}
     return;
   }
   const raw=String(msg?.text||'').trim(),text=normalizeShortcutText_(raw);
