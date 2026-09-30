@@ -1,5 +1,5 @@
 /**
- * Agis Finance v28.4 — Google Apps Script backend
+ * Agis Finance v28.4.1 — Google Apps Script backend
  * 100% usable on a normal Google account without enabling Cloud Billing.
  * Bind this script to a Google Sheet, then deploy as Web App.
  */
@@ -15,7 +15,7 @@ function setupAgisFinance(){
   Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});
   const cfg=ss.getSheetByName(DB.config); cfg.clear();
   cfg.getRange('A1:B7').setValues([
-    ['AGIS FINANCE v28.4','AUTOMATION CONFIG'],
+    ['AGIS FINANCE v28.4.1','AUTOMATION CONFIG'],
     ['BOT_TOKEN','tempel token bot di B2 lalu jalankan "Simpan secret"'],
     ['CHAT_ID','tempel chat id di B3'],
     ['APP_KEY','buat password acak sendiri di B4'],
@@ -42,7 +42,7 @@ function saveSecretsFromConfig(){
   SpreadsheetApp.getUi().alert('Secret tersimpan. Token bot tidak lagi diletakkan di sel.');
 }
 
-function doGet(){return json_({ok:true,service:'Agis Finance v28.4 Final Stable + Telegram Shortcut Center',time:new Date().toISOString()});}
+function doGet(){return json_({ok:true,service:'Agis Finance v28.4.1 Final Callback Fix + Telegram Shortcut Center',time:new Date().toISOString()});}
 function doPost(e){
   try{
     const body=JSON.parse(e.postData?.contents||'{}');
@@ -53,7 +53,7 @@ function doPost(e){
     if(body.action){
       auth_(body.appKey);
       if(body.action==='syncSnapshot'){saveSnapshot_(body.snapshot);checkSnapshot_(body.snapshot,false);return json_({ok:true,syncedAt:new Date().toISOString()});}
-      if(body.action==='testTelegram'){sendTelegram_(body.message||'AutoBudgetin v28.4 backend aktif.',true);return json_({ok:true});}
+      if(body.action==='testTelegram'){const hook=ensureTelegramWebhook_(body.webAppUrl||'');removeLegacyKeyboard_();sendTelegram_(body.message||'AutoBudgetin v28.4.1 backend aktif.',true);return json_({ok:true,webhookOk:!!hook.ok,webhookUrl:hook.url||''});}
       if(body.action==='wipeDatabase'){wipeDatabase_();return json_({ok:true});}
       return json_({ok:false,error:'Action tidak dikenal.'});
     }
@@ -273,9 +273,12 @@ function telegramApi_(method,payload){const token=PropertiesService.getScriptPro
 function telegramJson_(response){try{return JSON.parse(response.getContentText()||'{}')}catch{return {}}}
 function editTelegramShortcut_(chatId,messageId,text,markup){const payload={chat_id:chatId,message_id:messageId,text:String(text||''),reply_markup:markup||telegramMenu_()};const r=telegramApi_('editMessageText',payload);if(r.getResponseCode()>=300){sendTelegram_(text,true);return false}return true;}
 function editTelegramMarkup_(chatId,messageId,markup){const r=telegramApi_('editMessageReplyMarkup',{chat_id:chatId,message_id:messageId,reply_markup:markup});return r.getResponseCode()<300;}
-function installTelegramWebhook(){const url=ScriptApp.getService().getUrl();if(!url)throw new Error('Deploy dulu sebagai Web App, lalu jalankan menu ini lagi.');const r=telegramApi_('setWebhook',{url,allowed_updates:['message','callback_query'],drop_pending_updates:true});const parsed=telegramJson_(r);if(!parsed.ok)throw new Error('Webhook gagal: '+r.getContentText());try{telegramApi_('setMyCommands',{commands:[{command:'start',description:'Buka Shortcut Information'},{command:'menu',description:'Buka Shortcut Information'}]})}catch{};SpreadsheetApp.getUi().alert('Telegram Shortcut Center aktif.\n\nWebhook: '+url+'\n\n'+r.getContentText());}
-function sendTelegramMenuFromSheet(){sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau dari snapshot AutoBudgetin terbaru.',true);SpreadsheetApp.getUi().alert('Shortcut Information dikirim ke Telegram.');}
-function testTelegramFromSheet(){sendTelegram_('AutoBudgetin v28.4 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Pesan tes + shortcut dikirim.');}
+function normalizeWebAppUrl_(url){url=String(url||'').trim();if(!url)return '';url=url.replace(/\/dev(?:[?#].*)?$/,'/exec').replace(/[?#].*$/,'');return url;}
+function ensureTelegramWebhook_(preferredUrl){const url=normalizeWebAppUrl_(preferredUrl)||normalizeWebAppUrl_(ScriptApp.getService().getUrl());if(!url||!/\/exec$/.test(url))throw new Error('Web App URL /exec tidak valid. Isi URL Apps Script yang aktif di AutoBudgetin lalu Tes Telegram lagi.');const r=telegramApi_('setWebhook',{url,allowed_updates:['message','callback_query'],drop_pending_updates:false});const parsed=telegramJson_(r);if(!parsed.ok)throw new Error('Webhook gagal: '+r.getContentText());try{telegramApi_('setMyCommands',{commands:[{command:'start',description:'Buka Shortcut Information'},{command:'menu',description:'Buka Shortcut Information'}]})}catch{};const info=telegramJson_(telegramApi_('getWebhookInfo',{}));if(!info.ok||String(info.result?.url||'')!==url)throw new Error('Webhook belum mengarah ke deployment aktif. '+JSON.stringify(info.result||{}));return {ok:true,url,info:info.result||{}};}
+function installTelegramWebhook(){const url=normalizeWebAppUrl_(ScriptApp.getService().getUrl());const hook=ensureTelegramWebhook_(url);removeLegacyKeyboard_();SpreadsheetApp.getUi().alert('Telegram Shortcut Center aktif.\n\nWebhook: '+hook.url+'\n\nShortcut lama juga sudah dibersihkan.');}
+function removeLegacyKeyboard_(){const p=PropertiesService.getScriptProperties(),token=p.getProperty('BOT_TOKEN'),chat=p.getProperty('CHAT_ID');if(!token||!chat)return false;try{const r=telegramApi_('sendMessage',{chat_id:chat,text:'Shortcut diperbarui.',reply_markup:{remove_keyboard:true}});return r.getResponseCode()<300}catch(e){return false}}
+function sendTelegramMenuFromSheet(){removeLegacyKeyboard_();sendTelegram_('SHORTCUT INFORMATION\nPilih informasi yang ingin ditinjau dari snapshot AutoBudgetin terbaru.',true);SpreadsheetApp.getUi().alert('Shortcut Information dikirim ke Telegram.');}
+function testTelegramFromSheet(){const hook=ensureTelegramWebhook_('');removeLegacyKeyboard_();sendTelegram_('AutoBudgetin v28.4.1 aktif.\nShortcut Information siap digunakan melalui tombol di bawah.',true);SpreadsheetApp.getUi().alert('Tes berhasil. Webhook aktif di: '+hook.url);}
 function normalizeShortcutText_(text){return String(text||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
 function shortcutActionFromText_(text){const t=normalizeShortcutText_(text);const aliases={
   'ringkasan':'fin:summary','hari ini':'fin:today','pemakaian':'fin:usage','budget':'fin:budget','tabungan':'fin:savings','durasi':'fin:durability','daya tahan':'fin:durability','terbesar':'fin:largest','refresh':'fin:summary',
