@@ -1,0 +1,16 @@
+const fs=require('fs');const assert=require('assert');
+const js=fs.readFileSync('v28-auto-budget-review.js','utf8');
+const css=fs.readFileSync('v28-auto-budget-review.css','utf8');
+const tg=fs.readFileSync('telegram-database-backend.gs','utf8');
+const html=fs.readFileSync('index.html','utf8');
+assert(!js.includes('injectShortcutButton();window.lucide'), 'launcher kanan atas tidak boleh diinjeksi lagi');
+assert(js.includes("document.getElementById('v283-shortcut-button')?.remove()"), 'launcher lama harus dibersihkan');
+assert(css.includes('#v283-shortcut-button{display:none!important}'), 'CSS harus memastikan launcher tersembunyi');
+assert(html.includes('v28-auto-budget-review.js?v=28.4.0'), 'asset JS final harus cache-busted');
+assert(tg.includes("text:'Ringkasan'"), 'Telegram menu harus punya Ringkasan');
+assert(tg.includes("text:'Kategori'"), 'Telegram menu harus punya submenu Kategori');
+assert(tg.includes("text:'Kembali'"), 'Telegram kategori harus punya Kembali');
+assert(!tg.includes("text:'▦ Ringkasan'"), 'ikon shortcut lama yang ramai harus dihapus');
+assert(tg.includes('shortcutActionFromText_'), 'reply keyboard lama harus tetap kompatibel');
+assert(tg.includes("editTelegramShortcut_(chat,messageId,out"), 'callback harus menampilkan hasil shortcut');
+console.log('v28.4 final stable patch: PASS');
