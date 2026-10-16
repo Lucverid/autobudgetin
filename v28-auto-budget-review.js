@@ -9,7 +9,7 @@
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money = n => typeof fmt === 'function' ? fmt(Math.round(Number(n)||0)) : `Rp ${Math.round(Number(n)||0).toLocaleString('id-ID')}`;
-  const monthKey = () => typeof localDateKey === 'function' ? localDateKey().slice(0,7) : new Date().toISOString().slice(0,7);
+  const monthKey = () => window.getActivePeriodV285?.() || (typeof localDateKey === 'function' ? localDateKey().slice(0,7) : new Date().toISOString().slice(0,7));
   const todayKey = () => typeof localDateKey === 'function' ? localDateKey() : new Date().toISOString().slice(0,10);
   const icon = (name, cls='') => `<i data-lucide="${name}"${cls?` class="${cls}"`:''}></i>`;
   const bucketIcon = b => icon(ICONS[b] || 'circle-dollar-sign','v283-bucket-icon');
@@ -43,7 +43,7 @@
       return {income,save,spendable,buckets,cfg,assigned:Object.values(buckets).reduce((a,n)=>a+n,0)};
     }
     const weights=normalizeWeights(cfg.weights),total=Object.values(weights).reduce((s,n)=>s+n,0)||1;
-    BUCKETS.forEach(b=>buckets[b]=Math.round(spendable*(weights[b]/total)));
+    Object.assign(buckets,FinanceCore.allocate(spendable,weights));
     return {income,save,spendable,buckets,cfg,assigned:Object.values(buckets).reduce((a,n)=>a+n,0)};
   }
   function bucketOf(t){
@@ -77,12 +77,13 @@
     const hardFactor=1+Math.max(0,Number(a.cfg.hardBufferPct)||0)/100,hard={};Object.entries(v25.budgets[mk]).forEach(([k,v])=>hard[k]=Math.round(Number(v||0)*hardFactor));
     if(typeof store==='object'&&store){store.limits={...(store.limits||{}),...hard};try{persistLocalSnapshot?.()}catch{};Object.entries(hard).forEach(([category,amount])=>{try{const now=Date.now();enqueueSync?.({opId:`v283-limit:${category}:${mk}:${amount}`,type:'setLimit',category,amount,createdAt:now,updatedAt:now})}catch{}})}
     localStorage.setItem('agis_finance_auto_budget_applied_v28',JSON.stringify({month:mk,income:a.income,signature:signature(a),at:Date.now()}));
-    try{window.renderV25?.();window.renderAll?.();window.scheduleAutomationSyncV245?.()}catch{}
+    try{flushOutbox?.();window.renderV25?.();window.renderAll?.();window.scheduleAutomationSyncV245?.()}catch{}
     if(!silent&&window.Swal)Swal.fire({icon:'success',title:a.cfg.mode==='auto'?'Budget otomatis diterapkan':'Budget manual diterapkan',text:`Pendapatan ${money(a.income)} · tabungan ${money(a.save)} · tersedia ${money(a.spendable)}.`,confirmButtonText:'Selesai'});
     return true;
   }
   function signature(a){return `${monthKey()}:${a.cfg.mode}:${a.income}:${a.save}:${JSON.stringify(a.cfg.mode==='auto'?a.cfg.weights:a.cfg.manualBuckets)}`}
-  function maybeAutoApply(){const a=allocations();if(a.cfg.mode!=='auto'||a.income<=0)return;let last={};try{last=JSON.parse(localStorage.getItem('agis_finance_auto_budget_applied_v28')||'{}')}catch{};if(last.signature!==signature(a))setTimeout(()=>applyBudget(true),80)}
+  let autoApplyTimer;
+  function maybeAutoApply(){const a=allocations();if(a.cfg.mode!=='auto'||a.income<=0)return;let last={};try{last=JSON.parse(localStorage.getItem('agis_finance_auto_budget_applied_v28')||'{}')}catch{};if(last.signature!==signature(a)){clearTimeout(autoApplyTimer);autoApplyTimer=setTimeout(()=>applyBudget(true),80)}}
 
   function reviewRows(){const mk=monthKey();if(window.isPeriodClosedV285?.(mk))return [];return (store?.trans||[]).filter(t=>String(t.tanggal||'').startsWith(mk)&&t.kategori!=='Penyesuaian Saldo').sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0))}
   function spentByBucket(){const out={};BUCKETS.forEach(b=>out[b]=0);reviewRows().forEach(t=>out[bucketOf(t)]=(out[bucketOf(t)]||0)+(Number(t.nominal)||0));return out}

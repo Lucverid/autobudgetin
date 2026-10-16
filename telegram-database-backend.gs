@@ -85,9 +85,13 @@ function setHeader_(sh,headers){if(!sh)return;sh.clear();sh.getRange(1,1,1,heade
 function styleHeader_(sh,cols){sh.getRange(1,1,1,cols).setFontWeight('bold');sh.autoResizeColumns(1,cols)}
 function rewrite_(name,headers,rows){const sh=SpreadsheetApp.getActive().getSheetByName(name);sh.clearContents();sh.getRange(1,1,1,headers.length).setValues([headers]);if(rows.length)sh.getRange(2,1,rows.length,headers.length).setValues(rows);sh.setFrozenRows(1);}
 
-function saveSnapshot_(snap){
+function saveSnapshot_(snap){const lock=LockService.getScriptLock();lock.waitLock(20000);try{return saveSnapshotData_(snap)}finally{lock.releaseLock()}}
+function saveSnapshotData_(snap){
   if(!snap||!snap.data)throw new Error('Snapshot kosong.'); ensureSheetsSafe_(); const d=snap.data,s=snap.summary||{};
-  const snapshotSh=SpreadsheetApp.getActive().getSheetByName(DB.snapshot);snapshotSh.clearContents();snapshotSh.getRange(1,1,1,9).setValues([['Synced At','Device','Wallet Total','Reserved','Available','Safe Floor','Score','Carry Over','Snapshot JSON']]);snapshotSh.getRange(2,1,1,9).setValues([[snap.syncedAt||new Date(),snap.deviceId||'',s.walletTotal||0,s.reservedSavings||0,s.available||0,s.safeFloor||0,s.score||0,s.carryOver||0,JSON.stringify(snap)]]);
+  const snapshotSh=SpreadsheetApp.getActive().getSheetByName(DB.snapshot);snapshotSh.clearContents();snapshotSh.getRange(1,1,1,9).setValues([['Synced At','Device','Wallet Total','Reserved','Available','Safe Floor','Score','Carry Over','Snapshot JSON']]);snapshotSh.getRange(2,1,1,9).setValues([[snap.syncedAt||new Date(),snap.deviceId||'',s.walletTotal||0,s.reservedSavings||0,s.available||0,s.safeFloor||0,s.score||0,s.carryOver||0,'']]);
+  const snapshotText=JSON.stringify(snap),chunks=[];for(let i=0;i<snapshotText.length;i+=40000)chunks.push([snapshotText.slice(i,i+40000)]);
+  if(chunks.length+1>snapshotSh.getMaxRows())snapshotSh.insertRowsAfter(snapshotSh.getMaxRows(),chunks.length+1-snapshotSh.getMaxRows());
+  if(chunks.length)snapshotSh.getRange(2,9,chunks.length,1).setValues(chunks);
   rewrite_(DB.expenses,['ID','Tanggal','Kategori','Nominal','Dompet','Catatan','Spending Type','Updated At'],(d.trans||[]).map(x=>[x.id||'',x.tanggal||'',x.kategori||'',Number(x.nominal)||0,x.dompet||'',x.catatan||x.note||'',x.spendingType||'',x.updatedAt||x.createdAt||'']));
   rewrite_(DB.incomes,['ID','Tanggal','Kategori','Nominal','Dompet','Catatan','Updated At'],(d.incomes||[]).map(x=>[x.id||'',x.tanggal||'',x.kategori||'',Number(x.nominal)||0,x.dompet||'',x.catatan||x.note||'',x.updatedAt||x.createdAt||'']));
   rewrite_(DB.transfers,['ID','Tanggal','Nominal','Dari','Ke','Catatan','Updated At'],(d.transfers||[]).map(x=>[x.id||'',x.tanggal||'',Number(x.nominal)||0,x.dari||x.from||'',x.ke||x.to||'',x.catatan||x.note||'',x.updatedAt||x.createdAt||'']));
@@ -99,7 +103,7 @@ function saveSnapshot_(snap){
   rewrite_(DB.bills,['ID','Nama','Nominal','Kategori','Frequency','Start Date','Day','Active','Updated At'],(v25.bills||[]).map(x=>[x.id||'',x.name||'',Number(x.amount)||0,x.category||'Tagihan',x.frequency||'monthly',x.startDate||'',Number(x.day)||'',x.active!==false,x.updatedAt||'']));
 }
 function ensureSheetsSafe_(){const ss=SpreadsheetApp.getActive();Object.values(DB).forEach(n=>{if(!ss.getSheetByName(n))ss.insertSheet(n)});}
-function latestSnapshot_(){const sh=SpreadsheetApp.getActive().getSheetByName(DB.snapshot);if(!sh||sh.getLastRow()<2)return null;const raw=sh.getRange(2,9).getValue();try{return JSON.parse(raw)}catch{return null}}
+function latestSnapshot_(){const sh=SpreadsheetApp.getActive().getSheetByName(DB.snapshot);if(!sh||sh.getLastRow()<2)return null;const raw=sh.getRange(2,9,sh.getLastRow()-1,1).getValues().map(row=>String(row[0]||'')).join('');try{return JSON.parse(raw)}catch{return null}}
 
 function scheduledCheck(){const snap=latestSnapshot_();if(snap)checkSnapshot_(snap,true);}
 function checkSnapshot_(snap,scheduled){

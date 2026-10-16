@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AutoBudgetin - v26.0.9 STABLE+</title>
+    <title>AutoBudgetin — v28.6.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
     <!-- v20: seluruh dependency UI/Firebase dilayani lokal agar app shell bisa dibuka tanpa internet -->
+    <script src="./finance-core.js?v=28.6.1"></script>
     <script src="./chart.min.js"></script>
     <script src="./sweetalert2.all.min.js"></script>
     <script src="./lucide.min.js"></script>
@@ -269,6 +270,7 @@
     <link rel="stylesheet" href="./v26-stable-tracking.css?v=26.0.2">
     <link rel="stylesheet" href="./v28-auto-budget-review.css?v=28.4.0">
     <link rel="stylesheet" href="./v28-5-monthly-archive.css?v=28.5.0">
+    <link rel="stylesheet" href="./v28-6-refinement.css?v=28.6.1">
 </head>
 <body>
 
@@ -612,7 +614,7 @@
             </div>
             <input type="file" id="v245-import" accept="application/json,.json" style="display:none" onchange="previewImportV245(event)">
             <div id="v245-preview" class="v245-preview" hidden></div>
-            <div class="mini-muted" style="margin-top:12px">Backup schema v26 memuat wallet, transaksi, planning, profil kebutuhan bulanan, serta skenario Bisnis & Kredit. Backup v22–v25 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
+            <div class="mini-muted" style="margin-top:12px">Backup schema v28 memuat wallet, seluruh transaksi, arsip bulanan, budget otomatis, planning, dan Decision Lab. Backup v22–v25 tetap bisa direstore. PIN sengaja tidak ikut diekspor.</div>
         </div>
     </div>
 </div>
@@ -790,17 +792,19 @@
                 wallets: normalizeWallets(store.wallets),
                 goal: Number(store.goal) || 0,
                 limits: store.limits || {},
-                trans: Array.isArray(store.trans) ? store.trans.slice(0, 1500) : [],
-                incomes: Array.isArray(store.incomes) ? store.incomes.slice(0, 1500) : [],
-                transfers: Array.isArray(store.transfers) ? store.transfers.slice(0, 1500) : [],
-                goals: Array.isArray(store.goals) ? store.goals.slice(0, 300) : [],
-                recurring: Array.isArray(store.recurring) ? store.recurring.slice(0, 300) : [],
+                trans: Array.isArray(store.trans) ? store.trans : [],
+                incomes: Array.isArray(store.incomes) ? store.incomes : [],
+                transfers: Array.isArray(store.transfers) ? store.transfers : [],
+                goals: Array.isArray(store.goals) ? store.goals : [],
+                recurring: Array.isArray(store.recurring) ? store.recurring : [],
                 audit: Array.isArray(store.audit) ? store.audit.slice(0, 500) : [],
                 conflicts: Array.isArray(store.conflicts) ? store.conflicts.slice(0, 100) : [],
                 savedAt: localSnapshotSavedAt
             }));
+            document.getElementById('storage-error-banner')?.remove();
         } catch (err) {
             console.warn('Local snapshot gagal disimpan:', err);
+            if (!document.getElementById('storage-error-banner')) { const banner=document.createElement('div');banner.id='storage-error-banner';banner.setAttribute('role','alert');banner.textContent='Penyimpanan perangkat penuh. Ekspor Backup JSON sebelum menutup aplikasi.';document.body.prepend(banner); }
         }
     }
 
@@ -850,11 +854,13 @@
             localStorage.setItem(OUTBOX_KEY, JSON.stringify(queue));
         } catch (err) {
             console.error('Outbox gagal disimpan:', err);
+            throw new Error('Penyimpanan perangkat penuh atau tidak tersedia. Transaksi belum disimpan. Ekspor backup lalu kosongkan ruang perangkat.');
         }
         updateNetworkStatus();
     }
 
     function enqueueSync(op) {
+        localMutationRevision++;
         const queue = readOutbox();
         if (!queue.some(item => item.opId === op.opId)) queue.push(op);
         writeOutbox(queue);
@@ -875,7 +881,7 @@
             const id = op[config.id];
             if (!id) return;
             if (op.type === config.del) byId.delete(id);
-            else if (op.type === config.add || op.type === config.edit) byId.set(id, { id, ...op.data, pendingSync: true });
+            else if (op.type === config.add || op.type === config.edit || op.type === ({expense:'restoreExpense',income:'restoreIncome',transfer:'restoreTransfer'}[kind])) byId.set(id, { id, ...op.data, pendingSync: true });
         });
         return [...byId.values()].sort((a, b) => {
             if (['expense','income','transfer'].includes(kind)) {
@@ -923,8 +929,10 @@
         if (Object.keys(payload).length) transaction.set(walletRef, payload, { merge: true });
     }
 
+    let localMutationRevision = 0;
     async function refreshFromServer() {
         if (!navigator.onLine || readOutbox().length) return;
+        const refreshRevision = localMutationRevision;
         try {
             const [walletSnap, goalSnap, limitsSnap, expenseSnap, incomeSnap, transferSnap, goalsSnap, recurringSnap] = await Promise.all([
                 db.collection('config').doc('wallets').get({ source: 'server' }),
@@ -936,6 +944,7 @@
                 db.collection('goals').get({ source: 'server' }),
                 db.collection('recurring').get({ source: 'server' })
             ]);
+            if (readOutbox().length || refreshRevision !== localMutationRevision) return;
             if (walletSnap.exists) store.wallets = normalizeWallets(walletSnap.data());
             if (goalSnap.exists) store.goal = Number(goalSnap.data().amount) || 0;
             if (limitsSnap.exists) { const {updatedAt,deviceId,...limitData}=limitsSnap.data()||{}; store.limits=limitData; }
@@ -978,6 +987,27 @@
             restoreIncome: ['pemasukan', 'incomeId'],
             restoreTransfer: ['transfer', 'transferId']
         };
+
+        if (op.type === 'restoreSnapshot') {
+            const data = FinanceCore.validateBackup(op.data);
+            const writes = [];
+            for (const [collectionName, key] of Object.entries({pengeluaran:'trans',pemasukan:'incomes',transfer:'transfers',goals:'goals',recurring:'recurring'})) {
+                const snap = await db.collection(collectionName).get({source:'server'});
+                const wanted = new Map(data[key].map(row=>[row.id,cleanBackupRecord(row)]));
+                snap.docs.forEach(doc=>{if(!wanted.has(doc.id))writes.push({ref:doc.ref,remove:true});});
+                wanted.forEach((row,id)=>{const value={...row};delete value.id;writes.push({ref:db.collection(collectionName).doc(id),data:value});});
+            }
+            writes.push({ref:walletRef,data:normalizeWallets(data.wallets)},
+                {ref:db.collection('config').doc('goal'),data:{amount:data.goal||0}},
+                {ref:db.collection('config').doc('limits'),data:data.limits||{}});
+            // Replaying after interruption is safe: exact sets/deletes, never wallet increments.
+            for (let start=0;start<writes.length;start+=400) {
+                const batch=db.batch();
+                writes.slice(start,start+400).forEach(w=>w.remove?batch.delete(w.ref):batch.set(w.ref,w.data));
+                await batch.commit();
+            }
+            return;
+        }
 
         if (collectionOps[op.type]) {
             const [collectionName, idField, transactionType, action] = collectionOps[op.type];
@@ -1044,11 +1074,11 @@
                 const op = queue[0];
                 try {
                     await executeOutboxOperation(op);
-                    queue.shift(); writeOutbox(queue);
+                    queue = readOutbox().filter(item => item.opId !== op.opId); writeOutbox(queue);
                 } catch (err) {
                     if (err?.agisConflict) {
                         registerConflict(op, err.serverData);
-                        queue.shift(); writeOutbox(queue);
+                        queue = readOutbox().filter(item => item.opId !== op.opId); writeOutbox(queue);
                         continue;
                     }
                     throw err;
@@ -1153,7 +1183,7 @@
         }
         if (category !== 'all' && (t.type === 'transfer' || t.kategori !== category)) return false;
         if (q) {
-            const hay = [t.kategori,t.dompet,t.dari,t.ke,t.recurringName,t.tanggal,t.id,t.type].filter(Boolean).join(' ').toLowerCase();
+            const hay = [t.kategori,t.dompet,t.dari,t.ke,t.recurringName,t.catatan,t.budgetBucket,t.tanggal,t.id,t.type].filter(Boolean).join(' ').toLowerCase();
             if (!hay.includes(q)) return false;
         }
         return true;
@@ -1234,7 +1264,7 @@
         const d = document.getElementById('t-date').value;
         const type = document.getElementById('t-type').value || 'expense';
         const amount = parseInt(document.getElementById('t-amount').value, 10);
-        if (!amount || amount <= 0 || !d) return Swal.fire('Error', 'Data belum lengkap', 'warning');
+        if (!Number.isSafeInteger(amount) || amount <= 0 || !FinanceCore.validDate(d)) return Swal.fire('Error', 'Data belum lengkap', 'warning');
 
         let id, data, op;
         const createdAt = Date.now();
@@ -1422,7 +1452,7 @@
             const target=Math.max(1,Number(g.target)||0), saved=Math.max(0,Number(g.saved)||0), pct=Math.min(100,(saved/target)*100);
             const deadline=g.deadline ? new Date(`${g.deadline}T00:00:00`).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : 'Tanpa deadline';
             const conflict=(store.conflicts||[]).some(c=>c.entityType==='goal'&&c.entityId===g.id); const pending=conflict?'<span style="color:var(--danger)"> • Konflik sync</span>':(g.pendingSync?'<span style="color:var(--warning)"> • Menunggu sync</span>':'');
-            return `<div class="goal-card"><div class="goal-top"><div><div class="goal-name">${escapeHtml(g.name)}</div><div class="mini-muted">${fmt(saved)} / ${fmt(target)}${pending}</div></div><div style="font-weight:900;color:var(--primary);font-size:.8rem">${pct.toFixed(0)}%</div></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><div class="mini-muted">🎯 ${deadline} · Kurang ${fmt(Math.max(0,target-saved))}</div><div class="mini-actions"><button class="mini-action primary" onclick="addGoalFunds('${escapeJs(g.id)}')">+ Sisihkan</button><button class="mini-action" onclick="openGoalModal('${escapeJs(g.id)}')">Edit</button><button class="mini-action danger" onclick="deleteGoal('${escapeJs(g.id)}')">Hapus</button></div></div>`;
+            return `<div class="goal-card"><div class="goal-top"><div><div class="goal-name">${escapeHtml(g.name)}</div><div class="mini-muted">${fmt(saved)} / ${fmt(target)}${pending}</div></div><div style="font-weight:900;color:var(--primary);font-size:.8rem">${pct.toFixed(0)}%</div></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><div class="mini-muted">🎯 ${deadline} · Kurang ${fmt(Math.max(0,target-saved))}</div><div class="mini-actions"><button class="mini-action primary" onclick="addGoalFunds('${escapeHtml(escapeJs(g.id))}')">+ Sisihkan</button><button class="mini-action" onclick="openGoalModal('${escapeHtml(escapeJs(g.id))}')">Edit</button><button class="mini-action danger" onclick="deleteGoal('${escapeHtml(escapeJs(g.id))}')">Hapus</button></div></div>`;
         }).join('');
     }
 
@@ -1490,7 +1520,7 @@
         const el=document.getElementById('recurringList'); if(!el)return;
         const rows=[...(store.recurring||[])].sort((a,b)=>String(a.nextDate||'').localeCompare(String(b.nextDate||'')));
         if(!rows.length){el.innerHTML='<div class="empty-box">Belum ada transaksi rutin.</div>';return;}
-        el.innerHTML=rows.map(r=>{const next=r.nextDate?new Date(`${r.nextDate}T00:00:00`).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'; const type=r.type==='income'?'Pemasukan':'Pengeluaran'; const conflict=(store.conflicts||[]).some(c=>c.entityType==='recurring'&&c.entityId===r.id); const pending=conflict?'<span style="color:var(--danger)"> • Konflik sync</span>':(r.pendingSync?'<span style="color:var(--warning)"> • Menunggu sync</span>':''); return `<div class="recurring-card" style="opacity:${r.active===false?.6:1}"><div class="recurring-top"><div><div class="recurring-name">${escapeHtml(r.name)}</div><div class="mini-muted">${type} · ${escapeHtml(r.dompet)} · ${escapeHtml(r.kategori)}${pending}</div></div><div style="font-weight:900;color:${r.type==='income'?'var(--success)':'var(--danger)'}">${fmt(r.nominal)}</div></div><div class="mini-muted" style="margin-top:8px">🔁 ${r.frequency==='weekly'?'Mingguan':'Bulanan'} · Berikutnya ${next}</div><div class="mini-actions"><button class="mini-action primary" onclick="toggleRecurring('${escapeJs(r.id)}')">${r.active===false?'Aktifkan':'Jeda'}</button><button class="mini-action" onclick="openRecurringModal('${escapeJs(r.id)}')">Edit</button><button class="mini-action danger" onclick="deleteRecurring('${escapeJs(r.id)}')">Hapus</button></div></div>`}).join('');
+        el.innerHTML=rows.map(r=>{const next=r.nextDate?new Date(`${r.nextDate}T00:00:00`).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'; const type=r.type==='income'?'Pemasukan':'Pengeluaran'; const conflict=(store.conflicts||[]).some(c=>c.entityType==='recurring'&&c.entityId===r.id); const pending=conflict?'<span style="color:var(--danger)"> • Konflik sync</span>':(r.pendingSync?'<span style="color:var(--warning)"> • Menunggu sync</span>':''); return `<div class="recurring-card" style="opacity:${r.active===false?.6:1}"><div class="recurring-top"><div><div class="recurring-name">${escapeHtml(r.name)}</div><div class="mini-muted">${type} · ${escapeHtml(r.dompet)} · ${escapeHtml(r.kategori)}${pending}</div></div><div style="font-weight:900;color:${r.type==='income'?'var(--success)':'var(--danger)'}">${fmt(r.nominal)}</div></div><div class="mini-muted" style="margin-top:8px">🔁 ${r.frequency==='weekly'?'Mingguan':'Bulanan'} · Berikutnya ${next}</div><div class="mini-actions"><button class="mini-action primary" onclick="toggleRecurring('${escapeHtml(escapeJs(r.id))}')">${r.active===false?'Aktifkan':'Jeda'}</button><button class="mini-action" onclick="openRecurringModal('${escapeHtml(escapeJs(r.id))}')">Edit</button><button class="mini-action danger" onclick="deleteRecurring('${escapeHtml(escapeJs(r.id))}')">Hapus</button></div></div>`}).join('');
     }
 
     function advanceRecurringDate(dateKey, frequency, anchorDay=null){
@@ -1532,7 +1562,7 @@
     function cleanBackupRecord(item){ const x={...(item||{})}; delete x.pendingSync; return x; }
     function migrateBackupPayload(parsed) {
         const version = Number(parsed?.schemaVersion || parsed?.version || 22);
-        const d = parsed?.data || parsed;
+        const d = FinanceCore.validateBackup(parsed);
         if (!d || !d.wallets || !Array.isArray(d.trans)) throw new Error('Format backup tidak dikenali.');
         return { version, data:{
             wallets:normalizeWallets(d.wallets), goal:Number(d.goal)||0,
@@ -1546,7 +1576,8 @@
             v25:d.v25&&typeof d.v25==='object'?d.v25:null,
             v26:d.v26&&typeof d.v26==='object'?d.v26:null,
             carryOver:d.carryOver&&typeof d.carryOver==='object'?d.carryOver:null,
-            recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null
+            recoveryTarget:d.recoveryTarget&&typeof d.recoveryTarget==='object'?d.recoveryTarget:null,
+            preferences:d.preferences&&typeof d.preferences==='object'?d.preferences:null
         }};
     }
 
@@ -1555,25 +1586,28 @@
         const recoveryTarget = typeof readRecoveryTarget === 'function' ? readRecoveryTarget() : null;
         const v25 = typeof window.getV25SnapshotData === 'function' ? window.getV25SnapshotData() : (()=>{try{return JSON.parse(localStorage.getItem('agis_finance_v25_planning')||'null')}catch{return null}})();
         const v26 = typeof window.getV26DecisionData === 'function' ? window.getV26DecisionData() : null;
-        const payload={app:'Agis Finance',schemaVersion:26,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord),v25,v26,carryOver,recoveryTarget}};
-        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AgisFinance_v26_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
-        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v26 · Decision Lab ikut'); renderHealth();
+        const payload={app:'Agis Finance',schemaVersion:28,compatibleFrom:22,exportedAt:new Date().toISOString(),deviceId:DEVICE_ID,data:{wallets:normalizeWallets(store.wallets),goal:Number(store.goal)||0,limits:store.limits||{},trans:(store.trans||[]).map(cleanBackupRecord),incomes:(store.incomes||[]).map(cleanBackupRecord),transfers:(store.transfers||[]).map(cleanBackupRecord),goals:(store.goals||[]).map(cleanBackupRecord),recurring:(store.recurring||[]).map(cleanBackupRecord),audit:(store.audit||[]).map(cleanBackupRecord),v25,v26,carryOver,recoveryTarget,preferences:FinanceCore.capturePreferences(localStorage)}};
+        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`AutoBudgetin_v28.6_Backup_${localDateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+        localStorage.setItem(LAST_BACKUP_KEY,String(Date.now())); auditEvent('Backup dibuat','Schema v28 · arsip, budget dan Decision Lab'); renderHealth();
     };
 
     window.restoreBackupFile = async (event) => {
         const file=event.target.files?.[0]; event.target.value=''; if(!file)return;
         try{
+            if (syncInProgress || readOutbox().length) throw new Error('Selesaikan antrean sinkronisasi sebelum restore agar perubahan offline tidak tertimpa.');
             const raw=await file.text(); const parsed=JSON.parse(raw); const migrated=migrateBackupPayload(parsed); const d=migrated.data;
-            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dimigrasikan ke v25 lalu digabungkan/sinkron ke cloud. PIN tidak berubah.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            const confirm=await Swal.fire({title:'Restore backup?',text:`Backup schema v${migrated.version} akan dipulihkan. Saldo mengikuti backup, dan riwayat cloud yang tidak ada di backup akan dihapus. PIN dan koneksi Telegram tetap.`,icon:'warning',showCancelButton:true,confirmButtonText:'Restore',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
+            if (syncInProgress || readOutbox().length) throw new Error('Data berubah saat konfirmasi. Tunggu sinkronisasi selesai dan ulangi restore.');
+            const restoreNow=Date.now();
+            enqueueSync({opId:`restore-snapshot:${restoreNow}`,type:'restoreSnapshot',data:d,createdAt:restoreNow});
             store.wallets=d.wallets; store.limits=d.limits; store.trans=d.trans; store.incomes=d.incomes; store.transfers=d.transfers; store.goals=d.goals; store.recurring=d.recurring; store.audit=d.audit;
             if(d.v25){try{localStorage.setItem('agis_finance_v25_planning',JSON.stringify({...d.v25,bills:d.v25.bills||[],budgets:d.v25.budgets||{}}));}catch{}}
             if(d.v26){try{localStorage.setItem('agis_finance_v26_decision_lab',JSON.stringify(d.v26));}catch{}}
             if(d.carryOver){try{writeCarryOverState({month:String(d.carryOver.month||''),balance:Math.max(0,Number(d.carryOver.balance)||0),lastDate:String(d.carryOver.lastDate||''),dailyBase:Math.max(0,Number(d.carryOver.dailyBase)||0),history:d.carryOver.history&&typeof d.carryOver.history==='object'?d.carryOver.history:{}});}catch(err){console.warn('Carry-over restore gagal:',err)}}
             if(d.recoveryTarget){try{localStorage.setItem(RECOVERY_TARGET_KEY,JSON.stringify(d.recoveryTarget));}catch{}}
             store.conflicts=[]; store.goal=store.goals.length?store.goals.reduce((sum,g)=>sum+(Number(g.saved)||0),0):d.goal;
-            const now=Date.now(); enqueueSync({opId:`restore-wallets:${now}`,type:'setWallets',data:store.wallets,createdAt:now,updatedAt:now}); enqueueSync({opId:`restore-goal-total:${now}`,type:'setGoal',amount:store.goal,createdAt:now,updatedAt:now}); Object.entries(store.limits).forEach(([category,amount])=>enqueueSync({opId:`restore-limit:${category}:${now}`,type:'setLimit',category,amount:Number(amount)||0,createdAt:now,updatedAt:now}));
-            store.trans.forEach(t=>{if(t.id)enqueueSync({opId:`restore-expense:${t.id}:${now}`,type:'restoreExpense',expenseId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.incomes.forEach(t=>{if(t.id)enqueueSync({opId:`restore-income:${t.id}:${now}`,type:'restoreIncome',incomeId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.transfers.forEach(t=>{if(t.id)enqueueSync({opId:`restore-transfer:${t.id}:${now}`,type:'restoreTransfer',transferId:t.id,data:cleanBackupRecord(t),createdAt:now,force:true})}); store.goals.forEach(g=>enqueueSync({opId:`restore-goal-item:${g.id}:${now}`,type:'addSavingsGoal',goalItemId:g.id,data:cleanBackupRecord(g),createdAt:now,force:true})); store.recurring.forEach(r=>enqueueSync({opId:`restore-recurring:${r.id}:${now}`,type:'addRecurring',recurringId:r.id,data:cleanBackupRecord(r),createdAt:now,force:true}));
-            auditEvent('Restore backup',`Schema v${migrated.version} → v25`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, Budget Tersimpan, dan data planning sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
+            if(d.preferences) FinanceCore.restorePreferences(localStorage,d.preferences);
+            auditEvent('Restore backup',`Schema v${migrated.version} → v28`); persistLocalSnapshot(); renderAll(); processRecurringTransactions(); flushOutbox(); Swal.fire('Backup dipulihkan','Data lokal, Budget Tersimpan, dan data planning sudah dipulihkan lalu antrean sinkronisasi dibuat.','success');
         }catch(err){Swal.fire('Restore gagal',err.message||'File backup rusak.','error');}
     };
 
@@ -1753,7 +1787,7 @@
         const list=document.getElementById('conflictList'),badge=document.getElementById('conflictCount'); if(!list||!badge)return;
         const rows=store.conflicts||[]; badge.textContent=`${rows.length} konflik`; badge.className=`sync-pill ${rows.length?'warn':'good'}`;
         if(!rows.length){list.innerHTML='<div class="empty-box" style="padding:12px">Tidak ada konflik sync.</div>';return;}
-        list.innerHTML=rows.map(c=>`<div class="conflict-card"><div class="conflict-title">⚠ ${escapeHtml(c.entityType)} · ${escapeHtml(c.entityId)}</div><div class="mini-muted">Perubahan lokal bertabrakan dengan versi yang lebih baru dari perangkat lain.</div><div class="conflict-compare"><div class="conflict-version"><b>Versi Lokal</b><br>${escapeHtml(summarizeData(c.localData,c.entityType))}</div><div class="conflict-version"><b>Versi Cloud</b><br>${escapeHtml(summarizeData(c.serverData,c.entityType))}</div></div><div class="mini-actions"><button class="mini-action" onclick="resolveConflict('${escapeJs(c.id)}','cloud')">Pakai Cloud</button><button class="mini-action primary" onclick="resolveConflict('${escapeJs(c.id)}','local')">Terapkan Lokal</button></div></div>`).join('');
+        list.innerHTML=rows.map(c=>`<div class="conflict-card"><div class="conflict-title">⚠ ${escapeHtml(c.entityType)} · ${escapeHtml(c.entityId)}</div><div class="mini-muted">Perubahan lokal bertabrakan dengan versi yang lebih baru dari perangkat lain.</div><div class="conflict-compare"><div class="conflict-version"><b>Versi Lokal</b><br>${escapeHtml(summarizeData(c.localData,c.entityType))}</div><div class="conflict-version"><b>Versi Cloud</b><br>${escapeHtml(summarizeData(c.serverData,c.entityType))}</div></div><div class="mini-actions"><button class="mini-action" onclick="resolveConflict('${escapeHtml(escapeJs(c.id))}','cloud')">Pakai Cloud</button><button class="mini-action primary" onclick="resolveConflict('${escapeHtml(escapeJs(c.id))}','local')">Terapkan Lokal</button></div></div>`).join('');
     }
 
     function healthReport(){
@@ -2036,6 +2070,8 @@
         });
     }
 
+    let historyPage = 1, historyFilterSignature = '';
+    window.changeHistoryPage = delta => { historyPage = Math.max(1, historyPage + delta); renderAll(); };
     window.renderAll = () => {
         const list = document.getElementById('transList');
         if (list) list.innerHTML = '';
@@ -2043,7 +2079,12 @@
         const filterSummary=document.getElementById('historyFilterSummary');
         if(filterSummary){const out=filteredHistory.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.nominal||0),0),inc=filteredHistory.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.nominal||0),0);filterSummary.textContent=`${filteredHistory.length} transaksi · Masuk ${fmt(inc)} · Keluar ${fmt(out)}`;}
 
-        filteredHistory.forEach(t => {
+        const filterSignature = ['filterMonth','filterType','filterWallet','filterCategory','filterFrom','filterTo','filterMin','filterMax','filterSearch'].map(id=>document.getElementById(id)?.value||'').join('|');
+        if (filterSignature !== historyFilterSignature) { historyPage = 1; historyFilterSignature = filterSignature; }
+        const pageCount = Math.max(1, Math.ceil(filteredHistory.length / 50));
+        historyPage = Math.min(historyPage, pageCount);
+        const historyMarkup = [];
+        filteredHistory.slice((historyPage-1)*50,historyPage*50).forEach(t => {
             if (!list) return;
             const hasConflict=(store.conflicts||[]).some(c=>c.entityType===t.type&&c.entityId===t.id); const pending = hasConflict ? '<span style="color:var(--danger);font-weight:800">• Konflik sync</span>' : (t.pendingSync ? '<span style="color:var(--warning);font-weight:800">• Menunggu sync</span>' : '');
             let title, sub, amount, amountClass;
@@ -2054,16 +2095,19 @@
             } else {
                 title = 'Transfer'; sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dari)} → ${escapeHtml(t.ke)} ${pending}`; amount = fmt(t.nominal); amountClass = 'transfer';
             }
-            list.innerHTML += `
+            historyMarkup.push(`
                 <div class="t-item">
                     <div class="t-info"><span class="t-cat-name">${title}</span><div class="t-sub-info">${sub}</div></div>
                     <div class="t-amt ${amountClass}">${amount}</div>
                     <div class="t-actions">
-                        <button class="t-action" onclick="editTransaction('${t.id}','${t.type}')" title="Edit"><i data-lucide="pencil"></i></button>
-                        <button class="t-action" onclick="removeTransaction('${t.id}','${t.type}')" title="Hapus"><i data-lucide="trash-2"></i></button>
+                        <button class="t-action" onclick="editTransaction('${escapeHtml(escapeJs(t.id))}','${t.type}')" title="Edit"><i data-lucide="pencil"></i></button>
+                        <button class="t-action" onclick="removeTransaction('${escapeHtml(escapeJs(t.id))}','${t.type}')" title="Hapus"><i data-lucide="trash-2"></i></button>
                     </div>
-                </div>`;
+                </div>`);
         });
+        if (list) list.innerHTML = historyMarkup.join('');
+        document.getElementById('historyPagination')?.remove();
+        if (list && filteredHistory.length > 50) list.insertAdjacentHTML('afterend', `<div id="historyPagination" class="history-pagination"><button onclick="changeHistoryPage(-1)" ${historyPage===1?'disabled':''}>Sebelumnya</button><span>${historyPage} / ${pageCount}</span><button onclick="changeHistoryPage(1)" ${historyPage===pageCount?'disabled':''}>Berikutnya</button></div>`);
         if (list && !filteredHistory.length) list.innerHTML = '<div style="padding:28px 5px; text-align:center; color:var(--text-dim); font-size:.8rem">Belum ada transaksi untuk filter ini.</div>';
 
         const totalWallets = (store.wallets.Tunai || 0) + (store.wallets.Bank || 0) + (store.wallets['E-Wallet'] || 0);
@@ -2283,12 +2327,14 @@
     document.onmouseup = document.ontouchend = onEnd;
 
     window.exportToExcel = () => {
-        const rows = allTransactions().map(t => ({
+        const rows = allTransactions().filter(historyMatchesFilters).map(t => ({
             Jenis: t.type === 'expense' ? 'Pengeluaran' : t.type === 'income' ? 'Pemasukan' : 'Transfer',
             Tanggal: t.tanggal || '',
             Kategori: t.type === 'transfer' ? 'Transfer' : (t.kategori || ''),
             Wallet: t.type === 'transfer' ? `${t.dari} -> ${t.ke}` : (t.dompet || ''),
             Nominal: Number(t.nominal || 0),
+            Catatan: t.catatan || '',
+            Bucket: t.budgetBucket || '',
             Status_Sync: (store.conflicts||[]).some(c=>c.entityType===t.type&&c.entityId===t.id)?'Konflik':(t.pendingSync?'Menunggu sync':'Tersinkron'),
             Versi: Number(t.version||1),
             Update_Terakhir: t.updatedAt ? new Date(Number(t.updatedAt)).toISOString() : ''
@@ -2329,36 +2375,41 @@
         }, err => console.warn('Limits listener:', err));
 
         db.collection('pengeluaran').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if (readOutbox().some(op=>op.type==='restoreSnapshot')) return;
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
-            const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.trans.length > 0;
+            const emptyUnprimedOfflineCache = s.metadata.fromCache && incoming.length === 0 && store.trans.length > 0;
             if (!emptyUnprimedOfflineCache) { store.trans = readOutbox().length ? mergePendingCollection(incoming, 'expense') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Expense listener:', err));
 
         db.collection('pemasukan').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if (readOutbox().some(op=>op.type==='restoreSnapshot')) return;
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
-            const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.incomes.length > 0;
+            const emptyUnprimedOfflineCache = s.metadata.fromCache && incoming.length === 0 && store.incomes.length > 0;
             if (!emptyUnprimedOfflineCache) { store.incomes = readOutbox().length ? mergePendingCollection(incoming, 'income') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Income listener:', err));
 
         db.collection('transfer').orderBy('tanggal', 'desc').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if (readOutbox().some(op=>op.type==='restoreSnapshot')) return;
             const incoming = s.docs.map(d => ({id:d.id, ...d.data()}));
-            const emptyUnprimedOfflineCache = !navigator.onLine && s.metadata.fromCache && incoming.length === 0 && store.transfers.length > 0;
+            const emptyUnprimedOfflineCache = s.metadata.fromCache && incoming.length === 0 && store.transfers.length > 0;
             if (!emptyUnprimedOfflineCache) { store.transfers = readOutbox().length ? mergePendingCollection(incoming, 'transfer') : incoming; persistLocalSnapshot(); }
             renderAll();
         }, err => console.warn('Transfer listener:', err));
 
         db.collection('goals').onSnapshot({ includeMetadataChanges: true }, (snap) => {
+            if (readOutbox().some(op=>op.type==='restoreSnapshot')) return;
             const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
-            const emptyUnprimedOfflineCache=!navigator.onLine&&snap.metadata.fromCache&&incoming.length===0&&(store.goals||[]).length>0;
+            const emptyUnprimedOfflineCache=snap.metadata.fromCache&&incoming.length===0&&(store.goals||[]).length>0;
             if(!emptyUnprimedOfflineCache){store.goals=readOutbox().length?mergePendingCollection(incoming,'goalItem'):incoming;if(store.goals.length)recomputeReservedGoal(false);else migrateLegacyGoal();persistLocalSnapshot();}
             renderAll();
         },err=>console.warn('Goals listener:',err));
 
         db.collection('recurring').onSnapshot({ includeMetadataChanges: true }, (snap) => {
+            if (readOutbox().some(op=>op.type==='restoreSnapshot')) return;
             const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
-            const emptyUnprimedOfflineCache=!navigator.onLine&&snap.metadata.fromCache&&incoming.length===0&&(store.recurring||[]).length>0;
+            const emptyUnprimedOfflineCache=snap.metadata.fromCache&&incoming.length===0&&(store.recurring||[]).length>0;
             if(!emptyUnprimedOfflineCache){store.recurring=readOutbox().length?mergePendingCollection(incoming,'recurring'):incoming;persistLocalSnapshot();}
             renderAll(); processRecurringTransactions();
         },err=>console.warn('Recurring listener:',err));
@@ -2445,19 +2496,20 @@
 </script>
 <script src="./v24-4-features.js"></script>
 <script src="./v24-5-automation.js"></script>
-<script src="./v25-features.js"></script>
+<script src="./v25-features.js?rev=28.6.1"></script>
 <script src="./v25-1-mobile.js"></script>
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
 <script src="./v25-3-1-quick-transaction.js"></script>
 <script src="./v25-3-3-financial-plan.js?v=26.0.1"></script>
 <script src="./v25-3-10-health-engine.js"></script>
-<script src="./v25-5-17-easter-egg.js"></script>
+<script src="./v25-5-17-easter-egg.js?rev=28.6.1"></script>
 <script src="./v26-decision-lab.js?v=26.0.5"></script>
 <script src="./v26-stable-tracking.js?v=26.0.2"></script>
 <script src="./v26-tracking-money-format.js?v=26.0.2"></script>
 <script src="./v26-feature-switcher.js?v=26.0.3"></script>
-<script src="./v28-auto-budget-review.js?v=28.4.0"></script>
-<script src="./v28-5-monthly-archive.js?v=28.5.2"></script>
+<script src="./v28-auto-budget-review.js?v=28.4.0&rev=28.6.1"></script>
+<script src="./v28-5-monthly-archive.js?v=28.5.2&rev=28.6.1"></script>
+<script src="./v28-6-refinement.js?v=28.6.1"></script>
 </body>
 </html>
