@@ -1,4 +1,4 @@
-# AutoBudgetin v28.6.1
+# AutoBudgetin v28.6.4
 
 Revisi dari ZIP yang diunggah, mencakup transaksi, sinkronisasi, offline, backup/restore, periode bulanan, riwayat, budget dan tampilan responsif.
 

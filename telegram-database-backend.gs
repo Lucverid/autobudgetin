@@ -113,15 +113,7 @@ function checkSnapshot_(snap,scheduled){
   if(Number(s.score)<40)notifyOnce_('score:'+today,`🔴 Financial Score kritis: ${Math.round(Number(s.score)||0)}/100`);
   if(s.recovery&&Number(s.recovery.pct)>=100)notifyOnce_('recovery:'+(s.recovery.createdAt||s.recovery.startDate||s.recovery.name),`🎯 Recovery selesai\n${s.recovery.name||'Target'} sudah 100% pulih.`);
 
-  const last=s.latestExpense;
-  if(last&&last.id){
-    const key='latest-expense-notified', props=PropertiesService.getScriptProperties();
-    if(props.getProperty(key)!==String(last.id)&&Number(last.nominal)>0){
-      sendTelegram_(expenseMessage_(snap,last),true);
-      props.setProperty(key,String(last.id));
-      log_('expense:'+String(last.id),expenseMessage_(snap,last));
-    }
-  }
+  notifyExpenses_(snap);
 
   if(scheduled){
     checkBills_(snap);
@@ -133,6 +125,31 @@ function checkSnapshot_(snap,scheduled){
       notifyOnce_('weekly:'+week,weeklyMessage_(snap));
     }
   }
+}
+
+// Durable per-ID receipt log: a snapshot may contain several new expenses.
+// Baseline history once when upgrading, then retry only unacknowledged rows.
+function notifyExpenses_(snap){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const props=PropertiesService.getScriptProperties(),sh=SpreadsheetApp.getActive().getSheetByName(DB.logs);
+    if(!sh)throw new Error('Sheet log belum tersedia. Jalankan setup database.');
+    const rows=[...(snap.data?.trans||[])].filter(x=>x.id&&Number(x.nominal)>0&&x.kategori!=='Penyesuaian Saldo').sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0)||String(a.id).localeCompare(String(b.id)));
+    const ids=new Set(sh.getLastRow()>1?sh.getRange(2,2,sh.getLastRow()-1,1).getValues().map(r=>String(r[0])):[]);
+    if(!props.getProperty('expense-queue-initialized-v28-7')){
+      const previous=props.getProperty('latest-expense-notified'),at=rows.findIndex(x=>String(x.id)===previous);
+      const baseline=at>=0?rows.slice(0,at+1):rows.slice(0,-1);
+      const entries=baseline.filter(x=>!ids.has('expense:'+x.id)).map(x=>[new Date(),'expense:'+x.id,'Baseline sebelum notifikasi antrean']);
+      if(entries.length){const required=sh.getLastRow()+entries.length;if(required>sh.getMaxRows())sh.insertRowsAfter(sh.getMaxRows(),required-sh.getMaxRows());sh.getRange(sh.getLastRow()+1,1,entries.length,3).setValues(entries);entries.forEach(r=>ids.add(r[1]));}
+      props.setProperty('expense-queue-initialized-v28-7','true');
+    }
+    // Bound each run to avoid Telegram rate bursts; the next sync/check drains the rest.
+    for(const row of rows.filter(x=>!ids.has('expense:'+x.id)).slice(0,10)){
+      const message=expenseMessage_(snap,row);sendTelegram_(message,true);
+      log_('expense:'+row.id,message);ids.add('expense:'+row.id);
+      props.setProperty('latest-expense-notified',String(row.id));
+    }
+  }finally{lock.releaseLock();}
 }
 
 function expenseMessage_(snap,last){

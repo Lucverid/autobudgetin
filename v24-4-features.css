@@ -7,3 +7,25 @@
 /* v28.5.1 month-aware Spending Heatmap */
 .v244-heatmap-toolbar{display:grid;grid-template-columns:42px minmax(0,1fr) 42px;gap:8px;align-items:center;margin-top:10px}.v244-month-nav,.v244-month-title,.v244-heatmap-quick button{appearance:none;border:1px solid var(--border);background:rgba(148,163,184,.045);color:var(--text);font-family:inherit;cursor:pointer}.v244-month-nav{height:42px;border-radius:12px;display:grid;place-items:center;padding:0}.v244-month-nav svg{width:18px;height:18px}.v244-month-title{min-height:42px;border-radius:12px;padding:8px 12px;font-size:.75rem;font-weight:900;text-transform:capitalize;white-space:normal}.v244-heatmap-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px}.v244-heatmap-quick button{min-height:36px;border-radius:10px;padding:7px 8px;font-size:.61rem;font-weight:850;color:var(--text-dim)}.v244-heatmap-quick button:active,.v244-month-nav:active,.v244-month-title:active{transform:scale(.98)}.v244-day-detail{margin-top:14px;border-top:1px solid var(--border);padding-top:8px}.v244-day-detail-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:.72rem}.v244-day-detail-row span{color:var(--text-dim);text-align:left}.v244-day-detail-row b{color:var(--text);white-space:nowrap}.v244-heatmap-head{align-items:flex-start}
 @media(max-width:480px){.v244-heatmap-toolbar{grid-template-columns:40px minmax(0,1fr) 40px}.v244-month-nav{height:40px}.v244-month-title{min-height:40px;font-size:.7rem}.v244-heatmap-quick{gap:5px}.v244-heatmap-quick button{font-size:.57rem;padding:6px 5px}.v244-heatmap{gap:4px}.v244-day{border-radius:7px;font-size:.53rem}}
+
+/* Five budget levels; zero remains neutral in both themes. */
+#v244-heatmap-card{--heat-0:var(--surface);--heat-1:#203e35;--heat-2:#27634d;--heat-3:#8c521f;--heat-4:#a9424c;--heat-5:#722b3b}
+.light-mode #v244-heatmap-card{--heat-0:#f1f5f9;--heat-1:#e4f2e9;--heat-2:#8ac5a4;--heat-3:#f1bc79;--heat-4:#dc7783;--heat-5:#8b2c43}
+#v244-heatmap-card [data-level="0"]{background:var(--heat-0)}
+#v244-heatmap-card [data-level="1"]{background:var(--heat-1);color:#d9f0e4}
+#v244-heatmap-card [data-level="2"]{background:var(--heat-2);color:#effbf3}
+#v244-heatmap-card [data-level="3"]{background:var(--heat-3);color:#fff1de}
+#v244-heatmap-card [data-level="4"]{background:var(--heat-4);color:#fff1f3}
+#v244-heatmap-card [data-level="5"]{background:var(--heat-5);color:#fff1f4;font-weight:850}
+.light-mode #v244-heatmap-card [data-level="1"],.light-mode #v244-heatmap-card [data-level="2"]{color:#153b29}
+.light-mode #v244-heatmap-card [data-level="3"]{color:#492808}
+.light-mode #v244-heatmap-card [data-level="4"]{color:#421321}
+.light-mode #v244-heatmap-card [data-level="5"]{color:#fff}
+#v244-heatmap-card .v244-day.today{outline:2px solid var(--text-dim);outline-offset:2px}
+.v244-heatmap-budget{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:14px;background:rgba(148,163,184,.025)}
+.v244-heatmap-budget span{display:block;font-size:.62rem;color:var(--text-dim);line-height:1.5}.v244-heatmap-budget b{display:block;font-size:.8rem;margin-top:6px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.v244-heatmap-legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 12px;margin-top:14px}.v244-heatmap-legend span{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;color:var(--text-dim)}.v244-heatmap-legend i{display:block;flex:0 0 13px;width:13px;height:13px;border-radius:4px;border:1px solid rgba(148,163,184,.2)}
+#v244-heatmap-card .has-spend-unscaled:after{content:'';position:absolute;bottom:4px;left:calc(50% - 1.5px);width:3px;height:3px;border-radius:50%;background:var(--text-dim)}
+.v244-heatmap-quick button{display:flex;align-items:center;justify-content:center;gap:5px;font-weight:650}.v244-heatmap-quick button svg{width:13px;height:13px;stroke-width:1.7;flex-shrink:0}.v244-heatmap-label{display:flex!important;align-items:flex-start;gap:5px}.v244-heatmap-label svg{width:13px;height:13px;stroke-width:1.7;flex:0 0 13px;margin-top:2px}.v244-heatmap-head .section-title svg{stroke-width:1.7}.v244-day{transition:background-color .18s ease,border-color .18s ease}.v244-day:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+@media(max-width:380px){.v244-heatmap-budget{grid-template-columns:1fr 1fr}.v244-heatmap-budget>div:first-child{grid-column:1/-1}.v244-heatmap-legend{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:340px){.v244-heatmap-quick button{flex-direction:column;gap:3px;min-height:45px}}

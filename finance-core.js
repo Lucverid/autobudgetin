@@ -1,7 +1,7 @@
 /* Shared data rules. No network, credentials, or application state. */
 (function(root){
   'use strict';
-  const PREFS=['agis_finance_monthly_archive_v28_5','agis_finance_auto_budget_v28','agis_finance_auto_budget_applied_v28','agis_finance_smart_controls_v24_4','agis_finance_spending_class_v24_4','agis_finance_heatmap_month_v28_5_1','agis_theme','agis_privacy'];
+  const PREFS=['agis_finance_monthly_archive_v28_5','agis_finance_auto_budget_v28','agis_finance_auto_budget_applied_v28','agis_finance_smart_controls_v24_4','agis_finance_spending_class_v24_4','agis_finance_heatmap_month_v28_5_1','agis_theme','agis_privacy','agis_finance_heatmap_limits_v28_6_2'];
   function validDate(value){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value)))return false;
     const date=new Date(value+'T00:00:00Z');
@@ -58,6 +58,21 @@
   }
   function capturePreferences(storage){const out={};for(const key of PREFS){const value=storage.getItem(key);if(value!==null)out[key]=value;}return out;}
   function restorePreferences(storage,values){for(const key of PREFS){if(typeof values[key]==='string')storage.setItem(key,values[key]);}}
-  const api={validDate,validMonth,validateBackup,allocate,capturePreferences,restorePreferences};
+  function heatmapBudgetLevel(spent, monthlyLimit, days){
+    spent=Math.max(0,Number(spent)||0);monthlyLimit=Math.max(0,Number(monthlyLimit)||0);
+    const dailyLimit=monthlyLimit>0?monthlyLimit/Math.max(1,Number(days)||1):0;
+    const ratio=dailyLimit>0?spent/dailyLimit:null;
+    return {level:spent<=0||ratio===null?0:ratio<=.5?1:ratio<=.8?2:ratio<=1?3:ratio<=1.5?4:5,ratio,dailyLimit,monthlyPercent:monthlyLimit>0?spent/monthlyLimit*100:null};
+  }
+  function isRupiah(value, allowZero=false){return typeof value==='number'&&Number.isSafeInteger(value)&&(allowZero?value>=0:value>0);}
+  function operatingRows(rows){return (Array.isArray(rows)?rows:[]).filter(row=>row.kategori!=='Penyesuaian Saldo');}
+  function reserveIncrement(saved,target,requested,available){
+    if(!isRupiah(requested))throw new Error('Masukkan nominal rupiah yang valid.');
+    const increment=Math.min(requested,Math.max(0,target-saved));
+    if(increment<=0)throw new Error('Target tabungan sudah terpenuhi.');
+    if(increment>Math.max(0,available))throw new Error('Saldo tersedia belum cukup untuk disisihkan.');
+    return increment;
+  }
+  const api={isRupiah,operatingRows,reserveIncrement,heatmapBudgetLevel,validDate,validMonth,validateBackup,allocate,capturePreferences,restorePreferences};
   root.FinanceCore=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

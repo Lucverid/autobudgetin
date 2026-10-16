@@ -2,13 +2,13 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AutoBudgetin — v28.6.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>AutoBudgetin — v28.7.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
     <!-- v20: seluruh dependency UI/Firebase dilayani lokal agar app shell bisa dibuka tanpa internet -->
-    <script src="./finance-core.js?v=28.6.1"></script>
+    <script src="./finance-core.js?v=28.7.0"></script>
     <script src="./chart.min.js"></script>
     <script src="./sweetalert2.all.min.js"></script>
     <script src="./lucide.min.js"></script>
@@ -250,7 +250,7 @@
         @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 
     </style>
-    <link rel="stylesheet" href="./v24-4-features.css">
+    <link rel="stylesheet" href="./v24-4-features.css?rev=28.7.0">
     <link rel="stylesheet" href="./v24-5-automation.css">
     <link rel="stylesheet" href="./v24-6-layout.css">
     <link rel="stylesheet" href="./v25-features.css">
@@ -270,7 +270,8 @@
     <link rel="stylesheet" href="./v26-stable-tracking.css?v=26.0.2">
     <link rel="stylesheet" href="./v28-auto-budget-review.css?v=28.4.0">
     <link rel="stylesheet" href="./v28-5-monthly-archive.css?v=28.5.0">
-    <link rel="stylesheet" href="./v28-6-refinement.css?v=28.6.1">
+    <link rel="stylesheet" href="./v28-6-refinement.css?v=28.7.0">
+<link rel="stylesheet" href="./v28-7-professional.css?v=28.7.0">
 </head>
 <body>
 
@@ -288,7 +289,7 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 28.4 FINAL STABLE</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 28.7.0</p>
 </div>
 
 <div class="container">
@@ -296,11 +297,11 @@
         <div class="header">
             <div style="display:flex; gap:10px; align-items:center">
                 <span id="statusBadge" class="status-badge status-online" onclick="flushOutbox()" title="Ketuk untuk coba sinkronisasi" style="cursor:pointer">Online</span>
-                <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn"><i data-lucide="eye"></i></button>
+                <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn" aria-label="Sembunyikan nominal"><i data-lucide="eye"></i></button>
             </div>
             <div style="display:flex;gap:8px">
                 <button onclick="lockApp()" class="btn-icon" id="pinLockBtn" style="display:none" title="Kunci aplikasi"><i data-lucide="lock-keyhole"></i></button>
-                <button onclick="toggleTheme()" class="btn-icon"><i data-lucide="sun-moon"></i></button>
+                <button onclick="toggleTheme()" class="btn-icon" aria-label="Ganti tema"><i data-lucide="sun-moon"></i></button>
             </div>
         </div>
 
@@ -426,7 +427,7 @@
                 <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:12px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:800; cursor:pointer">XLSX</button>
             </div>
             <div class="filter-panel">
-                <input type="search" id="filterSearch" placeholder="Cari kategori, wallet, nama rutin..." oninput="renderAll()">
+                <input type="search" id="filterSearch" placeholder="Cari catatan, kategori, wallet..." oninput="renderAll()">
                 <div class="filter-grid">
                     <input type="month" id="filterMonth" onchange="renderAll()">
                     <select id="filterType" onchange="renderAll()">
@@ -619,7 +620,7 @@
     </div>
 </div>
 
-<button class="calc-toggle" onclick="toggleCalc()"><i data-lucide="calculator"></i></button>
+<button aria-label="Buka kalkulator" class="calc-toggle" onclick="toggleCalc()"><i data-lucide="calculator"></i></button>
 <div id="calc-container">
     <div class="calc-header" id="calcHeader"><div class="drag-handle"></div></div>
     <div class="calc-display" id="calcDisplay">0</div>
@@ -1311,11 +1312,10 @@
             "E-Wallet": parseMoneyField('set-e')
         };
 
-        store.wallets = normalizeWallets(data);
-        persistLocalSnapshot();
-        renderAll();
+        if (!Object.values(data).every(n=>FinanceCore.isRupiah(n,true))) return Swal.fire('Nominal tidak valid','Masukkan saldo rupiah yang valid.','warning');
         const walletNow = Date.now();
         enqueueSync({ opId:`wallets:${walletNow}`, type:'setWallets', data, createdAt:walletNow, updatedAt:walletNow });
+        store.wallets=normalizeWallets(data);persistLocalSnapshot();renderAll();
         auditEvent('Update saldo manual', `Tunai ${fmt(before.Tunai)} → ${fmt(data.Tunai)} · Bank ${fmt(before.Bank)} → ${fmt(data.Bank)} · E-Wallet ${fmt(before['E-Wallet'])} → ${fmt(data['E-Wallet'])}`);
 
         ['set-cash', 'set-bank', 'set-e'].forEach(id => {
@@ -1330,11 +1330,12 @@
     window.setLimit = () => {
         const cat = document.getElementById('l-cat').value;
         const val = parseMoneyField('l-amount');
+        if(!FinanceCore.isRupiah(val,true))return Swal.fire('Batas tidak valid','Masukkan nominal rupiah yang valid.','warning');
+        const limitNow = Date.now();
+        enqueueSync({ opId:`limit:${cat}:${limitNow}`, type:'setLimit', category:cat, amount:val, createdAt:limitNow, updatedAt:limitNow });
         store.limits = { ...store.limits, [cat]: val };
         persistLocalSnapshot();
         renderAll();
-        const limitNow = Date.now();
-        enqueueSync({ opId:`limit:${cat}:${limitNow}`, type:'setLimit', category:cat, amount:val, createdAt:limitNow, updatedAt:limitNow });
         auditEvent('Ubah limit', `${cat}: ${fmt(val)}`, {entityType:'limit', entityId:cat});
         document.getElementById('l-amount').value = '';
         queuedNotice(`Batas ${cat} disimpan.`, `Batas ${cat} tersimpan di perangkat dan akan sinkron saat online.`);
@@ -1369,7 +1370,9 @@
         return store.goal;
     }
 
+    const goalSourcesReady={config:false,items:false};
     function migrateLegacyGoal() {
+        if(!goalSourcesReady.config||!goalSourcesReady.items||localStorage.getItem(LEGACY_GOAL_MIGRATION_KEY)==='true')return;
         if ((store.goals || []).length || !(Number(store.goal) > 0)) return;
         const data = {
             name: 'Tabungan Utama', target: Number(store.goal), saved: Number(store.goal), deadline: '',
@@ -1400,8 +1403,12 @@
                 const target = Number(digitsOnly(document.getElementById('sg-target').value));
                 const saved = Number(digitsOnly(document.getElementById('sg-saved').value));
                 const deadline = document.getElementById('sg-deadline').value;
-                if (!name || !target || target <= 0) return Swal.showValidationMessage('Nama dan target wajib diisi.');
-                if (saved < 0) return Swal.showValidationMessage('Nominal disisihkan tidak valid.');
+                if (!name || !FinanceCore.isRupiah(target) || !FinanceCore.isRupiah(saved,true)) return Swal.showValidationMessage('Nama, target dan nominal rupiah harus valid.');
+                if(saved>target)return Swal.showValidationMessage('Dana disisihkan tidak boleh melebihi target.');
+                const other=(store.goals||[]).filter(g=>g.id!==id).reduce((n,g)=>n+(Number(g.saved)||0),0);
+                const total=Object.values(store.wallets).reduce((n,v)=>n+(Number(v)||0),0);
+                if(saved+other>total)return Swal.showValidationMessage('Dana yang disisihkan melebihi total saldo wallet.');
+                if(deadline&&!FinanceCore.validDate(deadline))return Swal.showValidationMessage('Tanggal deadline tidak valid.');
                 return { name, target, saved, deadline };
             }
         });
@@ -1409,8 +1416,8 @@
         const now = Date.now();
         const goalId = id || db.collection('goals').doc().id;
         const data = { ...result.value, createdAt:current?.createdAt || now, updatedAt:now, version:(Number(current?.version)||0)+1, deviceId:DEVICE_ID };
-        store.goals = [{ id:goalId, ...data, pendingSync:true }, ...(store.goals || []).filter(g => g.id !== goalId)];
         enqueueSync({ opId:`${id ? 'edit' : 'add'}-goal-item:${goalId}:${now}`, type:id?'editSavingsGoal':'addSavingsGoal', goalItemId:goalId, data, createdAt:now, baseUpdatedAt:Number(current?.updatedAt || current?.createdAt || 0), baseVersion:Number(current?.version || 0) });
+        store.goals = [{ id:goalId, ...data, pendingSync:true }, ...(store.goals || []).filter(g => g.id !== goalId)];
         auditEvent(id ? 'Edit target tabungan' : 'Tambah target tabungan', `${data.name} · target ${fmt(data.target)} · disisihkan ${fmt(data.saved)}`, {entityType:'goal',entityId:goalId});
         recomputeReservedGoal(true);
         renderAll(); flushOutbox();
@@ -1421,14 +1428,15 @@
         const current = goalById(id); if (!current) return;
         const r = await Swal.fire({ title:`Sisihkan ke ${escapeHtml(current.name)}`, input:'text', inputLabel:'Nominal', inputPlaceholder:'100.000', showCancelButton:true, confirmButtonText:'Sisihkan',
             didOpen:() => { const input = Swal.getInput(); if(input){ input.setAttribute('inputmode','numeric'); input.oninput=()=>formatMoneyField(input); } },
-            inputValidator:v => Number(digitsOnly(v)) > 0 ? undefined : 'Masukkan nominal yang valid.' });
+            inputValidator:v => FinanceCore.isRupiah(Number(digitsOnly(v))) ? undefined : 'Masukkan nominal rupiah yang valid.' });
         if (!r.isConfirmed) return;
-        const add = Number(digitsOnly(r.value));
+        if(Number(goalById(id)?.updatedAt||0)!==Number(current.updatedAt||0))return Swal.fire('Target berubah','Buka kembali target sebelum menyisihkan dana.','info');
+        let add;try{add=FinanceCore.reserveIncrement(Number(current.saved)||0,Number(current.target)||0,Number(digitsOnly(r.value)),Object.values(store.wallets).reduce((n,v)=>n+(Number(v)||0),0)-(Number(store.goal)||0));}catch(error){return Swal.fire('Belum bisa disisihkan',error.message,'warning');}
         const now = Date.now();
         const data = { ...current, saved:Math.min(Number(current.target)||0,(Number(current.saved)||0)+add), updatedAt:now, version:(Number(current.version)||1)+1, deviceId:DEVICE_ID };
         delete data.id; delete data.pendingSync;
-        store.goals = store.goals.map(g => g.id === id ? {id, ...data, pendingSync:true} : g);
         enqueueSync({ opId:`fund-goal:${id}:${now}`, type:'editSavingsGoal', goalItemId:id, data, createdAt:now, baseUpdatedAt:Number(current.updatedAt||current.createdAt||0), baseVersion:Number(current.version||1) });
+        store.goals = store.goals.map(g => g.id === id ? {id, ...data, pendingSync:true} : g);
         auditEvent('Sisihkan dana tabungan', `${current.name}: +${fmt(add)}`, {entityType:'goal',entityId:id});
         recomputeReservedGoal(true); renderAll(); flushOutbox();
     };
@@ -1485,7 +1493,7 @@
             showCancelButton:true, confirmButtonText:'Simpan', cancelButtonText:'Batal', focusConfirm:false,
             preConfirm:()=>{
                 const data={name:document.getElementById('rr-name').value.trim(),type:document.getElementById('rr-type').value,dompet:document.getElementById('rr-wallet').value,kategori:document.getElementById('rr-cat').value,nominal:Number(digitsOnly(document.getElementById('rr-amount').value)),frequency:document.getElementById('rr-frequency').value,nextDate:document.getElementById('rr-next').value,active:document.getElementById('rr-active').checked};
-                if(!data.name||!data.nominal||!data.nextDate) return Swal.showValidationMessage('Nama, nominal, dan tanggal wajib diisi.');
+                if(!data.name||!FinanceCore.isRupiah(data.nominal)||!FinanceCore.validDate(data.nextDate)) return Swal.showValidationMessage('Nama, nominal rupiah dan tanggal harus valid.');
                 return data;
             }
         });
@@ -1535,7 +1543,7 @@
         try{
             const today=localDateKey(); let changed=false;
             (store.recurring||[]).forEach(rule=>{
-                if(rule.active===false||!rule.nextDate)return;
+                if(rule.active===false||!FinanceCore.validDate(rule.nextDate)||!FinanceCore.isRupiah(Number(rule.nominal))||!['Tunai','Bank','E-Wallet'].includes(rule.dompet)||!['weekly','monthly'].includes(rule.frequency))return;
                 let due=rule.nextDate, loops=0;
                 while(due<=today && loops<24){
                     const type=rule.type==='income'?'income':'expense';
@@ -1688,7 +1696,7 @@
             preConfirm: () => {
                 const tanggal = document.getElementById('edit-date')?.value;
                 const nominal = Number(digitsOnly(document.getElementById('edit-amount')?.value));
-                if (!tanggal || !nominal) return Swal.showValidationMessage('Tanggal dan nominal wajib diisi.');
+                if (!FinanceCore.validDate(tanggal) || !FinanceCore.isRupiah(nominal)) return Swal.showValidationMessage('Tanggal dan nominal rupiah harus valid.');
                 if (isTransfer) {
                     const dari = document.getElementById('edit-from').value;
                     const ke = document.getElementById('edit-to').value;
@@ -1701,9 +1709,9 @@
         if (!result.isConfirmed || !result.value) return;
 
         const editNow = Date.now();
-        const data = { ...result.value, updatedAt:editNow, version:(Number(current.version)||1)+1, deviceId:DEVICE_ID };
-        applyWalletDeltaLocal(combineWalletDeltas(walletDeltaForData(type, current, -1), walletDeltaForData(type, data, 1)));
-        replaceRecord(type, id, data);
+        const data = { ...cleanBackupRecord(current), ...result.value, updatedAt:editNow, version:(Number(current.version)||1)+1, deviceId:DEVICE_ID };
+        delete data.id;
+        if (Number(getRecord(type,id)?.updatedAt||0)!==Number(current.updatedAt||0)) return Swal.fire('Data berubah','Buka ulang transaksi sebelum mengedit.','info');
         const baseMeta = { createdAt:editNow, baseUpdatedAt:Number(current.updatedAt||current.createdAt||0), baseVersion:Number(current.version||1) };
         const op = type === 'expense'
             ? { opId:`edit-expense:${id}:${editNow}`, type:'editExpense', expenseId:id, data, ...baseMeta }
@@ -1711,6 +1719,8 @@
                 ? { opId:`edit-income:${id}:${editNow}`, type:'editIncome', incomeId:id, data, ...baseMeta }
                 : { opId:`edit-transfer:${id}:${editNow}`, type:'editTransfer', transferId:id, data, ...baseMeta };
         enqueueSync(op);
+        applyWalletDeltaLocal(combineWalletDeltas(walletDeltaForData(type, current, -1), walletDeltaForData(type, data, 1)));
+        replaceRecord(type,id,data);
         auditEvent('Edit transaksi', `${type} · ${fmt(current.nominal)} → ${fmt(data.nominal)}`, {entityType:type,entityId:id});
         persistLocalSnapshot();
         renderAll();
@@ -1749,7 +1759,7 @@
         const actual=parseMoneyField('reconcile-actual');
         const current=Number(store.wallets[wallet])||0;
         const delta=actual-current;
-        if (!document.getElementById('reconcile-actual')?.value) return Swal.fire('Saldo belum diisi','Masukkan saldo sebenarnya.','warning');
+        if (!FinanceCore.isRupiah(actual,true) || !document.getElementById('reconcile-actual')?.value) return Swal.fire('Saldo belum diisi','Masukkan saldo sebenarnya.','warning');
         if (delta===0) return Swal.fire('Sudah cocok',`${wallet} sudah ${fmt(current)}. Tidak ada penyesuaian.`, 'success');
         const type=delta>0?'income':'expense'; const nominal=Math.abs(delta); const now=Date.now();
         const confirm=await Swal.fire({title:'Buat penyesuaian saldo?',html:`${wallet}: <b>${fmt(current)}</b> → <b>${fmt(actual)}</b><br><span style="color:#64748b;font-size:.8rem">Selisih ${delta>0?'+':'-'}${fmt(nominal)} akan masuk ke riwayat.</span>`,icon:'question',showCancelButton:true,confirmButtonText:'Buat Penyesuaian',cancelButtonText:'Batal'}); if(!confirm.isConfirmed)return;
@@ -2017,7 +2027,7 @@
         const start7 = new Date(today); start7.setDate(start7.getDate() - 6); start7.setHours(0,0,0,0);
         const prevEnd = new Date(start7); prevEnd.setMilliseconds(-1);
         const prevStart = new Date(start7); prevStart.setDate(prevStart.getDate() - 7); prevStart.setHours(0,0,0,0);
-        const relevant = store.trans.filter(t => t.tanggal && dateFromKey(t.tanggal) <= today);
+        const relevant = FinanceCore.operatingRows(store.trans).filter(t => t.tanggal && dateFromKey(t.tanggal) <= today);
         const last7 = sumRange(relevant, start7, today);
         const prev7 = sumRange(relevant, prevStart, prevEnd);
         const avg7 = last7 / 7;
@@ -2027,18 +2037,18 @@
         // menguranginya. Tambahkan kembali pengeluaran hari ini sebelum membagi
         // sisa hari agar jatah total hari ini tidak terpotong dua kali.
         const todayKey = localDateKey();
-        const spentTodayForSafe = store.trans
+        const spentTodayForSafe = FinanceCore.operatingRows(store.trans)
             .filter(t => t.tanggal === todayKey)
             .reduce((sum, t) => sum + Number(t.nominal || 0), 0);
         const safeDaily = calculateSafeToday(disposable, remainingDays, spentTodayForSafe).dailyLimit;
         const daysAfterToday = Math.max(remainingDays - 1, 0);
         const predictedEnd = disposable - (avg7 * daysAfterToday);
 
-        let status = 'AMAN', statusClass = 'insight-safe', statusIcon = '🟢';
+        let status = 'AMAN', statusClass = 'insight-safe', statusIcon = 'shield-check';
         if (disposable <= 0 || predictedEnd < 0) {
-            status = 'KRITIS'; statusClass = 'insight-danger'; statusIcon = '🔴';
+            status = 'KRITIS'; statusClass = 'insight-danger'; statusIcon = 'circle-alert';
         } else if (avg7 > safeDaily * 1.15 && avg7 > 0) {
-            status = 'WASPADA'; statusClass = 'insight-warn'; statusIcon = '🟡';
+            status = 'WASPADA'; statusClass = 'insight-warn'; statusIcon = 'triangle-alert';
         }
 
         let comparison = 'Belum cukup data pembanding.';
@@ -2123,12 +2133,12 @@
         const currentMonthKey = window.getActivePeriodV285?.() || calendarMonthKey;
         const insightCats = {}; let monthExpense = 0; let monthIncome = 0;
         store.trans.forEach(t => {
-            if (t.tanggal?.startsWith(currentMonthKey)) {
+            if (t.kategori!==SYSTEM_ADJUSTMENT_CATEGORY && t.tanggal?.startsWith(currentMonthKey)) {
                 insightCats[t.kategori] = (insightCats[t.kategori] || 0) + Number(t.nominal || 0);
                 monthExpense += Number(t.nominal || 0);
             }
         });
-        store.incomes.forEach(t => { if (t.tanggal?.startsWith(currentMonthKey)) monthIncome += Number(t.nominal || 0); });
+        store.incomes.forEach(t => { if (t.kategori!==SYSTEM_ADJUSTMENT_CATEGORY && t.tanggal?.startsWith(currentMonthKey)) monthIncome += Number(t.nominal || 0); });
         const netCashflow = monthIncome - monthExpense;
         const savingsRate = monthIncome > 0 ? (netCashflow / monthIncome) * 100 : null;
 
@@ -2167,9 +2177,9 @@
             remainingDays:Number(remainingDays)||0
         };
         document.dispatchEvent(new CustomEvent('agis:financial-pace',{detail:window.__agisFinancialPace}));
-        const todayKey=localDateKey(); const todayRows=store.trans.filter(t=>t.tanggal===todayKey); const spentToday=todayRows.reduce((sum,t)=>sum+Number(t.nominal||0),0); const remainingSafe=Math.max(0,Math.floor(insight.safeDaily-spentToday));
+        const todayKey=localDateKey(); const todayRows=FinanceCore.operatingRows(store.trans).filter(t=>t.tanggal===todayKey); const spentToday=todayRows.reduce((sum,t)=>sum+Number(t.nominal||0),0); const remainingSafe=Math.max(0,Math.floor(insight.safeDaily-spentToday));
         const totalGoalTarget=(store.goals||[]).reduce((sum,g)=>sum+Math.max(0,Number(g.target)||0),0); const totalGoalSaved=(store.goals||[]).reduce((sum,g)=>sum+Math.max(0,Number(g.saved)||0),0); const goalPct=totalGoalTarget>0?Math.min(100,(totalGoalSaved/totalGoalTarget)*100):0;
-        const statusEl=document.getElementById('home-fin-status'); if(statusEl){statusEl.textContent=`${insight.statusIcon} ${insight.status}`;statusEl.style.color=insight.status==='AMAN'?'var(--success)':insight.status==='WASPADA'?'var(--warning)':'var(--danger)';}
+        const statusEl=document.getElementById('home-fin-status'); if(statusEl){statusEl.textContent=insight.status;statusEl.style.color=insight.status==='AMAN'?'var(--success)':insight.status==='WASPADA'?'var(--warning)':'var(--danger)';}
         const statusNote=document.getElementById('home-fin-status-note');if(statusNote)statusNote.textContent=insight.predictedEnd>=0?'Pace bulan ini masih tertahan.':'Prediksi akhir bulan mulai defisit.';
         const safeEl=document.getElementById('home-safe-today');if(safeEl)safeEl.textContent=fmt(remainingSafe); const safeNote=document.getElementById('home-safe-note');if(safeNote)safeNote.textContent=`Batas ${fmt(Math.floor(insight.safeDaily))} · sudah keluar ${fmt(spentToday)}`;
         const carry=updateCarryOver(insight.safeDaily); const carryEl=document.getElementById('home-carry-over');if(carryEl)carryEl.textContent=fmt(carry.balance); const carryNote=document.getElementById('home-carry-note');if(carryNote)carryNote.innerHTML=`Potensi hari ini <span class="carry-over-potential">+${fmt(carry.potential)}</span> · masuk setelah hari berganti. Keluarga & Pemberian tidak mengurangi carry-over.`;
@@ -2187,7 +2197,7 @@
         const goalInsight = nearestGoal ? `<div class="insight-row">🎯 ${escapeHtml(nearestGoal.name)}: <b>${Math.min(100,((Number(nearestGoal.saved)||0)/(Number(nearestGoal.target)||1))*100).toFixed(0)}%</b> · kurang ${fmt(Math.max(0,(Number(nearestGoal.target)||0)-(Number(nearestGoal.saved)||0)))}</div>` : '';
 
         document.getElementById('advisorContent').innerHTML = `
-            <div class="insight-status ${insight.statusClass}">${insight.statusIcon} ${insight.status}</div>
+            <div class="insight-status ${insight.statusClass}"><i data-lucide="${insight.statusIcon}"></i> ${insight.status}</div>
             <div class="insight-row">💸 Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
             <div class="insight-row">💾 Budget tersimpan: <b style="color:var(--success)">${fmt(carry.balance)}</b> · potensi hari ini +${fmt(carry.potential)}</div>
             <div class="insight-row">🔥 No-spend streak: <b>${streak} hari</b></div>
@@ -2357,6 +2367,7 @@
         }, err => console.warn('Wallet listener:', err));
 
         db.collection('config').doc('goal').onSnapshot({ includeMetadataChanges: true }, (s) => {
+            if(!s.metadata?.fromCache)goalSourcesReady.config=true;
             if(s.exists && readOutbox().length === 0) {
                 if ((store.goals || []).length) recomputeReservedGoal(false);
                 else store.goal = Number(s.data().amount) || 0;
@@ -2399,6 +2410,7 @@
         }, err => console.warn('Transfer listener:', err));
 
         db.collection('goals').onSnapshot({ includeMetadataChanges: true }, (snap) => {
+            if(!snap.metadata?.fromCache)goalSourcesReady.items=true;
             if (readOutbox().some(op=>op.type==='restoreSnapshot')) return;
             const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));
             const emptyUnprimedOfflineCache=snap.metadata.fromCache&&incoming.length===0&&(store.goals||[]).length>0;
@@ -2494,22 +2506,22 @@
         valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
     }
 </script>
-<script src="./v24-4-features.js"></script>
+<script src="./v24-4-features.js?rev=28.7.0"></script>
 <script src="./v24-5-automation.js"></script>
-<script src="./v25-features.js?rev=28.6.1"></script>
+<script src="./v25-features.js?rev=28.7.0"></script>
 <script src="./v25-1-mobile.js"></script>
 <script src="./v25-2-clean-home.js"></script>
 <script src="./v25-3-health-pulse.js"></script>
 <script src="./v25-3-1-quick-transaction.js"></script>
 <script src="./v25-3-3-financial-plan.js?v=26.0.1"></script>
 <script src="./v25-3-10-health-engine.js"></script>
-<script src="./v25-5-17-easter-egg.js?rev=28.6.1"></script>
+<script src="./v25-5-17-easter-egg.js?rev=28.7.0"></script>
 <script src="./v26-decision-lab.js?v=26.0.5"></script>
 <script src="./v26-stable-tracking.js?v=26.0.2"></script>
 <script src="./v26-tracking-money-format.js?v=26.0.2"></script>
 <script src="./v26-feature-switcher.js?v=26.0.3"></script>
-<script src="./v28-auto-budget-review.js?v=28.4.0&rev=28.6.1"></script>
-<script src="./v28-5-monthly-archive.js?v=28.5.2&rev=28.6.1"></script>
-<script src="./v28-6-refinement.js?v=28.6.1"></script>
+<script src="./v28-auto-budget-review.js?v=28.4.0&rev=28.7.0"></script>
+<script src="./v28-5-monthly-archive.js?v=28.5.2&rev=28.7.0"></script>
+<script src="./v28-6-refinement.js?v=28.7.1"></script>
 </body>
 </html>
