@@ -68,7 +68,7 @@
   function loadPet(){ try{ return Object.assign(defaultPet(), JSON.parse(localStorage.getItem(PET_KEY)||'{}')); }catch{ return defaultPet(); } }
   function savePet(){ localStorage.setItem(PET_KEY, JSON.stringify(state.pet)); }
 
-  function readTransactions(){ try{ return Array.isArray(window.store?.trans) ? window.store.trans : []; }catch{ return []; } }
+  function readTransactions(){ try{ const data = typeof store !== 'undefined' ? store : window.store; return Array.isArray(data?.trans) ? data.trans : []; }catch{ return []; } }
   function expenseForDate(dateKey){ return readTransactions().filter(x=>String(x.tanggal||'').startsWith(dateKey) && x.kategori !== 'Penyesuaian Saldo').reduce((s,x)=>s+(Number(x.nominal)||0),0); }
   function txCountForDate(dateKey){ return readTransactions().filter(x=>String(x.tanggal||'').startsWith(dateKey) && x.kategori !== 'Penyesuaian Saldo').length; }
 
