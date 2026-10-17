@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>AutoBudgetin — v28.7.1</title>
+    <title>AutoBudgetin — v28.8.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     
@@ -272,6 +272,7 @@
     <link rel="stylesheet" href="./v28-5-monthly-archive.css?v=28.5.0">
     <link rel="stylesheet" href="./v28-6-refinement.css?v=28.7.0">
 <link rel="stylesheet" href="./v28-7-professional.css?v=28.7.0">
+    <link rel="stylesheet" href="./v28-8-ui.css?v=28.8.0">
 </head>
 <body>
 
@@ -289,25 +290,26 @@
 <div id="splash-screen">
     <div class="spinner"></div>
     <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 28.7.0</p>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 28.8.0</p>
 </div>
 
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
+            <div class="app-wordmark">AutoBudgetin<span>PERSONAL FINANCE</span></div>
             <div style="display:flex; gap:10px; align-items:center">
                 <span id="statusBadge" class="status-badge status-online" onclick="flushOutbox()" title="Ketuk untuk coba sinkronisasi" style="cursor:pointer">Online</span>
                 <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn" aria-label="Sembunyikan nominal"><i data-lucide="eye"></i></button>
             </div>
             <div style="display:flex;gap:8px">
                 <button onclick="lockApp()" class="btn-icon" id="pinLockBtn" style="display:none" title="Kunci aplikasi"><i data-lucide="lock-keyhole"></i></button>
-                <button onclick="toggleTheme()" class="btn-icon" aria-label="Ganti tema"><i data-lucide="sun-moon"></i></button>
+                <button aria-label="Buka kalkulator" class="btn-icon ui-calculator" onclick="toggleCalc()"><i data-lucide="calculator"></i></button><button onclick="toggleTheme()" class="btn-icon" aria-label="Ganti tema"><i data-lucide="sun-moon"></i></button>
             </div>
         </div>
 
         <div class="v2535-balance-savings-row" aria-label="Ringkasan saldo dan tabungan">
             <div class="master-balance v2534-balance-only" aria-label="Saldo tersedia">
-                <span class="master-amount" id="total-balance">Rp 0</span>
+                <span class="balance-eyebrow">Saldo tersedia</span><span class="master-amount" id="total-balance">Rp 0</span>
             </div>
             <div class="goal-info v2535-savings-inline" onclick="nav('settings')" title="Buka target tabungan">
                 <i data-lucide="target" aria-hidden="true"></i>
@@ -422,30 +424,21 @@
 
     <div id="history" class="page">
         <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-                <h2 style="font-size:1rem; font-weight:700">Riwayat</h2>
-                <button onclick="exportToExcel()" style="padding:8px 15px; border-radius:12px; background:#22c55e; color:white; border:none; font-size:0.7rem; font-weight:800; cursor:pointer">XLSX</button>
-            </div>
+            <div class="ui-history-heading"><div><span class="ui-eyebrow">TRANSAKSI</span><h2>Riwayat keuangan</h2><p>Semua aktivitas uang dalam satu tempat.</p></div><div class="ui-heading-actions"><button aria-label="Buka kalkulator" class="btn-icon ui-calculator" onclick="toggleCalc()"><i data-lucide="calculator"></i></button><button class="ui-export" onclick="exportToExcel()"><i data-lucide="download"></i><span>Ekspor</span></button></div></div>
             <div class="filter-panel">
-                <input type="search" id="filterSearch" placeholder="Cari catatan, kategori, wallet..." oninput="renderAll()">
-                <div class="filter-grid">
-                    <input type="month" id="filterMonth" onchange="renderAll()">
-                    <select id="filterType" onchange="renderAll()">
-                        <option value="all">Semua jenis</option>
-                        <option value="expense">Pengeluaran</option>
-                        <option value="income">Pemasukan</option>
-                        <option value="transfer">Transfer</option>
-                    </select>
-                    <select id="filterWallet" onchange="renderAll()">
-                        <option value="all">Semua wallet</option>
-                        <option value="Tunai">Tunai</option><option value="Bank">Bank</option><option value="E-Wallet">E-Wallet</option>
-                    </select>
-                    <select id="filterCategory" onchange="renderAll()"><option value="all">Semua kategori</option></select>
-                    <input type="date" id="filterFrom" onchange="renderAll()" aria-label="Tanggal mulai">
-                    <input type="date" id="filterTo" onchange="renderAll()" aria-label="Tanggal akhir">
-                    <input type="text" id="filterMin" placeholder="Nominal minimum" inputmode="numeric" oninput="formatMoneyField(this);renderAll()">
-                    <input type="text" id="filterMax" placeholder="Nominal maksimum" inputmode="numeric" oninput="formatMoneyField(this);renderAll()">
+                <input type="search" id="filterSearch" placeholder="Cari transaksi…" aria-label="Cari catatan, kategori, atau wallet" oninput="renderAll()">
+                <div class="ui-filter-basic">
+                    <label><span>Periode</span><input type="month" id="filterMonth" onchange="renderAll()"></label>
+                    <label><span>Jenis transaksi</span><select id="filterType" onchange="renderAll()"><option value="all">Semua jenis</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option></select></label>
                 </div>
+                <details class="ui-filter-advanced"><summary><span><i data-lucide="sliders-horizontal"></i> Filter lanjutan</span><i data-lucide="chevron-down"></i></summary><div class="filter-grid">
+                    <label><span>Wallet</span><select id="filterWallet" onchange="renderAll()"><option value="all">Semua wallet</option><option value="Tunai">Tunai</option><option value="Bank">Bank</option><option value="E-Wallet">E-Wallet</option></select></label>
+                    <label><span>Kategori</span><select id="filterCategory" onchange="renderAll()"><option value="all">Semua kategori</option></select></label>
+                    <label><span>Dari tanggal</span><input type="date" id="filterFrom" onchange="renderAll()" aria-label="Tanggal mulai"></label>
+                    <label><span>Sampai tanggal</span><input type="date" id="filterTo" onchange="renderAll()" aria-label="Tanggal akhir"></label>
+                    <label><span>Nominal minimum</span><input type="text" id="filterMin" placeholder="Rp 0" inputmode="numeric" oninput="formatMoneyField(this);renderAll()"></label>
+                    <label><span>Nominal maksimum</span><input type="text" id="filterMax" placeholder="Tanpa batas" inputmode="numeric" oninput="formatMoneyField(this);renderAll()"></label>
+                </div></details>
                 <div class="filter-actions">
                     <div class="filter-summary" id="historyFilterSummary">0 transaksi</div>
                     <button class="filter-reset" onclick="resetHistoryFilters()">Reset Filter</button>
@@ -620,7 +613,7 @@
     </div>
 </div>
 
-<button aria-label="Buka kalkulator" class="calc-toggle" onclick="toggleCalc()"><i data-lucide="calculator"></i></button>
+
 <div id="calc-container">
     <div class="calc-header" id="calcHeader"><div class="drag-handle"></div></div>
     <div class="calc-display" id="calcDisplay">0</div>
@@ -2087,7 +2080,7 @@
         if (list) list.innerHTML = '';
         const filteredHistory = allTransactions().filter(historyMatchesFilters);
         const filterSummary=document.getElementById('historyFilterSummary');
-        if(filterSummary){const out=filteredHistory.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.nominal||0),0),inc=filteredHistory.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.nominal||0),0);filterSummary.textContent=`${filteredHistory.length} transaksi · Masuk ${fmt(inc)} · Keluar ${fmt(out)}`;}
+        if(filterSummary){const out=filteredHistory.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.nominal||0),0),inc=filteredHistory.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.nominal||0),0);filterSummary.innerHTML=`<span><small>Transaksi</small><b>${filteredHistory.length}</b></span><span><small>Masuk</small><b class="ui-positive">${fmt(inc)}</b></span><span><small>Keluar</small><b class="ui-negative">${fmt(out)}</b></span>`;}
 
         const filterSignature = ['filterMonth','filterType','filterWallet','filterCategory','filterFrom','filterTo','filterMin','filterMax','filterSearch'].map(id=>document.getElementById(id)?.value||'').join('|');
         if (filterSignature !== historyFilterSignature) { historyPage = 1; historyFilterSignature = filterSignature; }
@@ -2106,12 +2099,12 @@
                 title = 'Transfer'; sub = `${escapeHtml(t.tanggal)} <span>•</span> ${escapeHtml(t.dari)} → ${escapeHtml(t.ke)} ${pending}`; amount = fmt(t.nominal); amountClass = 'transfer';
             }
             historyMarkup.push(`
-                <div class="t-item">
-                    <div class="t-info"><span class="t-cat-name">${title}</span><div class="t-sub-info">${sub}</div></div>
+                <div class="t-item" data-type="${t.type}">
+                    <span class="ui-transaction-icon" aria-hidden="true"><i data-lucide="${t.type==='income'?'arrow-down-left':t.type==='transfer'?'arrow-left-right':'arrow-up-right'}"></i></span><div class="t-info"><span class="t-cat-name">${title}</span><div class="t-sub-info">${sub}</div></div>
                     <div class="t-amt ${amountClass}">${amount}</div>
                     <div class="t-actions">
-                        <button class="t-action" onclick="editTransaction('${escapeHtml(escapeJs(t.id))}','${t.type}')" title="Edit"><i data-lucide="pencil"></i></button>
-                        <button class="t-action" onclick="removeTransaction('${escapeHtml(escapeJs(t.id))}','${t.type}')" title="Hapus"><i data-lucide="trash-2"></i></button>
+                        <button class="t-action" aria-label="Edit transaksi" onclick="editTransaction('${escapeHtml(escapeJs(t.id))}','${t.type}')" title="Edit"><i data-lucide="pencil"></i></button>
+                        <button class="t-action" aria-label="Hapus transaksi" onclick="removeTransaction('${escapeHtml(escapeJs(t.id))}','${t.type}')" title="Hapus"><i data-lucide="trash-2"></i></button>
                     </div>
                 </div>`);
         });
@@ -2183,7 +2176,7 @@
         const statusNote=document.getElementById('home-fin-status-note');if(statusNote)statusNote.textContent=insight.predictedEnd>=0?'Pace bulan ini masih tertahan.':'Prediksi akhir bulan mulai defisit.';
         const safeEl=document.getElementById('home-safe-today');if(safeEl)safeEl.textContent=fmt(remainingSafe); const safeNote=document.getElementById('home-safe-note');if(safeNote)safeNote.textContent=`Batas ${fmt(Math.floor(insight.safeDaily))} · sudah keluar ${fmt(spentToday)}`;
         const carry=updateCarryOver(insight.safeDaily); const carryEl=document.getElementById('home-carry-over');if(carryEl)carryEl.textContent=fmt(carry.balance); const carryNote=document.getElementById('home-carry-note');if(carryNote)carryNote.innerHTML=`Potensi hari ini <span class="carry-over-potential">+${fmt(carry.potential)}</span> · masuk setelah hari berganti. Keluarga & Pemberian tidak mengurangi carry-over.`;
-        const streak=calculateNoSpendStreak(); const streakEl=document.getElementById('home-no-spend-streak');if(streakEl)streakEl.textContent=`${streak} hari`; const streakNote=document.getElementById('home-no-spend-note');if(streakNote)streakNote.textContent=streak?`🔥 ${streak} hari tanpa belanja konsumtif berturut-turut`:'Ada pengeluaran konsumtif hari ini.';
+        const streak=calculateNoSpendStreak(); const streakEl=document.getElementById('home-no-spend-streak');if(streakEl)streakEl.textContent=`${streak} hari`; const streakNote=document.getElementById('home-no-spend-note');if(streakNote)streakNote.textContent=streak?`${streak} hari tanpa belanja konsumtif berturut-turut`:'Ada pengeluaran konsumtif hari ini.';
         const predEl=document.getElementById('home-eom-prediction'); const predNote=document.getElementById('home-eom-note'); if(predEl){if(insight.avg7>0){predEl.textContent=fmt(Math.max(0,Math.floor(insight.predictedEnd)));predEl.style.color=insight.predictedEnd>=0?'var(--success)':'var(--danger)';}else{predEl.textContent='Belum cukup data';predEl.style.color='var(--text-dim)';}} if(predNote)predNote.textContent=insight.avg7>0?(insight.predictedEnd>=0?`Estimasi sisa · pace ${fmt(Math.round(insight.avg7))}/hari`:`Defisit ${fmt(Math.abs(Math.floor(insight.predictedEnd)))} jika pace berlanjut`):'Butuh data pengeluaran untuk proyeksi.';
         const recoveryTarget=readRecoveryTarget(); const recoveryValue=document.getElementById('home-recovery-value'); const recoveryNote=document.getElementById('home-recovery-note'); const recoveryBar=document.getElementById('home-recovery-bar'); if(recoveryTarget){const rp=recoveryProgress(recoveryTarget,readCarryOverState());if(recoveryValue)recoveryValue.textContent=`${fmt(rp.recovered)} / ${fmt(recoveryTarget.amount)}`;if(recoveryNote)recoveryNote.textContent=`${recoveryTarget.name} · ${rp.pct.toFixed(0)}% pulih · kurang ${fmt(rp.remaining)}`;if(recoveryBar)recoveryBar.style.width=`${rp.pct}%`;}else{if(recoveryValue)recoveryValue.textContent='Belum dibuat';if(recoveryNote)recoveryNote.textContent='Contoh: pulihkan Rp100k dari carry-over yang terkumpul.';if(recoveryBar)recoveryBar.style.width='0%';}
         const spentEl=document.getElementById('home-spent-today');if(spentEl)spentEl.textContent=fmt(spentToday);const spentNote=document.getElementById('home-spent-note');if(spentNote){if(currentMonthKey!==calendarMonthKey)spentNote.textContent=`Hari ini ${fmt(spentToday)} · ${currentMonthKey} sudah keluar ${fmt(monthExpense)}`;else spentNote.textContent=`${todayRows.length} transaksi pengeluaran`; }
@@ -2514,7 +2507,7 @@
 <script src="./v25-3-health-pulse.js"></script>
 <script src="./v25-3-1-quick-transaction.js"></script>
 <script src="./v25-3-3-financial-plan.js?v=26.0.1"></script>
-<script src="./v25-3-10-health-engine.js"></script>
+<script src="./v25-3-10-health-engine.js?v=28.8.0"></script>
 <script src="./v25-5-17-easter-egg.js?rev=28.7.0"></script>
 <script src="./v26-decision-lab.js?v=26.0.5"></script>
 <script src="./v26-stable-tracking.js?v=26.0.2"></script>

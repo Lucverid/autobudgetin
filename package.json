@@ -1,1 +1,1 @@
-{"name":"autobudgetin","private":true,"version":"28.7.1","description":"Personal offline finance dashboard","scripts":{"test":"node --test tests/*.test.cjs"}}
+{"name":"autobudgetin","private":true,"version":"28.8.0","description":"Personal offline finance dashboard","scripts":{"test":"node --test tests/*.test.cjs"}}

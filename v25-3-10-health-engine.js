@@ -94,7 +94,7 @@
     if (!statusEl) return;
 
     if (status === 'END') {
-      statusEl.textContent = '⚫ END';
+      statusEl.textContent = 'END';
       statusEl.style.color = 'var(--text-dim)';
       if (noteEl) noteEl.textContent = pace.disposable < 0
         ? 'Saldo tersedia sudah minus.'
@@ -106,7 +106,7 @@
     // repairs a stale END display if money becomes available again before a full render.
     if (/\bEND\b/i.test(statusEl.textContent || '')) {
       const state = viewState(status);
-      statusEl.textContent = `${state.icon} ${state.label}`;
+      statusEl.textContent = state.label;
       statusEl.style.color = status === 'AMAN'
         ? 'var(--success)'
         : status === 'WASPADA' ? 'var(--warning)' : 'var(--danger)';
