@@ -24,7 +24,7 @@ test('feature switcher is additive and precached for offline mode', () => {
     assert.ok(html.includes(asset), 'HTML reference: ' + asset);
     assert.ok(shell.APP_SHELL.includes(asset), 'offline cache: ' + asset);
   }
-  assert.equal(shell.CACHE_NAME, 'agis-finance-v28-6-1-cat-reward');
+  assert.equal(shell.CACHE_NAME, 'agis-finance-v28-7-1-clean-home');
 });
 
 test('database and Decision Lab storage remain untouched by the UI switcher', () => {

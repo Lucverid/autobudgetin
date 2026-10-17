@@ -6,7 +6,7 @@ assert(js.includes('heatmapMonthKey'), 'heatmap month state missing');
 assert(js.includes('shiftHeatmapMonthV2851'), 'month navigation missing');
 assert(js.includes('openHeatmapArchiveV2851'), 'archive selector missing');
 assert(js.includes("heatmapData(mk=getHeatmapMonth())"), 'month-specific heatmap data missing');
-assert(js.includes("Skala warna dihitung ulang untuk setiap bulan"), 'per-month scale note missing');
+assert(js.includes("Skala warna mengikuti batas budget bulanan"), 'per-month scale note missing');
 assert(js.includes('v244-day-detail-row'), 'day category breakdown missing');
 assert(css.includes('.v244-heatmap-toolbar'), 'responsive toolbar CSS missing');
 assert(css.includes('@media(max-width:480px)'), 'mobile CSS missing');
