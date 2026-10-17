@@ -33,7 +33,7 @@
   function normalizeWeights(raw){const out={};BUCKETS.forEach(b=>out[b]=Math.max(0,Number(raw?.[b]??DEFAULT_WEIGHTS[b]??0)));return out}
   function savingsValue(cfg,income){
     const direct=Math.max(0,Number(cfg.savingAmount)||0);
-    if(direct>0)return Math.min(income,direct);
+    if(cfg.savingMode==='amount'||direct>0)return Math.min(income,direct);
     return Math.min(income,Math.round(income*Math.max(0,Number(cfg.savingPct)||0)/100));
   }
   function allocations(){
@@ -75,13 +75,13 @@
     const mk=monthKey(),v25=(()=>{try{return JSON.parse(localStorage.getItem('agis_finance_v25_planning')||'{}')}catch{return {}}})();
     v25.budgets=v25.budgets||{};v25.budgets[mk]=baseBudgetsFromBuckets(a.buckets);localStorage.setItem('agis_finance_v25_planning',JSON.stringify(v25));
     const hardFactor=1+Math.max(0,Number(a.cfg.hardBufferPct)||0)/100,hard={};Object.entries(v25.budgets[mk]).forEach(([k,v])=>hard[k]=Math.round(Number(v||0)*hardFactor));
-    if(typeof store==='object'&&store){store.limits={...(store.limits||{}),...hard};try{persistLocalSnapshot?.()}catch{};Object.entries(hard).forEach(([category,amount])=>{try{const now=Date.now();enqueueSync?.({opId:`v283-limit:${category}:${mk}:${amount}`,type:'setLimit',category,amount,createdAt:now,updatedAt:now})}catch{}})}
+    if(typeof store==='object'&&store){Object.keys(store.limits||{}).filter(k=>!['updatedAt','createdAt','version','deviceId'].includes(k)&&!(k in hard)).forEach(k=>hard[k]=0);store.limits={...hard};try{persistLocalSnapshot?.()}catch{};Object.entries(hard).forEach(([category,amount])=>{try{const now=Date.now();enqueueSync?.({opId:`v283-limit:${category}:${mk}:${amount}`,type:'setLimit',category,amount,createdAt:now,updatedAt:now})}catch{}})}
     localStorage.setItem('agis_finance_auto_budget_applied_v28',JSON.stringify({month:mk,income:a.income,signature:signature(a),at:Date.now()}));
     try{flushOutbox?.();window.renderV25?.();window.renderAll?.();window.scheduleAutomationSyncV245?.()}catch{}
     if(!silent&&window.Swal)Swal.fire({icon:'success',title:a.cfg.mode==='auto'?'Budget otomatis diterapkan':'Budget manual diterapkan',text:`Pendapatan ${money(a.income)} · tabungan ${money(a.save)} · tersedia ${money(a.spendable)}.`,confirmButtonText:'Selesai'});
     return true;
   }
-  function signature(a){return `${monthKey()}:${a.cfg.mode}:${a.income}:${a.save}:${JSON.stringify(a.cfg.mode==='auto'?a.cfg.weights:a.cfg.manualBuckets)}`}
+  function signature(a){return `${monthKey()}:${a.cfg.mode}:${a.income}:${a.save}:${a.cfg.savingMode||'legacy'}:${Number(a.cfg.hardBufferPct)||0}:${JSON.stringify(a.cfg.mode==='auto'?a.cfg.weights:a.cfg.manualBuckets)}`}
   let autoApplyTimer;
   function maybeAutoApply(){const a=allocations();if(a.cfg.mode!=='auto'||a.income<=0)return;let last={};try{last=JSON.parse(localStorage.getItem('agis_finance_auto_budget_applied_v28')||'{}')}catch{};if(last.signature!==signature(a)){clearTimeout(autoApplyTimer);autoApplyTimer=setTimeout(()=>applyBudget(true),80)}}
 
@@ -123,7 +123,7 @@
     },preConfirm:()=>{
       const root=document.querySelector('.v283-config'),mode=root?.dataset.mode||c.mode,parse=id=>Number(String(document.getElementById(id)?.value||'').replace(/\D/g,''))||0,weights={},manualBuckets={};
       document.querySelectorAll('.v283-weight').forEach(i=>weights[i.dataset.bucket]=Math.max(0,Number(i.value)||0));document.querySelectorAll('.v283-manual-value').forEach(i=>manualBuckets[i.dataset.bucket]=Math.max(0,Number(String(i.value||'').replace(/\D/g,''))||0));
-      return {...c,mode,enabled:mode==='auto',manualIncome:parse(mode==='auto'?'v283-income':'v283-manual-income'),savingAmount:parse(mode==='auto'?'v283-saving':'v283-manual-saving'),weights,manualBuckets,useBonus:!!document.getElementById('v283-bonus')?.checked};
+      return {...c,mode,savingMode:'amount',enabled:mode==='auto',manualIncome:parse(mode==='auto'?'v283-income':'v283-manual-income'),savingAmount:parse(mode==='auto'?'v283-saving':'v283-manual-saving'),weights,manualBuckets,useBonus:!!document.getElementById('v283-bonus')?.checked};
     }});
     if(!r.isConfirmed)return;write(r.value);applyBudget(false);render();
   };
