@@ -1,22 +1,22 @@
 {
   "id": "./",
-  "name": "Agis Finance AI",
-  "short_name": "AgisFinance",
+  "name": "AutoBudgetin",
+  "short_name": "AutoBudgetin",
   "description": "Personal finance manager offline-first dengan budgeting, analisis bisnis, simulasi kredit, cashflow, goals, backup versioning, dan Firestore sync.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2dd4bf",
+  "background_color": "#0c1423",
+  "theme_color": "#0c1423",
   "icons": [
     {
-      "src": "./icon-192.png",
+      "src": "./brand-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icon-512.png",
+      "src": "./brand-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

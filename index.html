@@ -2,10 +2,14 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>AutoBudgetin — v28.8.0</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <title>AutoBudgetin — v28.9.0</title>
+    
+    <meta name="theme-color" content="#0c1423">
+    <link rel="icon" href="./brand-mark.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./brand-icon-192.png">
     
     <!-- v20: seluruh dependency UI/Firebase dilayani lokal agar app shell bisa dibuka tanpa internet -->
     <script src="./finance-core.js?v=28.7.0"></script>
@@ -14,7 +18,8 @@
     <script src="./lucide.min.js"></script>
     <script src="./xlsx.full.min.js"></script>
     <script src="./firebase-app.js"></script>
-    <script src="./firebase-firestore.js"></script>
+<script src="./firebase-firestore.js"></script>
+    
     
     <style>
         :root {
@@ -272,7 +277,8 @@
     <link rel="stylesheet" href="./v28-5-monthly-archive.css?v=28.5.0">
     <link rel="stylesheet" href="./v28-6-refinement.css?v=28.7.0">
 <link rel="stylesheet" href="./v28-7-professional.css?v=28.7.0">
-    <link rel="stylesheet" href="./v28-8-ui.css?v=28.8.0">
+    <link rel="stylesheet" href="./v28-8-ui.css?v=28.8.2">
+<link rel="stylesheet" href="./v28-9-tools.css?v=28.9.0">
 </head>
 <body>
 
@@ -288,22 +294,22 @@
 </div>
 
 <div id="splash-screen">
-    <div class="spinner"></div>
-    <h3 style="letter-spacing: 3px; font-weight: 800;">AGIS FINANCE</h3>
-    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 28.8.0</p>
+    <img class="splash-brand" src="./brand-mark.svg" width="64" height="64" alt="AutoBudgetin">
+    <h3 style="letter-spacing:-.5px;font-weight:650">AutoBudgetin</h3>
+    <p style="color:var(--text-dim); font-size:0.8rem; margin-top: 10px;">VERSION 28.9.0</p>
 </div>
 
 <div class="container">
     <div id="home" class="page active">
         <div class="header">
-            <div class="app-wordmark">AutoBudgetin<span>PERSONAL FINANCE</span></div>
+            <div class="app-wordmark"><img class="brand-mark" src="./brand-mark.svg" width="34" height="34" alt=""><span class="brand-copy">AutoBudgetin<small>PERSONAL FINANCE</small></span></div>
             <div style="display:flex; gap:10px; align-items:center">
                 <span id="statusBadge" class="status-badge status-online" onclick="flushOutbox()" title="Ketuk untuk coba sinkronisasi" style="cursor:pointer">Online</span>
                 <button onclick="togglePrivacy()" class="btn-icon" id="privacyBtn" aria-label="Sembunyikan nominal"><i data-lucide="eye"></i></button>
             </div>
             <div style="display:flex;gap:8px">
                 <button onclick="lockApp()" class="btn-icon" id="pinLockBtn" style="display:none" title="Kunci aplikasi"><i data-lucide="lock-keyhole"></i></button>
-                <button aria-label="Buka kalkulator" class="btn-icon ui-calculator" onclick="toggleCalc()"><i data-lucide="calculator"></i></button><button onclick="toggleTheme()" class="btn-icon" aria-label="Ganti tema"><i data-lucide="sun-moon"></i></button>
+                <button onclick="toggleTheme()" class="btn-icon" aria-label="Ganti tema"><i data-lucide="sun-moon"></i></button>
             </div>
         </div>
 
@@ -424,14 +430,14 @@
 
     <div id="history" class="page">
         <div class="card">
-            <div class="ui-history-heading"><div><span class="ui-eyebrow">TRANSAKSI</span><h2>Riwayat keuangan</h2><p>Semua aktivitas uang dalam satu tempat.</p></div><div class="ui-heading-actions"><button aria-label="Buka kalkulator" class="btn-icon ui-calculator" onclick="toggleCalc()"><i data-lucide="calculator"></i></button><button class="ui-export" onclick="exportToExcel()"><i data-lucide="download"></i><span>Ekspor</span></button></div></div>
+            <div class="ui-history-heading"><div><span class="ui-eyebrow">TRANSAKSI</span><h2>Riwayat keuangan</h2><p>Semua aktivitas uang dalam satu tempat.</p></div><div class="ui-heading-actions"><button class="ui-export" onclick="exportToExcel()"><i data-lucide="download"></i><span>Ekspor</span></button></div></div>
             <div class="filter-panel">
                 <input type="search" id="filterSearch" placeholder="Cari transaksi…" aria-label="Cari catatan, kategori, atau wallet" oninput="renderAll()">
                 <div class="ui-filter-basic">
                     <label><span>Periode</span><input type="month" id="filterMonth" onchange="renderAll()"></label>
                     <label><span>Jenis transaksi</span><select id="filterType" onchange="renderAll()"><option value="all">Semua jenis</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option></select></label>
                 </div>
-                <details class="ui-filter-advanced"><summary><span><i data-lucide="sliders-horizontal"></i> Filter lanjutan</span><i data-lucide="chevron-down"></i></summary><div class="filter-grid">
+                <details class="ui-filter-advanced"><summary><span><i data-lucide="settings-2"></i> Filter lanjutan</span><i data-lucide="chevron-down"></i></summary><div class="filter-grid">
                     <label><span>Wallet</span><select id="filterWallet" onchange="renderAll()"><option value="all">Semua wallet</option><option value="Tunai">Tunai</option><option value="Bank">Bank</option><option value="E-Wallet">E-Wallet</option></select></label>
                     <label><span>Kategori</span><select id="filterCategory" onchange="renderAll()"><option value="all">Semua kategori</option></select></label>
                     <label><span>Dari tanggal</span><input type="date" id="filterFrom" onchange="renderAll()" aria-label="Tanggal mulai"></label>
@@ -461,16 +467,16 @@
                 <input type="date" id="t-date">
                 <div id="t-standard-fields">
                     <select id="t-wallet">
-                        <option value="Tunai">💰 Tunai</option><option value="Bank">🏦 Bank</option><option value="E-Wallet">📱 E-Wallet</option>
+                        <option value="Tunai">Tunai</option><option value="Bank">Bank</option><option value="E-Wallet">E-Wallet</option>
                     </select>
                     <select id="t-cat"></select>
                 </div>
                 <div id="t-transfer-fields" class="form-hidden">
                     <select id="t-from">
-                        <option value="Tunai">Dari: 💰 Tunai</option><option value="Bank">Dari: 🏦 Bank</option><option value="E-Wallet">Dari: 📱 E-Wallet</option>
+                        <option value="Tunai">Dari: Tunai</option><option value="Bank">Dari: Bank</option><option value="E-Wallet">Dari: E-Wallet</option>
                     </select>
                     <select id="t-to">
-                        <option value="Bank">Ke: 🏦 Bank</option><option value="E-Wallet">Ke: 📱 E-Wallet</option><option value="Tunai">Ke: 💰 Tunai</option>
+                        <option value="Bank">Ke: Bank</option><option value="E-Wallet">Ke: E-Wallet</option><option value="Tunai">Ke: Tunai</option>
                     </select>
                 </div>
                 <input type="text" id="t-amount-display" placeholder="Nominal" inputmode="numeric" oninput="formatInput(this)">
@@ -484,7 +490,7 @@
                     </select>
                     <label class="v282-auto-usage-toggle" for="t-auto-usage">
                         <input type="checkbox" id="t-auto-usage">
-                        <span><b>⏳ Hitung durasi otomatis</b><small>Dihitung sampai pembelian berikutnya dengan keterangan yang sama.</small></span>
+                        <span><b>Hitung durasi otomatis</b><small>Dihitung sampai pembelian berikutnya dengan keterangan yang sama.</small></span>
                     </label>
                 </div>
             </form>
@@ -614,38 +620,32 @@
 </div>
 
 
-<div id="calc-container">
-    <div class="calc-header" id="calcHeader"><div class="drag-handle"></div></div>
-    <div class="calc-display" id="calcDisplay">0</div>
-    <div class="calc-grid">
-        <button class="calc-btn op" onclick="calcClear()">C</button>
-        <button class="calc-btn op" onclick="calcPush('/')">/</button>
-        <button class="calc-btn op" onclick="calcPush('*')">×</button>
-        <button class="calc-btn op" onclick="calcPop()"><i data-lucide="delete" style="width:18px"></i></button>
-        <button class="calc-btn" onclick="calcPush('7')">7</button>
-        <button class="calc-btn" onclick="calcPush('8')">8</button>
-        <button class="calc-btn" onclick="calcPush('9')">9</button>
-        <button class="calc-btn op" onclick="calcPush('-')">-</button>
-        <button class="calc-btn" onclick="calcPush('4')">4</button>
-        <button class="calc-btn" onclick="calcPush('5')">5</button>
-        <button class="calc-btn" onclick="calcPush('6')">6</button>
-        <button class="calc-btn op" onclick="calcPush('+')">+</button>
-        <button class="calc-btn" onclick="calcPush('1')">1</button>
-        <button class="calc-btn" onclick="calcPush('2')">2</button>
-        <button class="calc-btn" onclick="calcPush('3')">3</button>
-        <button class="calc-btn" style="background:var(--primary); color:#000; grid-row: span 2;" onclick="calcEqual()">=</button>
-        <button class="calc-btn" style="grid-column: span 2;" onclick="calcPush('0')">0</button>
-        <button class="calc-btn" onclick="calcPush('.')">.</button>
+<button id="calcLauncher" class="calc-toggle" type="button" aria-label="Buka kalkulator" aria-controls="calc-container" aria-expanded="false" title="Kalkulator · geser untuk memindahkan"><i data-lucide="calculator" aria-hidden="true"></i></button>
+<section id="calc-container" role="dialog" aria-modal="false" aria-label="Kalkulator" hidden>
+    <div class="calc-header" id="calcHeader" tabindex="0" aria-label="Geser kalkulator; tombol panah untuk memindahkan">
+        <span class="calc-heading"><i data-lucide="grip-vertical" aria-hidden="true"></i> Kalkulator</span>
+        <button id="calcClose" type="button" aria-label="Tutup kalkulator"><i data-lucide="x" aria-hidden="true"></i></button>
     </div>
-    <div class="resizer" id="calcResizer"></div>
-</div>
+    <div class="calc-readout"><div id="calcExpression">Kalkulator</div><output id="calcDisplay" aria-live="polite">0</output></div>
+    <div class="calc-grid">
+        <button class="calc-btn op" onclick="calcClear()" aria-label="Bersihkan kalkulator">AC</button>
+        <button class="calc-btn op" onclick="calcPop()" aria-label="Hapus digit terakhir"><i data-lucide="delete" aria-hidden="true"></i></button>
+        <button class="calc-btn op" onclick="calcPush('/')" aria-label="Bagi">÷</button>
+        <button class="calc-btn op" onclick="calcPush('*')" aria-label="Kali">×</button>
+        <button class="calc-btn" onclick="calcPush('7')">7</button><button class="calc-btn" onclick="calcPush('8')">8</button><button class="calc-btn" onclick="calcPush('9')">9</button><button class="calc-btn op" onclick="calcPush('-')" aria-label="Kurang">−</button>
+        <button class="calc-btn" onclick="calcPush('4')">4</button><button class="calc-btn" onclick="calcPush('5')">5</button><button class="calc-btn" onclick="calcPush('6')">6</button><button class="calc-btn op" onclick="calcPush('+')" aria-label="Tambah">+</button>
+        <button class="calc-btn" onclick="calcPush('1')">1</button><button class="calc-btn" onclick="calcPush('2')">2</button><button class="calc-btn" onclick="calcPush('3')">3</button><button class="calc-btn calc-equals" onclick="calcEqual()" aria-label="Hitung hasil">=</button>
+        <button class="calc-btn calc-zero" onclick="calcPush('0')">0</button><button class="calc-btn" onclick="calcPush('.')" aria-label="Desimal">,</button>
+    </div>
+    <button type="button" id="calcUse" disabled>Gunakan nominal</button><p id="calcNote">Hasil tidak mengubah transaksi sampai dipilih.</p>
+</section>
 
 <nav class="nav-bar v2531-nav" aria-label="Navigasi utama">
-    <div class="nav-item active" role="button" tabindex="0" aria-label="Home" title="Home" onclick="nav('home', this)"><i data-lucide="layout-grid"></i></div>
+    <div class="nav-item active" role="button" tabindex="0" aria-label="Home" title="Home" onclick="nav('home', this)"><i data-lucide="house"></i></div>
     <div class="nav-item" role="button" tabindex="0" aria-label="Riwayat" title="Riwayat" onclick="nav('history', this)"><i data-lucide="receipt-text"></i></div>
     <div class="nav-item nav-add" role="button" tabindex="0" aria-label="Catat transaksi" title="Catat transaksi" onclick="nav('add', this)"><span class="nav-add-button"><i data-lucide="plus"></i></span></div>
     <div class="nav-item" role="button" tabindex="0" aria-label="Planning" title="Planning" onclick="nav('planning', this)"><i data-lucide="calendar-range"></i></div>
-    <div class="nav-item" role="button" tabindex="0" aria-label="Pengaturan" title="Pengaturan" onclick="nav('settings', this)"><i data-lucide="sliders-horizontal"></i></div>
+    <div class="nav-item" role="button" tabindex="0" aria-label="Pengaturan" title="Pengaturan" onclick="nav('settings', this)"><i data-lucide="settings-2"></i></div>
 </nav>
 
 <script>
@@ -2191,14 +2191,14 @@
 
         document.getElementById('advisorContent').innerHTML = `
             <div class="insight-status ${insight.statusClass}"><i data-lucide="${insight.statusIcon}"></i> ${insight.status}</div>
-            <div class="insight-row">💸 Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
-            <div class="insight-row">💾 Budget tersimpan: <b style="color:var(--success)">${fmt(carry.balance)}</b> · potensi hari ini +${fmt(carry.potential)}</div>
-            <div class="insight-row">🔥 No-spend streak: <b>${streak} hari</b></div>
-            <div class="insight-row">💰 Cashflow bulan ini: <b style="color:${netCashflow >= 0 ? 'var(--success)' : 'var(--danger)'}">${cashflowText}</b></div>
-            <div class="insight-row">📈 Rata-rata pengeluaran 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
-            <div class="insight-row">🔮 Prediksi akhir bulan: <b>${predictionText}</b></div>
-            <div class="insight-row">📊 ${insight.comparison}</div>
-            <div class="insight-row">🏷️ Terbesar bulan ini: ${insight.topText}</div>
+            <div class="insight-row"><i data-lucide="wallet" aria-hidden="true"></i> Batas aman dari saldo sekarang: <b style="color:var(--primary)">${fmt(Math.floor(insight.safeDaily))}/hari</b></div>
+            <div class="insight-row"><i data-lucide="archive" aria-hidden="true"></i> Budget tersimpan: <b style="color:var(--success)">${fmt(carry.balance)}</b> · potensi hari ini +${fmt(carry.potential)}</div>
+            <div class="insight-row"><i data-lucide="flame" aria-hidden="true"></i> No-spend streak: <b>${streak} hari</b></div>
+            <div class="insight-row"><i data-lucide="arrow-left-right" aria-hidden="true"></i> Cashflow bulan ini: <b style="color:${netCashflow >= 0 ? 'var(--success)' : 'var(--danger)'}">${cashflowText}</b></div>
+            <div class="insight-row"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i> Rata-rata pengeluaran 7 hari: <b>${fmt(Math.round(insight.avg7))}/hari</b></div>
+            <div class="insight-row"><i data-lucide="chart-line" aria-hidden="true"></i> Prediksi akhir bulan: <b>${predictionText}</b></div>
+            <div class="insight-row"><i data-lucide="chart-column" aria-hidden="true"></i> ${insight.comparison}</div>
+            <div class="insight-row"><i data-lucide="tag" aria-hidden="true"></i> Terbesar bulan ini: ${insight.topText}</div>
             ${goalInsight}
             ${alerts.length ? `<div class="insight-divider">${alerts.join('')}</div>` : ''}
         `;
@@ -2230,104 +2230,6 @@
             options: { maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: {size: 10} } } } }
         });
     }
-
-    // --- CALCULATOR PRO LOGIC (tanpa eval) ---
-    let calcExpr = "";
-    window.toggleCalc = () => {
-        const c = document.getElementById('calc-container');
-        c.style.display = c.style.display === 'block' ? 'none' : 'block';
-    };
-    window.calcPush = (v) => { calcExpr += v; document.getElementById('calcDisplay').innerText = calcExpr; };
-    window.calcClear = () => { calcExpr = ""; document.getElementById('calcDisplay').innerText = "0"; };
-    window.calcPop = () => { calcExpr = calcExpr.slice(0,-1); document.getElementById('calcDisplay').innerText = calcExpr || "0"; };
-
-    function calculateExpression(expression) {
-        const tokens = expression.match(/\d*\.?\d+|[+\-*/]/g);
-        if (!tokens || tokens.join('') !== expression) throw new Error('Invalid expression');
-        const values = [];
-        const ops = [];
-        const prec = { '+':1, '-':1, '*':2, '/':2 };
-        const apply = () => {
-            const b = values.pop(), a = values.pop(), op = ops.pop();
-            if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error('Invalid operands');
-            if (op === '+') values.push(a + b);
-            else if (op === '-') values.push(a - b);
-            else if (op === '*') values.push(a * b);
-            else if (op === '/') {
-                if (b === 0) throw new Error('Division by zero');
-                values.push(a / b);
-            }
-        };
-        let expectNumber = true;
-        for (const token of tokens) {
-            if (/^\d/.test(token) || token.startsWith('.')) {
-                if (!expectNumber) throw new Error('Missing operator');
-                values.push(Number(token));
-                expectNumber = false;
-            } else {
-                if (expectNumber) throw new Error('Missing number');
-                while (ops.length && prec[ops[ops.length - 1]] >= prec[token]) apply();
-                ops.push(token);
-                expectNumber = true;
-            }
-        }
-        if (expectNumber) throw new Error('Trailing operator');
-        while (ops.length) apply();
-        if (values.length !== 1 || !Number.isFinite(values[0])) throw new Error('Invalid result');
-        return values[0];
-    }
-
-    window.calcEqual = () => {
-        try {
-            const res = calculateExpression(calcExpr);
-            document.getElementById('calcDisplay').innerText = res;
-            calcExpr = res.toString();
-            const inpDisplay = document.getElementById('t-amount-display');
-            const hiddenInp = document.getElementById('t-amount');
-            if(inpDisplay && hiddenInp) {
-                inpDisplay.value = new Intl.NumberFormat('id-ID').format(Math.round(res));
-                hiddenInp.value = Math.round(res);
-            }
-        } catch { document.getElementById('calcDisplay').innerText = "Err"; }
-    };
-
-    // --- DRAG & RESIZE LOGIC ---
-    const calc = document.getElementById('calc-container');
-    const header = document.getElementById('calcHeader');
-    const resizer = document.getElementById('calcResizer');
-
-    let isDragging = false, isResizing = false;
-    let startX, startY, startW, startH;
-
-    const onMove = (e) => {
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        if (isDragging) {
-            calc.style.left = (clientX - startX) + 'px';
-            calc.style.top = (clientY - startY) + 'px';
-            calc.style.right = 'auto'; calc.style.bottom = 'auto';
-        }
-        if (isResizing) {
-            calc.style.width = Math.max(200, startW + (clientX - startX)) + 'px';
-            calc.style.height = Math.max(350, startH + (clientY - startY)) + 'px';
-        }
-    };
-    const onEnd = () => { isDragging = isResizing = false; };
-
-    header.onmousedown = header.ontouchstart = (e) => {
-        isDragging = true;
-        startX = (e.touches ? e.touches[0].clientX : e.clientX) - calc.offsetLeft;
-        startY = (e.touches ? e.touches[0].clientY : e.clientY) - calc.offsetTop;
-    };
-    resizer.onmousedown = resizer.ontouchstart = (e) => {
-        isResizing = true;
-        startX = e.touches ? e.touches[0].clientX : e.clientX;
-        startY = e.touches ? e.touches[0].clientY : e.clientY;
-        startW = calc.offsetWidth; startH = calc.offsetHeight;
-        e.stopPropagation(); e.preventDefault();
-    };
-    document.onmousemove = document.ontouchmove = onMove;
-    document.onmouseup = document.ontouchend = onEnd;
 
     window.exportToExcel = () => {
         const rows = allTransactions().filter(historyMatchesFilters).map(t => ({
@@ -2499,7 +2401,8 @@
         valueIds.forEach(id=>{ const el=document.getElementById(id); if(!el||el.dataset.v243obs)return; el.dataset.v243obs='1'; let last=el.textContent; new MutationObserver(()=>{ const now=el.textContent; if(now===last)return; last=now; el.classList.remove('v243-value-pulse'); void el.offsetWidth; el.classList.add('v243-value-pulse'); }).observe(el,{childList:true,subtree:true,characterData:true}); });
     }
 </script>
-<script src="./v24-4-features.js?rev=28.7.0"></script>
+<script src="./calculator.js?v=28.9.0"></script>
+<script src="./v24-4-features.js?rev=28.9.0"></script>
 <script src="./v24-5-automation.js"></script>
 <script src="./v25-features.js?rev=28.7.0"></script>
 <script src="./v25-1-mobile.js"></script>
